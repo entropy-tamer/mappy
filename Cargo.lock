@@ -527,7 +527,7 @@ name = "mappy-client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "mappy-core",
+ "mappy-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "thiserror",
@@ -564,10 +564,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "mappy-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abc05e9838b017a7f18068fa69f5e0d2c31ef11a71cea22ed8459298cef456f2"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "bitvec",
+ "bytemuck",
+ "dashmap",
+ "num-traits",
+ "parking_lot 0.12.5",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sled",
+ "smallvec",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "twox-hash",
+]
+
+[[package]]
 name = "mappy-python"
 version = "0.1.0"
 dependencies = [
- "mappy-core",
+ "mappy-core 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pyo3",
  "serde",
  "serde_json",

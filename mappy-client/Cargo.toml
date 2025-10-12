@@ -6,10 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Client library for mappy maplet data structures"
+readme = "README.md"
 
 [dependencies]
 # Workspace dependencies
-mappy-core = "0.1.0"
+mappy-core = "0.1.1"
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

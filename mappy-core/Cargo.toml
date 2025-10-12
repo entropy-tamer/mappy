@@ -6,6 +6,7 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Core maplet data structure implementation"
+readme = "README.md"
 
 [dependencies]
 # Workspace dependencies
