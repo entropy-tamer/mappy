@@ -594,7 +594,7 @@ dependencies = [
 name = "mappy-python"
 version = "0.1.1"
 dependencies = [
- "mappy-core 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mappy-core 0.1.1",
  "pyo3",
  "serde",
  "serde_json",

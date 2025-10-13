@@ -75,6 +75,17 @@ impl<T: Clone + Hash + Eq> MergeOperator<HashSet<T>> for SetOperator {
     }
 }
 
+impl MergeOperator<i64> for SetOperator {
+    fn merge(&self, _left: i64, right: i64) -> MapletResult<i64> {
+        // For i64, we'll use "last value wins" semantics
+        Ok(right)
+    }
+    
+    fn identity(&self) -> i64 {
+        0
+    }
+}
+
 /// Max operator for tracking maximum values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MaxOperator;
@@ -96,6 +107,16 @@ impl MergeOperator<f64> for MaxOperator {
     
     fn identity(&self) -> f64 {
         f64::NEG_INFINITY
+    }
+}
+
+impl MergeOperator<i64> for MaxOperator {
+    fn merge(&self, left: i64, right: i64) -> MapletResult<i64> {
+        Ok(left.max(right))
+    }
+    
+    fn identity(&self) -> i64 {
+        i64::MIN
     }
 }
 
@@ -123,8 +144,17 @@ impl MergeOperator<f64> for MinOperator {
     }
 }
 
+impl MergeOperator<i64> for MinOperator {
+    fn merge(&self, left: i64, right: i64) -> MapletResult<i64> {
+        Ok(left.min(right))
+    }
+    
+    fn identity(&self) -> i64 {
+        i64::MAX
+    }
+}
+
 /// Custom operator that allows user-defined merge logic
-#[derive(Clone)]
 pub struct CustomOperator<F> {
     merge_fn: F,
 }
@@ -135,6 +165,32 @@ impl<F> CustomOperator<F> {
         Self {
             merge_fn,
         }
+    }
+}
+
+impl<F> Clone for CustomOperator<F>
+where
+    F: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            merge_fn: self.merge_fn.clone(),
+        }
+    }
+}
+
+// CustomOperator doesn't implement Default since function pointers don't have a default
+
+impl<F> MergeOperator<i64> for CustomOperator<F>
+where
+    F: Fn(i64, i64) -> i64 + Clone + Send + Sync,
+{
+    fn merge(&self, left: i64, right: i64) -> MapletResult<i64> {
+        Ok((self.merge_fn)(left, right))
+    }
+    
+    fn identity(&self) -> i64 {
+        0
     }
 }
 
@@ -153,7 +209,7 @@ impl MergeOperator<String> for StringConcatOperator {
 }
 
 /// Vector concatenation operator
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct VectorConcatOperator;
 
 impl<T: Clone> MergeOperator<Vec<T>> for VectorConcatOperator {
@@ -164,6 +220,20 @@ impl<T: Clone> MergeOperator<Vec<T>> for VectorConcatOperator {
     
     fn identity(&self) -> Vec<T> {
         Vec::new()
+    }
+}
+
+/// Vector operator for numeric values (element-wise addition)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VectorOperator;
+
+impl MergeOperator<i64> for VectorOperator {
+    fn merge(&self, left: i64, right: i64) -> MapletResult<i64> {
+        Ok(left + right)
+    }
+    
+    fn identity(&self) -> i64 {
+        0
     }
 }
 
