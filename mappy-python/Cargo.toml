@@ -1,0 +1,22 @@
+[package]
+name = "mappy-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Python bindings for mappy maplet data structures"
+
+[lib]
+name = "mappy_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Workspace dependencies
+mappy-core = { path = "../mappy-core" }
+pyo3.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# Async runtime for Python bindings
+tokio = { version = "1.47", features = ["rt"] }
