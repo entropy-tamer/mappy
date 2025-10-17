@@ -60,40 +60,40 @@ graph TB
         APP3[LSM Storage Engine]
         APP4[Genomic Search]
     end
-    
+
     subgraph "Client Libraries"
         CLIENT[Rust Client]
         PYTHON[Python Bindings]
         CLI[Command Line Interface]
     end
-    
+
     subgraph "Mappy Core"
         subgraph "Maplet Engine"
             MAPLET[Maplet&lt;K,V,Op&gt;]
             CONFIG[MapletConfig]
             STATS[MapletStats]
         end
-        
+
         subgraph "Storage Layer"
             MEMORY[Memory Storage]
             AOF[AOF Storage]
             DISK[Disk Storage]
             HYBRID[Hybrid Storage]
         end
-        
+
         subgraph "Filter Engine"
             QF[Quotient Filter]
             SLOTS[Slot Metadata]
             MULTISET[Multiset Support]
         end
-        
+
         subgraph "Hash System"
             AHASH[AHash]
             TWOX[TwoX Hash]
             FNV[FNV Hash]
             PERFECT[Perfect Hash]
         end
-        
+
         subgraph "Merge Operators"
             COUNTER[CounterOperator]
             SET[SetOperator]
@@ -101,38 +101,38 @@ graph TB
             MIN[MinOperator]
             CUSTOM[CustomOperator]
         end
-        
+
         subgraph "Concurrency"
             RWLOCK[Read-Write Locks]
             ATOMIC[Atomic Operations]
             RAYON[Parallel Processing]
         end
-        
+
         subgraph "Error Handling"
             COLLISION[Collision Detection]
             VALIDATION[Error Rate Control]
             STRONG[Strong Maplet Validator]
         end
     end
-    
+
     subgraph "System Layer"
         OS[Operating System]
         CPU[CPU Cache]
         MEM[Memory]
         DISK_IO[Disk I/O]
     end
-    
+
     %% Application connections
     APP1 --> CLIENT
     APP2 --> CLIENT
     APP3 --> CLIENT
     APP4 --> PYTHON
-    
+
     %% Client to core
     CLIENT --> MAPLET
     PYTHON --> MAPLET
     CLI --> MAPLET
-    
+
     %% Core internal connections
     MAPLET --> CONFIG
     MAPLET --> QF
@@ -140,39 +140,39 @@ graph TB
     MAPLET --> COUNTER
     MAPLET --> RWLOCK
     MAPLET --> COLLISION
-    
+
     QF --> SLOTS
     QF --> MULTISET
     QF --> AHASH
     QF --> PERFECT
-    
+
     MEMORY --> AOF
     AOF --> DISK
     DISK --> HYBRID
-    
+
     COUNTER --> SET
     SET --> MAX
     MAX --> MIN
     MIN --> CUSTOM
-    
+
     RWLOCK --> ATOMIC
     ATOMIC --> RAYON
-    
+
     COLLISION --> VALIDATION
     VALIDATION --> STRONG
-    
+
     %% System connections
     MAPLET --> CPU
     MEMORY --> MEM
     DISK --> DISK_IO
     CPU --> OS
-    
+
     %% Styling
     classDef appClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000000
     classDef clientClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000000
     classDef coreClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,color:#000000
     classDef systemClass fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000000
-    
+
     class APP1,APP2,APP3,APP4 appClass
     class CLIENT,PYTHON,CLI clientClass
     class MAPLET,QF,MEMORY,COUNTER,RWLOCK,COLLISION coreClass
@@ -189,14 +189,14 @@ sequenceDiagram
     participant HashSystem
     participant Storage
     participant MergeOp
-    
+
     Note over Client,Storage: Insert Operation
     Client->>Maplet: insert(key, value)
     Maplet->>HashSystem: hash_key(key)
     HashSystem-->>Maplet: fingerprint
     Maplet->>QuotientFilter: find_slot(fingerprint)
     QuotientFilter-->>Maplet: slot_index
-    
+
     alt Slot is empty
         Maplet->>Storage: store_value(slot, value)
         Maplet->>QuotientFilter: insert(fingerprint)
@@ -207,15 +207,15 @@ sequenceDiagram
         MergeOp-->>Maplet: merged_value
         Maplet->>Storage: store_value(slot, merged_value)
     end
-    
+
     Maplet-->>Client: Ok(())
-    
+
     Note over Client,Storage: Query Operation
     Client->>Maplet: query(key)
     Maplet->>HashSystem: hash_key(key)
     HashSystem-->>Maplet: fingerprint
     Maplet->>QuotientFilter: query(fingerprint)
-    
+
     alt Fingerprint exists
         QuotientFilter-->>Maplet: slot_index
         Maplet->>Storage: get_value(slot)
@@ -225,7 +225,7 @@ sequenceDiagram
         QuotientFilter-->>Maplet: false
         Maplet-->>Client: None
     end
-    
+
     Note over Client,Storage: Delete Operation
     Client->>Maplet: delete(key, value)
     Maplet->>HashSystem: hash_key(key)
@@ -245,46 +245,46 @@ graph LR
             QF_HEADER["Filter Header<br/>capacity, bits, etc."]
             QF_SLOTS["Slot Array<br/>SlotMetadata[]"]
         end
-        
+
         subgraph "Value Storage"
             VALUE_ARRAY["Value Array<br/>Option&lt;V&gt;[]"]
         end
-        
+
         subgraph "Metadata"
             COLLISION_DATA["Collision Tracker"]
             STATS_DATA["Statistics"]
             CONFIG_DATA["Configuration"]
         end
     end
-    
+
     subgraph "Slot Metadata Structure"
         SLOT_REMAINDER["Remainder: u64<br/>Fingerprint data"]
         SLOT_RUNEND["Run-end: bool<br/>End of run marker"]
         SLOT_OCCUPIED["Occupied: bool<br/>Slot in use"]
         SLOT_SHIFTED["Shifted: bool<br/>Linear probe marker"]
     end
-    
+
     subgraph "Cache Optimization"
         CACHE_LINE1["Cache Line 1<br/>Slots 0-7"]
         CACHE_LINE2["Cache Line 2<br/>Slots 8-15"]
         CACHE_LINE3["Cache Line 3<br/>Slots 16-23"]
     end
-    
+
     QF_SLOTS --> SLOT_REMAINDER
     QF_SLOTS --> SLOT_RUNEND
     QF_SLOTS --> SLOT_OCCUPIED
     QF_SLOTS --> SLOT_SHIFTED
-    
+
     QF_SLOTS --> CACHE_LINE1
     QF_SLOTS --> CACHE_LINE2
     QF_SLOTS --> CACHE_LINE3
-    
+
     VALUE_ARRAY -.-> QF_SLOTS
-    
+
     classDef slotClass fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000
     classDef cacheClass fill:#f1f8e9,stroke:#388e3c,stroke-width:2px,color:#000000
     classDef metaClass fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000000
-    
+
     class SLOT_REMAINDER,SLOT_RUNEND,SLOT_OCCUPIED,SLOT_SHIFTED slotClass
     class CACHE_LINE1,CACHE_LINE2,CACHE_LINE3 cacheClass
     class COLLISION_DATA,STATS_DATA,CONFIG_DATA metaClass
@@ -415,8 +415,8 @@ The strong maplet property provides additional guarantees about error magnitude.
 
 ### Throughput Benchmarks
 
-| Operation | Maplet | HashMap | Ratio |
-|-----------|--------|---------|-------|
+| Operation | Maplet     | HashMap    | Ratio |
+| --------- | ---------- | ---------- | ----- |
 | Insert    | 2.1M ops/s | 3.2M ops/s | 0.66x |
 | Query     | 3.8M ops/s | 4.1M ops/s | 0.93x |
 | Delete    | 1.9M ops/s | 2.8M ops/s | 0.68x |
@@ -424,10 +424,10 @@ The strong maplet property provides additional guarantees about error magnitude.
 ### Memory Usage
 
 | Dataset Size | Maplet Memory | HashMap Memory | Savings |
-|--------------|---------------|----------------|---------|
-| 100K items   | 2.1 MB       | 3.2 MB        | 34%     |
-| 1M items     | 21.3 MB      | 32.1 MB       | 34%     |
-| 10M items    | 213.7 MB     | 321.4 MB      | 34%     |
+| ------------ | ------------- | -------------- | ------- |
+| 100K items   | 2.1 MB        | 3.2 MB         | 34%     |
+| 1M items     | 21.3 MB       | 32.1 MB        | 34%     |
+| 10M items    | 213.7 MB      | 321.4 MB       | 34%     |
 
 ### Cache Performance
 
@@ -535,7 +535,7 @@ use std::collections::HashSet;
 let mut routing_table = Maplet::<String, HashSet<String>, SetOperator>::new(100_000, 0.01)?;
 
 // Map network prefixes to next-hop routers
-routing_table.insert("192.168.1.0/24".to_string(), 
+routing_table.insert("192.168.1.0/24".to_string(),
     HashSet::from(["router1".to_string(), "router2".to_string()])).await?;
 
 // Find routing options
@@ -577,7 +577,7 @@ use std::collections::HashSet;
 let mut sequence_index = Maplet::<String, HashSet<String>, SetOperator>::new(1_000_000, 0.001)?;
 
 // Map k-mers to experiments containing them
-sequence_index.insert("ATCGATCG".to_string(), 
+sequence_index.insert("ATCGATCG".to_string(),
     HashSet::from(["experiment1".to_string(), "experiment2".to_string()])).await?;
 
 // Find experiments containing a sequence

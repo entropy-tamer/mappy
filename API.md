@@ -343,10 +343,10 @@ use mappy_core::{Engine, EngineConfig, PersistenceMode};
 async fn create_session(engine: &Engine, user_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let session_id = format!("session:{}", uuid::Uuid::new_v4());
     let session_data = format!("user_id:{}", user_id);
-    
+
     engine.set(session_id.clone(), session_data.into_bytes()).await?;
     engine.expire(&session_id, 3600).await?; // 1 hour
-    
+
     Ok(session_id)
 }
 
@@ -378,21 +378,21 @@ async fn set_cached_data(engine: &Engine, key: &str, data: Vec<u8>, ttl_seconds:
 ```rust
 async fn check_rate_limit(engine: &Engine, client_id: &str, max_requests: u32, window_seconds: u64) -> Result<bool, Box<dyn std::error::Error>> {
     let rate_key = format!("rate_limit:{}", client_id);
-    
+
     let current_count = engine.get(&rate_key).await?;
     let count = match current_count {
         Some(data) => String::from_utf8_lossy(&data).parse::<u32>().unwrap_or(0),
         None => 0,
     };
-    
+
     if count >= max_requests {
         return Ok(false); // Rate limited
     }
-    
+
     // Increment counter
     engine.set(rate_key.clone(), (count + 1).to_string().into_bytes()).await?;
     engine.expire(&rate_key, window_seconds).await?;
-    
+
     Ok(true) // Allowed
 }
 ```
@@ -443,6 +443,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to Mappy.
 ## License
 
 Mappy is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-
-

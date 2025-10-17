@@ -42,7 +42,38 @@ Performance analysis of different storage backends:
 cargo bench --bench storage_benchmarks
 ```
 
-### 2. Legacy Benchmarks
+### 2. Redis Comparison Benchmarks
+
+#### `redis_comparison.rs` - Mappy vs Redis
+
+Comprehensive comparison between Mappy and Redis:
+
+**Benchmarks:**
+
+- **Basic Operations**: SET/INSERT, GET/QUERY performance comparison
+- **Counter Operations**: INCR vs Counter operator performance
+- **Delete Operations**: DEL vs DELETE performance
+- **Existence Checks**: EXISTS vs CONTAINS performance
+- **Concurrent Operations**: Multi-threaded performance comparison
+- **Memory Usage**: Memory consumption analysis
+- **Mixed Workloads**: Realistic usage pattern simulation
+
+**Usage:**
+
+```bash
+cargo bench --bench redis_comparison
+```
+
+**Prerequisites:**
+
+- Redis server running on localhost:6379
+- Redis client library (automatically included)
+
+**Documentation:**
+
+- **[Redis Benchmarks Guide](REDIS_BENCHMARKS.md)** - Comprehensive Redis comparison guide
+
+### 3. Legacy Benchmarks
 
 #### `comparison.rs` - Basic Comparison
 
@@ -66,6 +97,27 @@ Make sure you have the required dependencies installed:
 cargo build --release
 ```
 
+**For Redis benchmarks:**
+
+1. **Install and start Redis:**
+
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install redis-server
+   redis-server
+
+   # macOS
+   brew install redis
+   redis-server
+   ```
+
+2. **Verify Redis is running:**
+
+   ```bash
+   redis-cli ping
+   # Should return: PONG
+   ```
+
 ### Running All Benchmarks
 
 ```bash
@@ -80,6 +132,9 @@ cargo bench --bench maplet_vs_std
 
 # Storage backend performance
 cargo bench --bench storage_benchmarks
+
+# Redis comparison benchmarks
+cargo bench --bench redis_comparison
 
 # Legacy benchmarks
 cargo bench --bench comparison
@@ -255,24 +310,24 @@ use tokio::runtime::Runtime;
 fn bench_your_operation(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("your_operation");
-    
+
     for size in [1000, 10000, 100000].iter() {
         group.bench_with_input(BenchmarkId::new("YourTest", size), size, |b, _| {
             b.to_async(&rt).iter(|| async {
                 // Your benchmark code here
                 let config = EngineConfig::default();
                 let engine = Engine::new(config).await.unwrap();
-                
+
                 // Perform operations
                 for i in 0..*size {
                     engine.set(format!("key_{}", i), b"value".to_vec()).await.unwrap();
                 }
-                
+
                 black_box(engine)
             })
         });
     }
-    
+
     group.finish();
 }
 
@@ -414,6 +469,3 @@ When adding new benchmarks:
 ## License
 
 Benchmarks are provided under the same MIT license as the main project.
-
-
-

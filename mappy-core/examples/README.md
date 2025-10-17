@@ -292,12 +292,12 @@ use tokio;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 My Custom Example");
-    
+
     let config = EngineConfig::default();
     let engine = Engine::new(config).await?;
-    
+
     // Your example code here
-    
+
     engine.close().await?;
     println!("✅ Example completed!");
     Ok(())
@@ -357,6 +357,3 @@ When adding new examples:
 ## License
 
 Examples are provided under the same MIT license as the main project.
-
-
-

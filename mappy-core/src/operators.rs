@@ -75,6 +75,21 @@ impl<T: Clone + Hash + Eq> MergeOperator<HashSet<T>> for SetOperator {
     }
 }
 
+/// String operator for string-valued maps (replacement)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StringOperator;
+
+impl MergeOperator<String> for StringOperator {
+    fn merge(&self, _left: String, right: String) -> MapletResult<String> {
+        // For strings, we'll use the right value (replacement semantics)
+        Ok(right)
+    }
+    
+    fn identity(&self) -> String {
+        String::new()
+    }
+}
+
 /// Max operator for tracking maximum values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MaxOperator;

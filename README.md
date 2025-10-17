@@ -22,7 +22,7 @@ Maplets provide the same space benefits as filters while natively supporting key
 The implementation follows a multi-crate workspace structure:
 
 - **mappy-core**: Core maplet data structure implementation
-- **mappy-client**: Client library for Rust applications  
+- **mappy-client**: Client library for Rust applications
 - **mappy-python**: Python bindings via PyO3
 
 ## Quick Start
@@ -81,10 +81,40 @@ let mut sstable_index = Maplet::<String, u64, MaxOperator>::new(10_000_000, 0.00
 
 ## Performance Characteristics
 
-- **Query Throughput**: Within 2x of HashMap for same memory usage
-- **Memory Efficiency**: 20-50% reduction vs HashMap for typical workloads
+### Benchmark Results: Mappy vs Redis
+
+Our comprehensive benchmarks show Mappy significantly outperforms Redis for approximate key-value operations:
+
+| Dataset Size | Operation  | Redis Performance | Mappy Performance | Mappy Advantage  |
+| ------------ | ---------- | ----------------- | ----------------- | ---------------- |
+| 100 items    | SET/INSERT | 13.9-18.0 ms      | 41.9-47.7 µs      | **~300x faster** |
+| 1,000 items  | SET/INSERT | 107-130 ms        | 414-481 µs        | **~250x faster** |
+| 10,000 items | SET/INSERT | 976-1,244 ms      | 4.9-5.7 ms        | **~200x faster** |
+
+### Performance Highlights
+
+- **Query Throughput**: 200-300x faster than Redis for insert operations
+- **Memory Efficiency**: Space-efficient design with configurable false-positive rates
 - **Error Control**: False-positive rate within 1.5x of configured ε
 - **Cache Performance**: Optimized for sequential access patterns
+- **Concurrent Access**: Thread-safe operations with stable performance under load
+
+### Running Benchmarks
+
+```bash
+# Run Redis comparison benchmarks
+cd services/mappy/mappy-core
+cargo bench --bench redis_comparison
+
+# Run all benchmarks
+cd services/mappy
+./benchmark_runner.sh --all
+
+# Run specific benchmark categories
+./benchmark_runner.sh --redis
+```
+
+For detailed benchmark documentation, see [REDIS_BENCHMARKS.md](mappy-core/benches/REDIS_BENCHMARKS.md).
 
 ## Error Guarantees
 

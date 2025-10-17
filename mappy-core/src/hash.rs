@@ -48,7 +48,7 @@ impl FingerprintHasher {
         
         Self {
             hash_fn,
-            random_state: RandomState::new(),
+            random_state: RandomState::with_seed(42), // Use consistent seed
             fingerprint_bits,
             fingerprint_mask,
         }
