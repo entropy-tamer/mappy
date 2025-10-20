@@ -12,7 +12,7 @@ name = "mappy_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Workspace dependencies
+# Workspace dependencies (maturin project)
 mappy-core = { path = "../mappy-core" }
 pyo3.workspace = true
 serde.workspace = true
