@@ -8,16 +8,16 @@ use std::hint::black_box;
 fn bench_insert_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("insert_comparison");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         // Benchmark maplet insertions
         group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
             b.iter(|| {
                 let maplet = Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
                 for i in 0..*size {
-                    let _ = maplet.insert(format!("key_{}", i), i as u64);
+                    let _ = maplet.insert(format!("key_{i}"), i as u64);
                 }
-                black_box(maplet)
-            })
+                black_box(maplet);
+            });
         });
         
         // Benchmark HashMap insertions
@@ -25,10 +25,10 @@ fn bench_insert_comparison(c: &mut Criterion) {
             b.iter(|| {
                 let mut hashmap = HashMap::new();
                 for i in 0..*size {
-                    hashmap.insert(format!("key_{}", i), i as u64);
+                    hashmap.insert(format!("key_{i}"), i as u64);
                 }
-                black_box(hashmap)
-            })
+                black_box(hashmap);
+            });
         });
     }
     
@@ -38,35 +38,35 @@ fn bench_insert_comparison(c: &mut Criterion) {
 fn bench_query_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("query_comparison");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         // Prepare maplet
         let mut maplet = Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap();
         for i in 0..*size {
-            let _ = maplet.insert(format!("key_{}", i), i as u64);
+            let _ = maplet.insert(format!("key_{i}"), i as u64);
         }
         
         // Prepare HashMap
         let mut hashmap = HashMap::new();
         for i in 0..*size {
-            hashmap.insert(format!("key_{}", i), i as u64);
+            hashmap.insert(format!("key_{i}"), i as u64);
         }
         
         // Benchmark maplet queries
         group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
             b.iter(|| {
                 for i in 0..*size {
-                    black_box(maplet.query(&format!("key_{}", i)));
+                    black_box(maplet.query(&format!("key_{i}")));
                 }
-            })
+            });
         });
         
         // Benchmark HashMap queries
         group.bench_with_input(BenchmarkId::new("hashmap", size), size, |b, size| {
             b.iter(|| {
                 for i in 0..*size {
-                    black_box(hashmap.get(&format!("key_{}", i)));
+                    black_box(hashmap.get(&format!("key_{i}")));
                 }
-            })
+            });
         });
     }
     
@@ -76,17 +76,17 @@ fn bench_query_comparison(c: &mut Criterion) {
 fn bench_memory_usage(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_usage");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         // Measure maplet memory usage
         group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
             b.iter(|| {
                 let maplet = Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
                 for i in 0..*size {
-                    let _ = maplet.insert(format!("key_{}", i), i as u64);
+                    let _ = maplet.insert(format!("key_{i}"), i as u64);
                 }
                 // Skip memory usage measurement for now
-                black_box(0)
-            })
+                black_box(0);
+            });
         });
         
         // Measure HashMap memory usage (approximate)
@@ -94,11 +94,11 @@ fn bench_memory_usage(c: &mut Criterion) {
             b.iter(|| {
                 let mut hashmap = HashMap::new();
                 for i in 0..*size {
-                    hashmap.insert(format!("key_{}", i), i as u64);
+                    hashmap.insert(format!("key_{i}"), i as u64);
                 }
                 let memory_usage = hashmap.len() * (std::mem::size_of::<String>() + std::mem::size_of::<u64>());
-                black_box(memory_usage)
-            })
+                black_box(memory_usage);
+            });
         });
     }
     

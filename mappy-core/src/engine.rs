@@ -96,16 +96,16 @@ impl Engine {
 
         let storage: Arc<dyn Storage> = match config.persistence_mode {
             PersistenceMode::Memory => {
-                Arc::new(MemoryStorage::new(config.storage.clone()).await?)
+                Arc::new(MemoryStorage::new(config.storage.clone())?)
             },
             PersistenceMode::Disk => {
-                Arc::new(DiskStorage::new(config.storage.clone()).await?)
+                Arc::new(DiskStorage::new(config.storage.clone())?)
             },
             PersistenceMode::AOF => {
-                Arc::new(AOFStorage::new(config.storage.clone()).await?)
+                Arc::new(AOFStorage::new(config.storage.clone())?)
             },
             PersistenceMode::Hybrid => {
-                Arc::new(HybridStorage::new(config.storage.clone()).await?)
+                Arc::new(HybridStorage::new(config.storage.clone())?)
             },
         };
 
@@ -308,12 +308,14 @@ impl Engine {
     }
 
     /// Get the persistence mode
+    #[must_use]
     pub fn persistence_mode(&self) -> PersistenceMode {
-        self.config.persistence_mode.clone()
+        self.config.persistence_mode
     }
 
     /// Get the engine configuration
-    pub fn config(&self) -> &EngineConfig {
+    #[must_use]
+    pub const fn config(&self) -> &EngineConfig {
         &self.config
     }
 
@@ -361,6 +363,15 @@ impl Engine {
         }
 
         Ok(had_ttl)
+    }
+    
+    /// Find the slot for a key (advanced quotient filter feature)
+    #[cfg(feature = "quotient-filter")]
+    pub async fn find_slot_for_key(&self, key: &str) -> MapletResult<Option<usize>> {
+        let maplet_guard = self.maplet.read().await;
+        let result = maplet_guard.find_slot_for_key(&key.to_string()).await;
+        drop(maplet_guard);
+        Ok(result)
     }
 }
 
@@ -424,7 +435,7 @@ mod tests {
 
         let stats = engine.stats().await.unwrap();
         assert!(stats.total_operations > 0);
-        assert!(stats.uptime_seconds >= 0);
+        assert!(stats.uptime_seconds >= 0); // This is always true for u64, but kept for clarity
     }
 
     #[tokio::test]

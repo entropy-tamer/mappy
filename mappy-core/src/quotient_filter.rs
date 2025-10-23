@@ -47,6 +47,7 @@ pub struct QuotientFilter {
     /// Array of slot metadata
     slots: Vec<SlotMetadata>,
     /// Fingerprint hasher
+    #[allow(dead_code)]
     hasher: FingerprintHasher,
     /// Perfect hash for slot mapping
     perfect_hash: PerfectHash,
@@ -197,27 +198,39 @@ impl QuotientFilter {
     }
     
     /// Get the current number of items stored
-    pub fn len(&self) -> usize {
+    #[must_use]
+    pub const fn len(&self) -> usize {
         self.len
     }
     
     /// Get the capacity of the filter
-    pub fn capacity(&self) -> usize {
+    #[must_use]
+    pub const fn capacity(&self) -> usize {
         self.capacity
     }
     
     /// Get the load factor
+    #[must_use]
     pub fn load_factor(&self) -> f64 {
-        self.len as f64 / self.capacity as f64
+        #[allow(clippy::cast_precision_loss)]
+        {
+            self.len as f64 / self.capacity as f64
+        }
+    }
+    
+    /// Get the number of quotient bits
+    #[must_use]
+    pub const fn quotient_bits(&self) -> u32 {
+        self.quotient_bits
     }
     
     /// Extract quotient from fingerprint
-    fn extract_quotient(&self, fingerprint: u64) -> u64 {
+    const fn extract_quotient(&self, fingerprint: u64) -> u64 {
         fingerprint & self.quotient_mask
     }
     
     /// Extract remainder from fingerprint
-    fn extract_remainder(&self, fingerprint: u64) -> u64 {
+    const fn extract_remainder(&self, fingerprint: u64) -> u64 {
         (fingerprint >> self.quotient_bits) & self.remainder_mask
     }
     
@@ -335,12 +348,14 @@ impl QuotientFilter {
     }
     
     /// Get the slot index for a fingerprint (for maplet coordination)
+    #[must_use]
     pub fn get_slot_for_fingerprint(&self, fingerprint: u64) -> usize {
         let quotient = self.extract_quotient(fingerprint);
         self.find_target_slot(quotient)
     }
     
     /// Get the actual slot where a fingerprint is stored (considering runs and shifting)
+    #[must_use]
     pub fn get_actual_slot_for_fingerprint(&self, fingerprint: u64) -> Option<usize> {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
@@ -350,16 +365,13 @@ impl QuotientFilter {
         let run_end = self.find_run_end(quotient);
         
         // Search through the run to find the slot with the matching remainder
-        for slot in run_start..=run_end {
-            if slot < self.capacity && self.slots[slot].occupied && self.slots[slot].remainder == remainder {
-                return Some(slot);
-            }
-        }
-        
-        None
+        (run_start..=run_end).find(|&slot| {
+            slot < self.capacity && self.slots[slot].occupied && self.slots[slot].remainder == remainder
+        })
     }
     
     /// Get statistics about the filter
+    #[must_use]
     pub fn stats(&self) -> QuotientFilterStats {
         let mut runs = 0;
         let mut shifted_slots = 0;
@@ -467,5 +479,34 @@ mod tests {
         assert_eq!(stats.len, 2);
         assert!(stats.load_factor > 0.0);
         assert!(stats.runs > 0);
+    }
+
+    #[test]
+    fn test_actual_slot_finding() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+        
+        // Insert some fingerprints
+        let fingerprint1 = 0x1234;
+        let fingerprint2 = 0x5678;
+        
+        assert!(filter.insert(fingerprint1).is_ok());
+        assert!(filter.insert(fingerprint2).is_ok());
+        
+        // Find actual slots for the fingerprints
+        let slot1 = filter.get_actual_slot_for_fingerprint(fingerprint1);
+        let slot2 = filter.get_actual_slot_for_fingerprint(fingerprint2);
+        
+        assert!(slot1.is_some(), "Should find actual slot for fingerprint1");
+        assert!(slot2.is_some(), "Should find actual slot for fingerprint2");
+        
+        // Slots should be different (unless there's a collision)
+        if slot1 != slot2 {
+            assert_ne!(slot1, slot2, "Different fingerprints should have different slots");
+        }
+        
+        // Try to find slot for non-existing fingerprint
+        let non_existing = 0xDEAD;
+        let non_existing_slot = filter.get_actual_slot_for_fingerprint(non_existing);
+        assert!(non_existing_slot.is_none(), "Should not find slot for non-existing fingerprint");
     }
 }

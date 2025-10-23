@@ -3,11 +3,11 @@
 //! Python bindings for mappy maplet data structures using PyO3.
 
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+// use pyo3::types::PyDict;
 use mappy_core::{Maplet, CounterOperator, Engine, EngineConfig, EngineStats, PersistenceMode};
 use mappy_core::types::MapletConfig;
-use mappy_core::storage::{StorageConfig, StorageStats};
-use mappy_core::ttl::{TTLConfig, TTLStats};
+use mappy_core::storage::StorageConfig;
+use mappy_core::ttl::TTLConfig;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use serde::{Serialize, Deserialize};
@@ -24,16 +24,16 @@ impl PyMaplet {
     #[new]
     fn new(capacity: usize, false_positive_rate: f64) -> PyResult<Self> {
         let maplet = Maplet::new(capacity, false_positive_rate)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         let runtime = Arc::new(Runtime::new()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create runtime: {}", e)))?);
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create runtime: {e}")))?);
         Ok(Self { inner: maplet, runtime })
     }
     
     fn insert(&mut self, key: String, value: u64) -> PyResult<()> {
         self.runtime.block_on(async {
             self.inner.insert(key, value).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
     }
     
@@ -69,6 +69,13 @@ impl PyMaplet {
         self.runtime.block_on(async {
             self.inner.load_factor().await
         })
+    }
+    
+    /// Find the slot for a key (quotient filter feature)
+    fn find_slot_for_key(&self, key: &str) -> PyResult<Option<usize>> {
+        Ok(self.runtime.block_on(async {
+            self.inner.find_slot_for_key(&key.to_string()).await
+        }))
     }
 }
 
@@ -227,11 +234,11 @@ impl PyEngine {
         let rust_config = config.to_rust_config()?;
         
         let runtime = Arc::new(Runtime::new()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create runtime: {}", e)))?);
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create runtime: {e}")))?);
         
         let engine = runtime.block_on(async {
             Engine::new(rust_config).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         
         Ok(Self {
             inner: Arc::new(engine),
@@ -243,7 +250,7 @@ impl PyEngine {
     fn set(&self, key: String, value: Vec<u8>) -> PyResult<()> {
         self.runtime.block_on(async {
             self.inner.set(key, value).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
     }
 
@@ -279,7 +286,7 @@ impl PyEngine {
     fn clear(&self) -> PyResult<()> {
         self.runtime.block_on(async {
             self.inner.clear().await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
     }
 
@@ -294,7 +301,7 @@ impl PyEngine {
     fn ttl(&self, key: String) -> PyResult<Option<u64>> {
         let result = self.runtime.block_on(async {
             self.inner.ttl(&key).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         
         Ok(result.map(|v| v as u64))
     }
@@ -330,7 +337,7 @@ impl PyEngine {
     fn stats(&self) -> PyResult<PyEngineStats> {
         let stats = self.runtime.block_on(async {
             self.inner.stats().await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         
         Ok(PyEngineStats::from(stats))
     }
@@ -339,7 +346,7 @@ impl PyEngine {
     fn memory_usage(&self) -> PyResult<usize> {
         let usage = self.runtime.block_on(async {
             self.inner.memory_usage().await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         
         Ok(usage as usize)
     }
@@ -348,7 +355,7 @@ impl PyEngine {
     fn flush(&self) -> PyResult<()> {
         self.runtime.block_on(async {
             self.inner.flush().await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
     }
 
@@ -356,8 +363,16 @@ impl PyEngine {
     fn close(&self) -> PyResult<()> {
         self.runtime.block_on(async {
             self.inner.close().await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
+    }
+    
+    /// Find the slot for a key (quotient filter feature)
+    fn find_slot_for_key(&self, key: String) -> PyResult<Option<usize>> {
+        let result = self.runtime.block_on(async {
+            self.inner.find_slot_for_key(&key).await
+        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
+        Ok(result)
     }
 }
 

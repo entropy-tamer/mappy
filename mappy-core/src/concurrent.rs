@@ -103,7 +103,7 @@ mod tests {
             let maplet = Arc::clone(&maplet);
             let handle = tokio::spawn(async move {
                 for j in 0..100 {
-                    let key = format!("key_{}_{}", i, j);
+                    let key = format!("key_{i}_{j}");
                     let _ = maplet.insert(key, (i * 100 + j) as u64).await;
                 }
             });

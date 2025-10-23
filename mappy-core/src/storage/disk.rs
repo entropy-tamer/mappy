@@ -18,26 +18,28 @@ pub struct DiskStorage {
     /// Main data tree
     tree: Tree,
     /// Configuration
+    #[allow(dead_code)]
     config: StorageConfig,
     /// Statistics
     stats: Arc<RwLock<StorageStats>>,
     /// Start time for latency calculation
+    #[allow(dead_code)]
     start_time: Instant,
 }
 
 impl DiskStorage {
     /// Create a new disk storage
-    pub async fn new(config: StorageConfig) -> MapletResult<Self> {
+    pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)
-            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {e}")))?;
         
         let db_path = Path::new(&config.data_dir).join("mappy.db");
         let db = sled::open(&db_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open database: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open database: {e}")))?;
         
         let tree = db.open_tree("data")
-            .map_err(|e| MapletError::Internal(format!("Failed to open tree: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open tree: {e}")))?;
         
         Ok(Self {
             db: Arc::new(db),
@@ -70,13 +72,13 @@ impl Storage for DiskStorage {
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         let start = Instant::now();
         let result = self.tree.get(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to get key: {}", e)))?
+            .map_err(|e| MapletError::Internal(format!("Failed to get key: {e}")))?
             .map(|ivec| ivec.to_vec());
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(result)
@@ -86,13 +88,13 @@ impl Storage for DiskStorage {
         let start = Instant::now();
         
         self.tree.insert(&key, value)
-            .map_err(|e| MapletError::Internal(format!("Failed to set key: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
         
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.tree.len() as u64;
             stats.disk_usage = self.calculate_disk_usage();
         }).await;
@@ -103,13 +105,13 @@ impl Storage for DiskStorage {
     async fn delete(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let existed = self.tree.remove(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to delete key: {}", e)))?
+            .map_err(|e| MapletError::Internal(format!("Failed to delete key: {e}")))?
             .is_some();
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.tree.len() as u64;
             stats.disk_usage = self.calculate_disk_usage();
         }).await;
@@ -120,12 +122,12 @@ impl Storage for DiskStorage {
     async fn exists(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let exists = self.tree.contains_key(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to check key existence: {}", e)))?;
-        let latency = start.elapsed().as_micros() as u64;
+            .map_err(|e| MapletError::Internal(format!("Failed to check key existence: {e}")))?;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(exists)
@@ -135,17 +137,17 @@ impl Storage for DiskStorage {
         let start = Instant::now();
         let keys: Result<Vec<String>, _> = self.tree.iter()
             .map(|result| {
-                let (key, _) = result.map_err(|e| MapletError::Internal(format!("Failed to iterate: {}", e)))?;
+                let (key, _) = result.map_err(|e| MapletError::Internal(format!("Failed to iterate: {e}")))?;
                 String::from_utf8(key.to_vec())
-                    .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {}", e)))
+                    .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {e}")))
             })
             .collect();
         let keys = keys?;
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(keys)
@@ -155,11 +157,11 @@ impl Storage for DiskStorage {
         let start = Instant::now();
         self.tree.clear()
             .map_err(|e| MapletError::Internal(format!("Failed to clear database: {}", e)))?;
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = 0;
             stats.disk_usage = self.calculate_disk_usage();
         }).await;
@@ -171,11 +173,11 @@ impl Storage for DiskStorage {
         let start = Instant::now();
         self.db.flush()
             .map_err(|e| MapletError::Internal(format!("Failed to flush: {}", e)))?;
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(())
@@ -207,7 +209,7 @@ mod tests {
             data_dir: temp_dir.path().to_string_lossy().to_string(),
             ..Default::default()
         };
-        let storage = DiskStorage::new(config).await.unwrap();
+        let storage = DiskStorage::new(config).unwrap();
         
         // Test set and get
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
@@ -234,7 +236,7 @@ mod tests {
         
         // Create storage and write data
         {
-            let storage = DiskStorage::new(config.clone()).await.unwrap();
+            let storage = DiskStorage::new(config.clone()).unwrap();
             storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
             storage.flush().await.unwrap();
             storage.close().await.unwrap();
@@ -242,7 +244,7 @@ mod tests {
         
         // Reopen storage and verify data persists
         {
-            let storage = DiskStorage::new(config).await.unwrap();
+            let storage = DiskStorage::new(config).unwrap();
             let value = storage.get("key1").await.unwrap();
             assert_eq!(value, Some(b"value1".to_vec()));
             storage.close().await.unwrap();
@@ -256,7 +258,7 @@ mod tests {
             data_dir: temp_dir.path().to_string_lossy().to_string(),
             ..Default::default()
         };
-        let storage = DiskStorage::new(config).await.unwrap();
+        let storage = DiskStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         

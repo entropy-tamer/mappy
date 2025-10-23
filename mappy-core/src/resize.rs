@@ -17,7 +17,8 @@ pub struct ResizeManager {
 
 impl ResizeManager {
     /// Create a new resize manager
-    pub fn new(initial_capacity: usize) -> Self {
+    #[must_use]
+    pub const fn new(initial_capacity: usize) -> Self {
         Self {
             capacity: initial_capacity,
             growth_factor: 2.0,
@@ -26,19 +27,27 @@ impl ResizeManager {
     }
     
     /// Calculate new capacity for resizing
+    #[must_use]
     pub fn calculate_new_capacity(&self, _current_load: usize) -> usize {
-        let new_capacity = (self.capacity as f64 * self.growth_factor) as usize;
-        new_capacity.min(self.max_capacity)
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss, clippy::cast_precision_loss)]
+        {
+            let new_capacity = (self.capacity as f64 * self.growth_factor) as usize;
+            new_capacity.min(self.max_capacity)
+        }
     }
     
     /// Check if resizing is needed
+    #[must_use]
     pub fn should_resize(&self, current_load: usize, max_load_factor: f64) -> bool {
-        let load_factor = current_load as f64 / self.capacity as f64;
-        load_factor > max_load_factor
+        #[allow(clippy::cast_precision_loss)]
+        {
+            let load_factor = current_load as f64 / self.capacity as f64;
+            load_factor > max_load_factor
+        }
     }
     
     /// Update capacity after resize
-    pub fn update_capacity(&mut self, new_capacity: usize) {
+    pub const fn update_capacity(&mut self, new_capacity: usize) {
         self.capacity = new_capacity;
     }
 }
@@ -54,7 +63,8 @@ pub struct MergeManager {
 
 impl MergeManager {
     /// Create a new merge manager
-    pub fn new(max_merges: usize) -> Self {
+    #[must_use]
+    pub const fn new(max_merges: usize) -> Self {
         Self {
             max_merges,
             merge_count: 0,
@@ -62,11 +72,16 @@ impl MergeManager {
     }
     
     /// Check if merge is allowed
-    pub fn can_merge(&self) -> bool {
+    #[must_use]
+    pub const fn can_merge(&self) -> bool {
         self.merge_count < self.max_merges
     }
     
     /// Record a merge operation
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the merge limit is exceeded
     pub fn record_merge(&mut self) -> MapletResult<()> {
         if !self.can_merge() {
             return Err(MapletError::MergeFailed("Maximum merges exceeded".to_string()));

@@ -12,7 +12,7 @@ pub mod aof;
 pub mod hybrid;
 
 /// Storage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StorageStats {
     /// Total number of keys stored
     pub total_keys: u64,
@@ -26,17 +26,6 @@ pub struct StorageStats {
     pub avg_latency_us: u64,
 }
 
-impl Default for StorageStats {
-    fn default() -> Self {
-        Self {
-            total_keys: 0,
-            memory_usage: 0,
-            disk_usage: 0,
-            operations_count: 0,
-            avg_latency_us: 0,
-        }
-    }
-}
 
 /// Storage trait for different backends
 #[async_trait]
@@ -80,23 +69,23 @@ impl StorageFactory {
     ) -> MapletResult<Box<dyn Storage>> {
         match mode {
             PersistenceMode::Memory => {
-                Ok(Box::new(memory::MemoryStorage::new(config).await?))
+                Ok(Box::new(memory::MemoryStorage::new(config)?))
             }
             PersistenceMode::Disk => {
-                Ok(Box::new(disk::DiskStorage::new(config).await?))
+                Ok(Box::new(disk::DiskStorage::new(config)?))
             }
             PersistenceMode::AOF => {
-                Ok(Box::new(aof::AOFStorage::new(config).await?))
+                Ok(Box::new(aof::AOFStorage::new(config)?))
             }
             PersistenceMode::Hybrid => {
-                Ok(Box::new(hybrid::HybridStorage::new(config).await?))
+                Ok(Box::new(hybrid::HybridStorage::new(config)?))
             }
         }
     }
 }
 
 /// Persistence mode for storage
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PersistenceMode {
     /// In-memory only (no persistence)
     Memory,

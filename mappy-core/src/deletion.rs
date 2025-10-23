@@ -14,8 +14,15 @@ pub struct DeletionManager {
     slot_instances: std::collections::HashMap<usize, Vec<u64>>,
 }
 
+impl Default for DeletionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeletionManager {
     /// Create a new deletion manager
+    #[must_use]
     pub fn new() -> Self {
         Self {
             instance_counts: std::collections::HashMap::new(),
@@ -30,6 +37,9 @@ impl DeletionManager {
     }
     
     /// Remove an instance of a fingerprint
+    /// # Errors
+    /// 
+    /// Returns an error if the removal operation fails
     pub fn remove_instance(&mut self, fingerprint: u64, slot: usize) -> MapletResult<bool> {
         if let Some(count) = self.instance_counts.get_mut(&fingerprint) {
             if *count > 0 {
@@ -50,16 +60,19 @@ impl DeletionManager {
     }
     
     /// Get the number of instances for a fingerprint
+    #[must_use]
     pub fn instance_count(&self, fingerprint: u64) -> usize {
         self.instance_counts.get(&fingerprint).copied().unwrap_or(0)
     }
     
     /// Check if a fingerprint has any instances
+    #[must_use]
     pub fn has_instances(&self, fingerprint: u64) -> bool {
         self.instance_count(fingerprint) > 0
     }
     
     /// Get all fingerprints for a slot
+    #[must_use]
     pub fn get_slot_fingerprints(&self, slot: usize) -> Vec<u64> {
         self.slot_instances.get(&slot).cloned().unwrap_or_default()
     }

@@ -152,7 +152,8 @@ pub struct StrongMapletValidator {
 
 impl StrongMapletValidator {
     /// Create a new strong maplet validator
-    pub fn new(max_chain_length: usize, error_threshold: f64) -> Self {
+    #[must_use]
+    pub const fn new(max_chain_length: usize, error_threshold: f64) -> Self {
         Self {
             max_chain_length,
             error_threshold,

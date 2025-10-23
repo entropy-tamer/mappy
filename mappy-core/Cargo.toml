@@ -6,6 +6,13 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Core maplet data structure implementation"
+readme = "../README.md"
+keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets"]
+categories = ["data-structures", "algorithms"]
+
+[features]
+default = []
+quotient-filter = []
 
 [dependencies]
 # Workspace dependencies
@@ -59,6 +66,10 @@ harness = false
 
 [[bench]]
 name = "redis_comparison"
+harness = false
+
+[[bench]]
+name = "basic_quotient_filter_benchmarks"
 harness = false
 
 

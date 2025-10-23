@@ -63,11 +63,15 @@ pub struct MapletStats {
 
 impl MapletStats {
     /// Create new statistics
+    #[must_use]
     pub fn new(capacity: usize, len: usize, false_positive_rate: f64) -> Self {
         Self {
             capacity,
             len,
-            load_factor: if capacity > 0 { len as f64 / capacity as f64 } else { 0.0 },
+            load_factor: if capacity > 0 { 
+                #[allow(clippy::cast_precision_loss)]
+                { len as f64 / capacity as f64 }
+            } else { 0.0 },
             false_positive_rate,
             memory_usage: 0,
             num_collisions: 0,
@@ -79,11 +83,17 @@ impl MapletStats {
     /// Update statistics with new values
     pub fn update(&mut self, len: usize, memory_usage: usize, num_collisions: u64, slots_used: usize) {
         self.len = len;
-        self.load_factor = if self.capacity > 0 { len as f64 / self.capacity as f64 } else { 0.0 };
+        self.load_factor = if self.capacity > 0 { 
+            #[allow(clippy::cast_precision_loss)]
+            { len as f64 / self.capacity as f64 }
+        } else { 0.0 };
         self.memory_usage = memory_usage;
         self.num_collisions = num_collisions;
         self.slots_used = slots_used;
-        self.avg_chain_length = if slots_used > 0 { num_collisions as f64 / slots_used as f64 } else { 0.0 };
+        self.avg_chain_length = if slots_used > 0 { 
+            #[allow(clippy::cast_precision_loss)]
+            { num_collisions as f64 / slots_used as f64 }
+        } else { 0.0 };
     }
 }
 
@@ -124,6 +134,7 @@ impl Default for MapletConfig {
 
 impl MapletConfig {
     /// Create a new configuration
+    #[must_use]
     pub fn new(capacity: usize, false_positive_rate: f64) -> Self {
         Self {
             capacity,

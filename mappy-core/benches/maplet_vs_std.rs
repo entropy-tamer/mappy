@@ -13,7 +13,7 @@ use tokio::runtime::Runtime;
 fn generate_test_data(size: usize) -> Vec<(String, u64)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
-        .map(|i| (format!("key_{}", i), rng.gen_range(1..=1000)))
+        .map(|i| (format!("key_{i}"), rng.gen_range(1..=1000)))
         .collect()
 }
 
@@ -22,7 +22,7 @@ fn bench_insert(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("insert_operations");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         
         // Benchmark HashMap
@@ -32,7 +32,7 @@ fn bench_insert(c: &mut Criterion) {
                 for (key, value) in &test_data {
                     map.insert(key.clone(), *value);
                 }
-                black_box(map)
+                black_box(map);
             })
         });
         
@@ -43,7 +43,7 @@ fn bench_insert(c: &mut Criterion) {
                 for (key, value) in &test_data {
                     map.insert(key.clone(), *value);
                 }
-                black_box(map)
+                black_box(map);
             })
         });
         
@@ -55,8 +55,8 @@ fn bench_insert(c: &mut Criterion) {
                     for (key, value) in &test_data {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
-                    black_box(maplet)
-                })
+                black_box(maplet);
+            })
             })
         });
         
@@ -70,8 +70,8 @@ fn bench_insert(c: &mut Criterion) {
                         set.insert(*value);
                         maplet.insert(key.clone(), set).await.unwrap();
                     }
-                    black_box(maplet)
-                })
+                black_box(maplet);
+            })
             })
         });
     }
@@ -84,7 +84,7 @@ fn bench_query(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("query_operations");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         let query_keys: Vec<String> = test_data.iter().map(|(k, _)| k.clone()).collect();
         
@@ -147,7 +147,7 @@ fn bench_memory_usage(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
     
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         let test_data = generate_test_data(*size);
         
         // Benchmark HashMap memory
@@ -186,7 +186,7 @@ fn bench_merge_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("merge_operations");
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         
         // Benchmark HashMap merge (manual)
@@ -196,7 +196,7 @@ fn bench_merge_operations(c: &mut Criterion) {
                 for (key, value) in &test_data {
                     *map.entry(key.clone()).or_insert(0) += *value;
                 }
-                black_box(map)
+                black_box(map);
             })
         });
         
@@ -208,8 +208,8 @@ fn bench_merge_operations(c: &mut Criterion) {
                     for (key, value) in &test_data {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
-                    black_box(maplet)
-                })
+                black_box(maplet);
+            })
             })
         });
     }
@@ -222,7 +222,7 @@ fn bench_concurrent(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("concurrent_operations");
     
-    for size in [1000, 10000].iter() {
+    for size in &[1000, 10000] {
         let test_data = generate_test_data(*size);
         
         // Benchmark concurrent HashMap (with RwLock)
@@ -247,9 +247,9 @@ fn bench_concurrent(c: &mut Criterion) {
                         handle.await.unwrap();
                     }
                     
-                    black_box(map)
-                })
-            })
+                    black_box(map);
+                });
+            });
         });
         
         // Benchmark concurrent Maplet
@@ -272,9 +272,9 @@ fn bench_concurrent(c: &mut Criterion) {
                         handle.await.unwrap();
                     }
                     
-                    black_box(maplet)
-                })
-            })
+                    black_box(maplet);
+                });
+            });
         });
     }
     

@@ -10,6 +10,10 @@ use crate::MapletResult;
 /// Trait for merge operators that define how values are combined
 pub trait MergeOperator<V>: Clone + Send + Sync {
     /// Merge two values using the operator ⊕
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the merge operation fails
     fn merge(&self, left: V, right: V) -> MapletResult<V>;
     
     /// Get the identity element for this operator
@@ -141,12 +145,13 @@ impl MergeOperator<f64> for MinOperator {
 /// Custom operator that allows user-defined merge logic
 #[derive(Clone)]
 pub struct CustomOperator<F> {
+    #[allow(dead_code)]
     merge_fn: F,
 }
 
 impl<F> CustomOperator<F> {
     /// Create a new custom operator
-    pub fn new(merge_fn: F) -> Self {
+    pub const fn new(merge_fn: F) -> Self {
         Self {
             merge_fn,
         }
@@ -159,7 +164,7 @@ pub struct StringConcatOperator;
 
 impl MergeOperator<String> for StringConcatOperator {
     fn merge(&self, left: String, right: String) -> MapletResult<String> {
-        Ok(format!("{}{}", left, right))
+        Ok(format!("{left}{right}"))
     }
     
     fn identity(&self) -> String {

@@ -24,7 +24,7 @@ struct RedisBenchmark {
 }
 
 impl RedisBenchmark {
-    async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let client = RedisClient::open("redis://127.0.0.1:6379")?;
         
         Ok(Self {
@@ -84,7 +84,7 @@ fn generate_test_data(size: usize) -> Vec<(String, String)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
         .map(|i| {
-            let key = format!("key_{}", i);
+            let key = format!("key_{i}");
             let value = format!("value_{}", rng.gen_range(1..=1000));
             (key, value)
         })
@@ -96,7 +96,7 @@ fn generate_counter_data(size: usize) -> Vec<(String, u64)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
         .map(|i| {
-            let key = format!("counter_{}", i);
+            let key = format!("counter_{i}");
             let value = rng.gen_range(1..=1000);
             (key, value)
         })
@@ -109,23 +109,23 @@ fn bench_basic_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("basic_operations");
     group.measurement_time(Duration::from_secs(30));
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         
         // Benchmark Redis SET operations
         group.bench_with_input(BenchmarkId::new("Redis-SET", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let redis = RedisBenchmark::new().await.unwrap();
+                    let redis = RedisBenchmark::new().unwrap();
                     redis.flush_all().await.unwrap();
                     
                     for (key, value) in &test_data {
                         redis.set(key, value).await.unwrap();
                     }
                     
-                    black_box(redis)
-                })
-            })
+                    black_box(redis);
+                });
+            });
         });
         
         // Benchmark Mappy insert operations
@@ -138,9 +138,9 @@ fn bench_basic_operations(c: &mut Criterion) {
                         maplet.insert(key.clone(), value.clone()).await.unwrap();
                     }
                     
-                    black_box(maplet)
-                })
-            })
+                    black_box(maplet);
+                });
+            });
         });
     }
     
@@ -153,13 +153,13 @@ fn bench_get_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("get_operations");
     group.measurement_time(Duration::from_secs(30));
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         let query_keys: Vec<String> = test_data.iter().map(|(k, _)| k.clone()).collect();
         
         // Prepare Redis data
         let redis = rt.block_on(async {
-            let redis = RedisBenchmark::new().await.unwrap();
+            let redis = RedisBenchmark::new().unwrap();
             redis.flush_all().await.unwrap();
             for (key, value) in &test_data {
                 redis.set(key, value).await.unwrap();
@@ -183,8 +183,8 @@ fn bench_get_operations(c: &mut Criterion) {
                     for key in &query_keys {
                         black_box(redis.get(key).await.unwrap());
                     }
-                })
-            })
+                });
+            });
         });
         
         // Benchmark Mappy query operations
@@ -194,8 +194,8 @@ fn bench_get_operations(c: &mut Criterion) {
                     for key in &query_keys {
                         black_box(maplet.query(key).await);
                     }
-                })
-            })
+                });
+            });
         });
     }
     
@@ -208,14 +208,14 @@ fn bench_counter_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("counter_operations");
     group.measurement_time(Duration::from_secs(30));
     
-    for size in [100, 1000, 10000].iter() {
+    for size in &[100, 1000, 10000] {
         let test_data = generate_counter_data(*size);
         
         // Benchmark Redis INCR operations
         group.bench_with_input(BenchmarkId::new("Redis-INCR", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let redis = RedisBenchmark::new().await.unwrap();
+                    let redis = RedisBenchmark::new().unwrap();
                     redis.flush_all().await.unwrap();
                     
                     for (key, value) in &test_data {
@@ -225,9 +225,9 @@ fn bench_counter_operations(c: &mut Criterion) {
                         redis.incr(key).await.unwrap();
                     }
                     
-                    black_box(redis)
-                })
-            })
+                    black_box(redis);
+                });
+            });
         });
         
         // Benchmark Mappy Counter operations
@@ -240,9 +240,9 @@ fn bench_counter_operations(c: &mut Criterion) {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
                     
-                    black_box(maplet)
-                })
-            })
+                    black_box(maplet);
+                });
+            });
         });
     }
     

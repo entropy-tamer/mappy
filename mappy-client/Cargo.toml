@@ -6,6 +6,9 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Client library for mappy maplet data structures"
+readme = "../README.md"
+keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets"]
+categories = ["data-structures", "algorithms"]
 
 [dependencies]
 # Workspace dependencies

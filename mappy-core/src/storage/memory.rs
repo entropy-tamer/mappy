@@ -1,6 +1,6 @@
 //! In-memory storage backend
 //! 
-//! Uses DashMap for high-performance concurrent access.
+//! Uses `DashMap` for high-performance concurrent access.
 
 use super::{Storage, StorageStats, StorageConfig};
 use crate::{MapletError, MapletResult};
@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 use std::time::Instant;
 use async_trait::async_trait;
 
-/// In-memory storage using DashMap
+/// In-memory storage using `DashMap`
 pub struct MemoryStorage {
     /// The actual storage
     data: Arc<DashMap<String, Vec<u8>>>,
@@ -19,12 +19,13 @@ pub struct MemoryStorage {
     /// Statistics
     stats: Arc<RwLock<StorageStats>>,
     /// Start time for latency calculation
+    #[allow(dead_code)]
     start_time: Instant,
 }
 
 impl MemoryStorage {
     /// Create a new memory storage
-    pub async fn new(config: StorageConfig) -> MapletResult<Self> {
+    pub fn new(config: StorageConfig) -> MapletResult<Self> {
         Ok(Self {
             data: Arc::new(DashMap::new()),
             config,
@@ -57,11 +58,11 @@ impl Storage for MemoryStorage {
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         let start = Instant::now();
         let result = self.data.get(key).map(|entry| entry.value().clone());
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(result)
@@ -79,11 +80,11 @@ impl Storage for MemoryStorage {
         }
         
         self.data.insert(key.clone(), value);
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.data.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
         }).await;
@@ -94,11 +95,11 @@ impl Storage for MemoryStorage {
     async fn delete(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let existed = self.data.remove(key).is_some();
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.data.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
         }).await;
@@ -109,11 +110,11 @@ impl Storage for MemoryStorage {
     async fn exists(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let exists = self.data.contains_key(key);
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(exists)
@@ -122,11 +123,11 @@ impl Storage for MemoryStorage {
     async fn keys(&self) -> MapletResult<Vec<String>> {
         let start = Instant::now();
         let keys: Vec<String> = self.data.iter().map(|entry| entry.key().clone()).collect();
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(keys)
@@ -135,11 +136,11 @@ impl Storage for MemoryStorage {
     async fn clear_database(&self) -> MapletResult<()> {
         let start = Instant::now();
         self.data.clear();
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = 0;
             stats.memory_usage = 0;
         }).await;
@@ -170,7 +171,7 @@ mod tests {
     #[tokio::test]
     async fn test_memory_storage_basic_operations() {
         let config = StorageConfig::default();
-        let storage = MemoryStorage::new(config).await.unwrap();
+        let storage = MemoryStorage::new(config).unwrap();
         
         // Test set and get
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
@@ -190,7 +191,7 @@ mod tests {
     #[tokio::test]
     async fn test_memory_storage_keys() {
         let config = StorageConfig::default();
-        let storage = MemoryStorage::new(config).await.unwrap();
+        let storage = MemoryStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         storage.set("key2".to_string(), b"value2".to_vec()).await.unwrap();
@@ -204,7 +205,7 @@ mod tests {
     #[tokio::test]
     async fn test_memory_storage_clear() {
         let config = StorageConfig::default();
-        let storage = MemoryStorage::new(config).await.unwrap();
+        let storage = MemoryStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         storage.set("key2".to_string(), b"value2".to_vec()).await.unwrap();
@@ -218,7 +219,7 @@ mod tests {
     #[tokio::test]
     async fn test_memory_storage_stats() {
         let config = StorageConfig::default();
-        let storage = MemoryStorage::new(config).await.unwrap();
+        let storage = MemoryStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         

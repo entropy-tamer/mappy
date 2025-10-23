@@ -44,6 +44,7 @@ pub struct TTLEntry {
 
 impl TTLEntry {
     /// Create a new TTL entry
+    #[must_use]
     pub fn new(key: String, db_id: u8, ttl_seconds: u64) -> Self {
         let expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -52,12 +53,13 @@ impl TTLEntry {
         
         Self {
             key,
-            db_id,
             expires_at,
+            db_id,
         }
     }
 
     /// Check if this entry has expired
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -67,12 +69,14 @@ impl TTLEntry {
     }
 
     /// Get remaining TTL in seconds
+    #[must_use]
     pub fn remaining_ttl(&self) -> i64 {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        self.expires_at as i64 - now as i64
+        #[allow(clippy::cast_possible_wrap)]
+        { self.expires_at as i64 - now as i64 }
     }
 }
 
@@ -92,6 +96,7 @@ pub struct TTLManager {
 
 impl TTLManager {
     /// Create a new TTL manager
+    #[must_use]
     pub fn new(config: TTLConfig) -> Self {
         Self {
             config,
@@ -135,6 +140,7 @@ impl TTLManager {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
+            #[allow(clippy::cast_possible_wrap)]
             let remaining = expires_at as i64 - now as i64;
             Ok(Some(remaining.max(0)))
         } else {
@@ -258,7 +264,7 @@ impl TTLManager {
 
                             // Call cleanup callback
                             if let Err(e) = cleanup_callback(expired_entries) {
-                                eprintln!("TTL cleanup callback error: {}", e);
+                                eprintln!("TTL cleanup callback error: {e}");
                             }
                         }
                     }
@@ -344,7 +350,7 @@ impl TTLManager {
 }
 
 /// TTL statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TTLStats {
     /// Total number of keys with TTL set
     pub total_keys_with_ttl: u64,
@@ -354,15 +360,6 @@ pub struct TTLStats {
     pub next_expiration: Option<u64>,
 }
 
-impl Default for TTLStats {
-    fn default() -> Self {
-        Self {
-            total_keys_with_ttl: 0,
-            expired_keys: 0,
-            next_expiration: None,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -12,7 +12,6 @@ use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::{BufReader, Write, BufRead};
 use serde_json;
-use tokio::fs;
 use async_trait::async_trait;
 use tokio::time::{interval, Duration};
 
@@ -27,6 +26,7 @@ pub struct HybridStorage {
     /// Statistics
     stats: Arc<RwLock<StorageStats>>,
     /// Start time for latency calculation
+    #[allow(dead_code)]
     start_time: Instant,
     /// Background sync task handle
     sync_handle: Option<tokio::task::JoinHandle<()>>,
@@ -42,9 +42,9 @@ enum AOFEntry {
 
 impl HybridStorage {
     /// Create a new hybrid storage
-    pub async fn new(config: StorageConfig) -> MapletResult<Self> {
+    pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
-        fs::create_dir_all(&config.data_dir).await
+        std::fs::create_dir_all(&config.data_dir)
             .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {}", e)))?;
         
         let aof_path = Path::new(&config.data_dir).join("mappy.aof");
@@ -60,16 +60,16 @@ impl HybridStorage {
         };
         
         // Load existing data from AOF file
-        storage.load_from_aof().await?;
+        storage.load_from_aof()?;
         
         // Start background sync task
-        storage.start_sync_task().await;
+        storage.start_sync_task();
         
         Ok(storage)
     }
     
     /// Load data from AOF file
-    async fn load_from_aof(&self) -> MapletResult<()> {
+    fn load_from_aof(&self) -> MapletResult<()> {
         if !self.aof_path.exists() {
             return Ok(());
         }
@@ -108,14 +108,14 @@ impl HybridStorage {
         
         // Flush buffer if it's full
         if buffer.len() >= self.config.write_buffer_size {
-            self.flush_buffer_internal(&mut buffer).await?;
+            self.flush_buffer_internal(&mut buffer)?;
         }
         
         Ok(())
     }
     
     /// Flush write buffer to AOF file
-    async fn flush_buffer_internal(&self, buffer: &mut Vec<AOFEntry>) -> MapletResult<()> {
+    fn flush_buffer_internal(&self, buffer: &mut Vec<AOFEntry>) -> MapletResult<()> {
         if buffer.is_empty() {
             return Ok(());
         }
@@ -138,7 +138,7 @@ impl HybridStorage {
     }
     
     /// Start background sync task
-    async fn start_sync_task(&mut self) {
+    fn start_sync_task(&mut self) {
         let write_buffer = Arc::clone(&self.write_buffer);
         let aof_path = self.aof_path.clone();
         let sync_interval = Duration::from_secs(self.config.sync_interval);
@@ -153,7 +153,7 @@ impl HybridStorage {
                 {
                     let mut buffer = write_buffer.write().await;
                     if !buffer.is_empty() {
-                        if let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path).await {
+                        if let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path) {
                             eprintln!("Failed to flush AOF buffer: {}", e);
                         }
                     }
@@ -172,7 +172,7 @@ impl HybridStorage {
     }
     
     /// Static version of flush_buffer_internal for use in background task
-    async fn flush_buffer_internal_static(
+    fn flush_buffer_internal_static(
         buffer: &mut Vec<AOFEntry>,
         aof_path: &std::path::Path,
     ) -> MapletResult<()> {
@@ -232,11 +232,11 @@ impl Storage for HybridStorage {
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         let start = Instant::now();
         let result = self.cache.get(key).map(|entry| entry.value().clone());
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(result)
@@ -252,11 +252,11 @@ impl Storage for HybridStorage {
         let entry = AOFEntry::Set { key, value };
         self.add_to_buffer(entry).await?;
         
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.cache.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
             stats.disk_usage = self.calculate_disk_usage();
@@ -275,11 +275,11 @@ impl Storage for HybridStorage {
             self.add_to_buffer(entry).await?;
         }
         
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.cache.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
             stats.disk_usage = self.calculate_disk_usage();
@@ -291,11 +291,11 @@ impl Storage for HybridStorage {
     async fn exists(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let exists = self.cache.contains_key(key);
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(exists)
@@ -304,11 +304,11 @@ impl Storage for HybridStorage {
     async fn keys(&self) -> MapletResult<Vec<String>> {
         let start = Instant::now();
         let keys: Vec<String> = self.cache.iter().map(|entry| entry.key().clone()).collect();
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(keys)
@@ -326,13 +326,13 @@ impl Storage for HybridStorage {
         
         // Clear AOF file
         std::fs::write(&self.aof_path, "")
-            .map_err(|e| MapletError::Internal(format!("Failed to clear AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to clear AOF file: {e}")))?;
         
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = 0;
             stats.memory_usage = 0;
             stats.disk_usage = 0;
@@ -347,19 +347,19 @@ impl Storage for HybridStorage {
         // Flush write buffer
         {
             let mut buffer = self.write_buffer.write().await;
-            self.flush_buffer_internal(&mut buffer).await?;
+            self.flush_buffer_internal(&mut buffer)?;
         }
         
         // Force sync AOF file to disk
         std::fs::File::open(&self.aof_path)
             .and_then(|f| f.sync_all())
-            .map_err(|e| MapletError::Internal(format!("Failed to sync AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to sync AOF file: {e}")))?;
         
-        let latency = start.elapsed().as_micros() as u64;
+        let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(())
@@ -400,7 +400,7 @@ mod tests {
             write_buffer_size: 10,
             ..Default::default()
         };
-        let storage = HybridStorage::new(config).await.unwrap();
+        let storage = HybridStorage::new(config).unwrap();
         
         // Test set and get
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
@@ -429,14 +429,14 @@ mod tests {
         
         // Create storage and write data
         {
-            let storage = HybridStorage::new(config.clone()).await.unwrap();
+            let storage = HybridStorage::new(config.clone()).unwrap();
             storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
             storage.flush().await.unwrap();
         }
         
         // Reopen storage and verify data persists
         {
-            let storage = HybridStorage::new(config).await.unwrap();
+            let storage = HybridStorage::new(config).unwrap();
             let value = storage.get("key1").await.unwrap();
             assert_eq!(value, Some(b"value1".to_vec()));
         }
@@ -451,7 +451,7 @@ mod tests {
             write_buffer_size: 10,
             ..Default::default()
         };
-        let storage = HybridStorage::new(config).await.unwrap();
+        let storage = HybridStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         

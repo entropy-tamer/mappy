@@ -12,7 +12,6 @@ use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::{BufReader, Write, BufRead};
 use serde_json;
-use tokio::fs;
 use async_trait::async_trait;
 use tokio::time::{interval, Duration};
 
@@ -27,6 +26,7 @@ pub struct AOFStorage {
     /// Statistics
     stats: Arc<RwLock<StorageStats>>,
     /// Start time for latency calculation
+    #[allow(dead_code)]
     start_time: Instant,
     /// Background sync task handle
     sync_handle: Option<tokio::task::JoinHandle<()>>,
@@ -40,9 +40,9 @@ enum AOFEntry {
 
 impl AOFStorage {
     /// Create a new AOF storage
-    pub async fn new(config: StorageConfig) -> MapletResult<Self> {
+    pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
-        fs::create_dir_all(&config.data_dir).await
+        std::fs::create_dir_all(&config.data_dir)
             .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {}", e)))?;
         
         let aof_path = Path::new(&config.data_dir).join("mappy.aof");
@@ -57,16 +57,16 @@ impl AOFStorage {
         };
         
         // Load existing data from AOF file
-        storage.load_from_aof().await?;
+        storage.load_from_aof()?;
         
         // Start background sync task
-        storage.start_sync_task().await;
+        storage.start_sync_task();
         
         Ok(storage)
     }
     
     /// Load data from AOF file
-    async fn load_from_aof(&self) -> MapletResult<()> {
+    fn load_from_aof(&self) -> MapletResult<()> {
         if !self.aof_path.exists() {
             return Ok(());
         }
@@ -99,7 +99,7 @@ impl AOFStorage {
     }
     
     /// Append entry to AOF file
-    async fn append_to_aof(&self, entry: AOFEntry) -> MapletResult<()> {
+    fn append_to_aof(&self, entry: AOFEntry) -> MapletResult<()> {
         let line = serde_json::to_string(&entry)
             .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {}", e)))?;
         
@@ -116,7 +116,7 @@ impl AOFStorage {
     }
     
     /// Start background sync task
-    async fn start_sync_task(&mut self) {
+    fn start_sync_task(&mut self) {
         let _cache = Arc::clone(&self.cache);
         let aof_path = self.aof_path.clone();
         let sync_interval = Duration::from_secs(self.config.sync_interval);
@@ -192,7 +192,7 @@ impl Storage for AOFStorage {
         
         // Append to AOF
         let entry = AOFEntry::Set { key, value };
-        self.append_to_aof(entry).await?;
+        self.append_to_aof(entry)?;
         
         let latency = start.elapsed().as_micros() as u64;
         
@@ -214,7 +214,7 @@ impl Storage for AOFStorage {
         if existed {
             // Append delete to AOF
             let entry = AOFEntry::Delete { key: key.to_string() };
-            self.append_to_aof(entry).await?;
+            self.append_to_aof(entry)?;
         }
         
         let latency = start.elapsed().as_micros() as u64;
@@ -329,7 +329,7 @@ mod tests {
             sync_interval: 1,
             ..Default::default()
         };
-        let storage = AOFStorage::new(config).await.unwrap();
+        let storage = AOFStorage::new(config).unwrap();
         
         // Test set and get
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
@@ -357,14 +357,14 @@ mod tests {
         
         // Create storage and write data
         {
-            let storage = AOFStorage::new(config.clone()).await.unwrap();
+            let storage = AOFStorage::new(config.clone()).unwrap();
             storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
             storage.flush().await.unwrap();
         }
         
         // Reopen storage and verify data persists
         {
-            let storage = AOFStorage::new(config).await.unwrap();
+            let storage = AOFStorage::new(config).unwrap();
             let value = storage.get("key1").await.unwrap();
             assert_eq!(value, Some(b"value1".to_vec()));
         }
@@ -378,7 +378,7 @@ mod tests {
             sync_interval: 1,
             ..Default::default()
         };
-        let storage = AOFStorage::new(config).await.unwrap();
+        let storage = AOFStorage::new(config).unwrap();
         
         storage.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
         

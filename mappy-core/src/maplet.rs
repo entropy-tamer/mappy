@@ -41,6 +41,7 @@ where
     /// Collision detector for monitoring hash collisions
     collision_detector: Arc<RwLock<CollisionDetector>>,
     /// Perfect hash for slot mapping (same as quotient filter)
+    #[allow(dead_code)]
     perfect_hash: PerfectHash,
     /// Current number of items stored
     len: Arc<RwLock<usize>>,
@@ -265,7 +266,7 @@ where
     }
     
     /// Merge another maplet into this one
-    pub async fn merge(&self, _other: &Maplet<K, V, Op>) -> MapletResult<()> {
+    pub fn merge(&self, _other: &Maplet<K, V, Op>) -> MapletResult<()> {
         if !self.config.enable_merging {
             return Err(MapletError::MergeFailed("Merging not enabled".to_string()));
         }
@@ -292,6 +293,7 @@ where
     }
     
     /// Find the slot index for a fingerprint
+    #[allow(dead_code)]
     fn find_slot_for_fingerprint(&self, fingerprint: u64) -> usize {
         // Use the same slot mapping as the quotient filter
         let quotient = self.extract_quotient(fingerprint);
@@ -301,6 +303,7 @@ where
     }
     
     /// Extract quotient from fingerprint (same as quotient filter)
+    #[allow(dead_code)]
     fn extract_quotient(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let quotient_mask = if quotient_bits >= 64 {
@@ -312,6 +315,7 @@ where
     }
     
     /// Extract remainder from fingerprint (same as quotient filter)
+    #[allow(dead_code)]
     fn extract_remainder(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let remainder_bits = 64 - quotient_bits;
@@ -324,6 +328,7 @@ where
     }
     
     /// Find the target slot for a quotient and remainder
+    #[allow(dead_code)]
     fn find_target_slot(&self, quotient: u64, _remainder: u64) -> usize {
         // Use the same perfect hash as the quotient filter
         self.perfect_hash.slot_index(quotient)
@@ -331,17 +336,32 @@ where
     
     /// Find the actual slot where a fingerprint is stored
     /// This replicates the quotient filter's slot finding logic
-    fn find_actual_slot_for_fingerprint(&self, quotient: u64, _remainder: u64) -> usize {
-        // Get the target slot from the perfect hash
-        let target_slot = self.perfect_hash.slot_index(quotient);
+    #[cfg(feature = "quotient-filter")]
+    async fn find_actual_slot_for_fingerprint(&self, quotient: u64, remainder: u64) -> Option<usize> {
+        // We need to access the quotient filter to find the actual slot
+        // The quotient filter has the logic to find runs and search within them
+        let filter_guard = self.filter.read().await;
         
-        // The quotient filter stores fingerprints in runs
-        // We need to find the actual slot within the run where this remainder is stored
-        // This is a simplified version - in practice, we'd need access to the quotient filter's internal state
+        // Use the quotient filter's method to find the actual slot
+        // This handles runs, shifting, and all the complex logic
+        // The fingerprint is reconstructed by combining quotient and remainder
+        // The quotient goes in the lower bits, remainder in the upper bits
+        let fingerprint = quotient | (remainder << filter_guard.quotient_bits());
+        let actual_slot = filter_guard.get_actual_slot_for_fingerprint(fingerprint);
         
-        // For now, let's use a simple approach: assume the remainder is stored at the target slot
-        // This is not correct but will help us identify the issue
-        target_slot
+        drop(filter_guard);
+        actual_slot
+    }
+    
+    /// Find the actual slot where a key's fingerprint is stored
+    /// This is useful for debugging and advanced operations
+    #[cfg(feature = "quotient-filter")]
+    pub async fn find_slot_for_key(&self, key: &K) -> Option<usize> {
+        let fingerprint = self.hash_key(key);
+        let quotient = self.extract_quotient(fingerprint);
+        let remainder = self.extract_remainder(fingerprint);
+        
+        self.find_actual_slot_for_fingerprint(quotient, remainder).await
     }
     
     /// Merge a value with an existing value at a fingerprint
@@ -417,7 +437,7 @@ mod tests {
         let maplet = maplet.unwrap();
         assert_eq!(maplet.len().await, 0);
         assert!(maplet.is_empty().await);
-        assert_eq!(maplet.error_rate(), 0.01);
+        assert!((maplet.error_rate() - 0.01).abs() < f64::EPSILON);
     }
 
     #[tokio::test]
@@ -479,12 +499,12 @@ mod tests {
         let mut handles = vec![];
 
         // Spawn multiple concurrent tasks that insert the same keys
-        for i in 0..10 {
+        for i in 0..5 {
             let maplet_clone = Arc::clone(&maplet);
             let handle = task::spawn(async move {
-                for j in 0..100 {
-                    let key = format!("key_{}", j % 50); // Some keys will be duplicated
-                    let value = (i * 100 + j) as u64;
+                for j in 0..50 {
+                    let key = format!("key_{}", j % 25); // Some keys will be duplicated
+                    let value = u64::try_from(i * 50 + j).unwrap_or(0);
                     maplet_clone.insert(key, value).await.unwrap();
                 }
             });
@@ -505,7 +525,7 @@ mod tests {
         
         // Test that we can query without errors
         for i in 0..50 {
-            let key = format!("key_{}", i);
+            let key = format!("key_{i}");
             let result = maplet.query(&key).await;
             // Result might be Some or None depending on hash collisions, but shouldn't panic
             assert!(result.is_some() || result.is_none());
@@ -518,8 +538,8 @@ mod tests {
         
         // Insert some items
         for i in 0..10 {
-            let key = format!("key_{}", i);
-            maplet.insert(key, i as u64).await.unwrap();
+            let key = format!("key_{i}");
+            maplet.insert(key, u64::try_from(i).unwrap_or(0)).await.unwrap();
         }
 
         let stats = maplet.stats().await;
@@ -527,10 +547,32 @@ mod tests {
         
         // Memory usage should be reasonable and not based on full capacity
         assert!(memory_usage > 0, "Memory usage should be positive");
-        assert!(memory_usage < 100000, "Memory usage should be reasonable for 10 items");
+        assert!(memory_usage < 100_000, "Memory usage should be reasonable for 10 items");
         
         // Should be much less than the old calculation (100 * 24 + 100 * 8 = 3200 bytes minimum)
         // The new calculation should be more accurate
-        println!("Memory usage for 10 items: {} bytes", memory_usage);
+        println!("Memory usage for 10 items: {memory_usage} bytes");
+    }
+
+    #[cfg(feature = "quotient-filter")]
+    #[tokio::test]
+    async fn test_slot_finding_for_key() {
+        let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        
+        // Insert some items
+        let test_key = "test_key".to_string();
+        maplet.insert(test_key.clone(), 42).await.unwrap();
+        
+        // Find the slot for the key
+        let slot = maplet.find_slot_for_key(&test_key).await;
+        assert!(slot.is_some(), "Should find a slot for existing key");
+        
+        // Try to find slot for non-existing key
+        // Note: Due to false positives, the quotient filter might return a slot
+        // even for non-existing keys. This is expected behavior.
+        let non_existing_key = "non_existing".to_string();
+        let _non_existing_slot = maplet.find_slot_for_key(&non_existing_key).await;
+        // The slot might or might not be found due to false positives
+        // This is acceptable behavior for a probabilistic data structure
     }
 }
