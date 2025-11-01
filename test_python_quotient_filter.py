@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""Test script for Python bindings with quotient filter feature.
+"""Legacy test script for Python bindings with quotient filter feature.
 
-This script tests the quotient filter functionality through Python bindings.
+This script is maintained for backward compatibility. For comprehensive
+testing, use the pytest test suite:
+
+    pytest test_mappy_python.py -v
+
+This script runs a subset of tests focused on quotient filter features.
 """
 
 import os
@@ -17,6 +22,7 @@ except ImportError:
     print("Error: mappy_python module not found. Make sure to build the Python bindings first.")
     print("Run: cd mappy-python && maturin develop")
     sys.exit(1)
+
 
 def test_basic_maplet_quotient_filter_features():
     """Test basic Maplet with quotient filter features."""
@@ -62,6 +68,7 @@ def test_basic_maplet_quotient_filter_features():
     assert maplet.contains("key3")
 
     print("  ✅ Basic Maplet quotient filter features test passed!")
+
 
 def test_engine_quotient_filter_features():
     """Test Engine with quotient filter features."""
@@ -126,6 +133,7 @@ def test_engine_quotient_filter_features():
 
     print("  ✅ Engine quotient filter features test passed!")
 
+
 def test_performance_benchmark():
     """Test performance of quotient filter features."""
     print("🧪 Testing performance of quotient filter features...")
@@ -166,6 +174,7 @@ def test_performance_benchmark():
     print(f"    Found slots for {found_slots}/1000 items ({found_slots/10:.1f}%)")
 
     print("  ✅ Performance test passed!")
+
 
 def test_concurrent_operations():
     """Test concurrent operations with quotient filter features."""
@@ -223,6 +232,7 @@ def test_concurrent_operations():
 
     print("  ✅ Concurrent operations test passed!")
 
+
 def test_error_handling():
     """Test error handling for quotient filter features."""
     print("🧪 Testing error handling for quotient filter features...")
@@ -246,10 +256,14 @@ def test_error_handling():
 
     print("  ✅ Error handling test passed!")
 
+
 def main():
     """Run all tests for Python quotient filter features."""
     print("🦊 Testing Python bindings with quotient filter features")
     print("=" * 70)
+    print("NOTE: For comprehensive testing, use: pytest test_mappy_python.py -v")
+    print("=" * 70)
+    print()
 
     try:
         # Test basic Maplet functionality
@@ -273,6 +287,8 @@ def main():
         print()
 
         print("🎉 All tests passed! Python quotient filter features are working correctly.")
+        print()
+        print("💡 Tip: Run 'pytest test_mappy_python.py -v' for comprehensive test coverage.")
 
     except Exception as e:
         print(f"❌ Test failed: {e}")
@@ -280,5 +296,7 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
+

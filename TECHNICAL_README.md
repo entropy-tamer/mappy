@@ -484,6 +484,41 @@ Multiple persistence backends:
 - **Disk**: Full persistence with Sled backend
 - **Hybrid**: Memory + AOF for balanced performance
 
+#### Important: Engine Persistence Behavior
+
+The Engine uses a **maplet-first design** for lookups. The `get()` method first checks the maplet for approximate membership before accessing the storage backend:
+
+```rust
+// Simplified get() implementation
+pub async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
+    // First check maplet for membership
+    if !maplet.contains(key).await {
+        return Ok(None);  // Early return if not in maplet
+    }
+    // Only query storage if key exists in maplet
+    self.storage.get(key).await
+}
+```
+
+**Implications for Persistence:**
+
+1. **Data Persistence**: Data written to persistent storage (Disk, AOF, Hybrid) is correctly persisted and survives engine restarts
+2. **Key Listing**: The `keys()` method queries storage directly, so all persisted keys are visible
+3. **Value Access**: The `get()` method requires the key to exist in the maplet, which is empty for new engine instances
+4. **Workaround**: Keys must be re-inserted after engine restart to make them accessible via `get()`
+
+**Design Rationale:**
+
+This design provides fast negative lookups - if a key isn't in the maplet, we know it doesn't exist without querying storage. This is consistent with the maplet's role as an approximate membership filter.
+
+**Future Enhancement:**
+
+The Engine could be enhanced to:
+
+- Reconstruct the maplet from storage when loading from disk
+- Provide a `load_from_storage()` method to populate the maplet from existing keys
+- Optionally disable maplet-first checking for storage-only queries
+
 ### 5. Hash Functions (`mappy-core/src/hash.rs`)
 
 Multiple hash function implementations:

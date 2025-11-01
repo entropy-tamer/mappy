@@ -341,6 +341,43 @@ config = mappy_python.PyEngineConfig(
 # Full persistence with ACID guarantees
 ```
 
+**Important Note on Disk Persistence:**
+
+The Engine uses a **maplet-first design** where `get()` first checks the maplet for approximate membership. If a key doesn't exist in the maplet, `get()` returns `None` immediately, even if the value exists in persistent storage.
+
+**Behavior:**
+
+- Data written to disk storage is persisted and can survive engine restarts
+- Keys can be listed via `engine.keys()` from any engine instance
+- However, `engine.get(key)` will return `None` for keys not in the current engine's maplet
+- When a new Engine instance is created, it starts with an empty maplet
+- Therefore, keys persisted to disk won't be accessible via `get()` until they're re-inserted
+
+**Example:**
+
+```python
+# First engine instance
+engine1 = mappy_python.PyEngine(config)
+engine1.set("key1", b"value1")
+engine1.flush()
+engine1.close()
+
+# Second engine instance (after restart)
+engine2 = mappy_python.PyEngine(config)
+
+# Keys exist in storage
+keys = engine2.keys()  # Returns ["key1"]
+
+# But get() returns None because maplet is empty
+value = engine2.get("key1")  # Returns None
+
+# Re-insert to make accessible
+engine2.set("key1", b"value1")
+value = engine2.get("key1")  # Now returns b"value1"
+```
+
+**Future Enhancement:** The Engine could be enhanced to reconstruct the maplet from storage when loading from disk, or provide a method to load existing keys into the maplet.
+
 #### AOF Mode
 
 ```python

@@ -3,14 +3,14 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "reynard-mappy"
-version = "0.1.0"
+name = "mappy-python"
+version = "0.2.1"
 description = "Python bindings for the Reynard mappy maplet data structures"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Reynard Team", email = "team@reynard.dev"},
+    {name = "Balazs Horvath", email = "acsipont@gmail.com"},
 ]
 keywords = ["mappy", "maplet", "data-structures", "python", "rust"]
 classifiers = [
@@ -23,6 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Rust",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Information Analysis",
@@ -32,12 +34,12 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21",
-    "pytest-cov>=4.0",
-    "black>=23.0",
-    "isort>=5.12",
-    "mypy>=1.0",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "black",
+    "isort",
+    "mypy",
 ]
 
 [tool.maturin]

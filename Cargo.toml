@@ -8,9 +8,9 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.1"
 edition = "2024"
-authors = ["Reynard Team"]
+authors = ["Balazs Horvath"]
 license = "MIT"
 repository = "https://github.com/entropy-tamer/mappy"
 description = "Space-efficient maplet data structures for approximate key-value mappings"
@@ -44,7 +44,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 # Testing
 criterion = { version = "0.7.0", features = ["html_reports"] }
-proptest = "1.8.0"
+proptest = "1.9.0"
 quickcheck = "1.0.3"
 
 # Python bindings
