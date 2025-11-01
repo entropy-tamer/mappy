@@ -901,7 +901,7 @@ Beyond the research, Mappy adds several production-ready innovations:
 
 ### Primary Research
 
-> Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint arXiv:2510.05518.
+> Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint [arXiv:2510.05518](https://arxiv.org/abs/2510.05518).
 
 ### Related Work
 
@@ -913,7 +913,7 @@ Beyond the research, Mappy adds several production-ready innovations:
 
 ### Additional Resources
 
-- [Research Paper](https://arxiv.org/html/2510.05518v1)
+- [Research Paper](https://arxiv.org/abs/2510.05518)
 - [API Documentation](https://docs.rs/mappy-core)
 - [Performance Benchmarks](mappy-core/benches/)
 - [Example Applications](mappy-core/examples/)

@@ -25,6 +25,7 @@ The implementation follows a multi-crate workspace structure:
 - **mappy-core**: Core maplet data structure implementation
 - **mappy-client**: Client library for Rust applications
 - **mappy-python**: Python bindings via PyO3
+- **mappy-server**: HTTP server for network access to Mappy service
 
 ## Quick Start
 
@@ -254,4 +255,4 @@ MIT License - see LICENSE file for details.
 
 Based on the research paper:
 
-> Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint arXiv:2510.05518.
+> Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint [arXiv:2510.05518](https://arxiv.org/abs/2510.05518).

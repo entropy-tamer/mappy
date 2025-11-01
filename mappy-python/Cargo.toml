@@ -19,4 +19,4 @@ serde.workspace = true
 serde_json.workspace = true
 
 # Async runtime for Python bindings
-tokio = { version = "1.47", features = ["rt"] }
+tokio.workspace = true
