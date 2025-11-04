@@ -8,9 +8,6 @@ This directory contains comprehensive test suites for the mappy-python bindings.
 # Run all tests with pytest
 pytest test_mappy_python.py -v
 
-# Run legacy test script (backward compatibility)
-python test_python_quotient_filter.py
-
 # Run specific test classes
 pytest test_mappy_python.py::TestPyMaplet -v
 
@@ -70,11 +67,6 @@ The main test suite with complete coverage of all mappy-python functionalities:
   - Special characters
   - Large values
   - Operations after close
-
-### `test_python_quotient_filter.py` - Legacy Test Script
-
-Maintained for backward compatibility. Focuses on quotient filter features.
-Use `pytest test_mappy_python.py` for comprehensive testing.
 
 ## Running Tests
 

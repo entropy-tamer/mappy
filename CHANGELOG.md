@@ -2,7 +2,80 @@
 
 All notable changes to the Mappy project will be documented in this file.
 
-## [Unreleased] - Advanced Quotient Filter Implementation
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [0.2.1] - 2025-11-01 - Version Bump and Testing Improvements
+
+### Changed
+
+#### Version and Metadata Updates
+
+- **Version bump**: Updated from 0.2.0 to 0.2.1 across all Rust and Python packages
+- **Author metadata**: Updated package author from "Reynard Team" to "Balazs Horvath"
+- **Python package name**: Changed from `reynard-mappy` to `mappy-python` for consistency
+
+#### Dependency Updates
+
+- **proptest**: Updated from 1.8.0 to 1.9.0
+
+#### Documentation
+
+- **TECHNICAL_README.md**: Added comprehensive documentation on Engine persistence behavior
+  - Documented maplet-first design for lookups
+  - Explained implications for data persistence across engine restarts
+  - Provided design rationale and future enhancement suggestions
+
+#### Testing Infrastructure
+
+- **Test improvements**: Enhanced disk persistence tests with unique subdirectories to avoid lock conflicts
+- **New pytest suite**: Added comprehensive `test_mappy_python.py` with pytest-based test structure
+- **Testing documentation**: Created `TESTING.md` guide for Python bindings testing
+- **Test cleanup**: Removed legacy shell-based test scripts (`run_tests_and_benchmarks.sh`, `test_quotient_filter_complete.sh`)
+- **pytest configuration**: Added `pytest.ini` for standardized test configuration
+
+#### Python Bindings
+
+- **README updates**: Enhanced Python bindings documentation with improved examples and usage patterns
+
+### Technical Details
+
+#### Files Modified
+
+- `Cargo.toml` - Version and author metadata updates
+- `mappy-python/pyproject.toml` - Package name, version, and author updates
+- `mappy-core/src/engine.rs` - Test improvements for disk persistence
+- `TECHNICAL_README.md` - Engine persistence behavior documentation
+- `mappy-python/README.md` - Enhanced documentation
+
+#### Files Added
+
+- `TESTING.md` - Comprehensive testing guide
+- `pytest.ini` - Pytest configuration
+- `test_mappy_python.py` - Modern pytest-based test suite
+
+#### Files Removed
+
+- `run_tests_and_benchmarks.sh` - Legacy test script
+- `test_quotient_filter_complete.sh` - Legacy test script
+
+### Migration Notes
+
+- **Python package name change**: If you're using the Python package, update imports if needed. The package functionality remains the same.
+- **Testing**: New pytest-based test suite is available. Legacy test scripts have been removed in favor of modern pytest infrastructure.
+
+## [0.2.0] - 2025-10-23 - Advanced Quotient Filter Implementation
 
 ### Added
 

@@ -580,14 +580,11 @@ if not allowed:
 ### Running Tests
 
 ```bash
-# Run Python tests
-python test_python_quotient_filter.py
+# Run comprehensive test suite with pytest
+pytest test_mappy_python.py -v
 
-# Run comprehensive test suite
+# Run comprehensive test suite (if available)
 ./test_quotient_filter_complete.sh
-
-# Run with pytest (if available)
-pytest test_python_quotient_filter.py -v
 ```
 
 ### Test Coverage
@@ -619,7 +616,7 @@ pip install -e .
 maturin develop --features quotient-filter
 
 # Run tests
-python test_python_quotient_filter.py
+pytest test_mappy_python.py -v
 ```
 
 ### Requirements
@@ -720,7 +717,7 @@ cd mappy/mappy-python
 pip install -e ".[dev]"
 
 # Run tests
-python test_python_quotient_filter.py
+pytest test_mappy_python.py -v
 
 # Run linting
 black .

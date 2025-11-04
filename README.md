@@ -226,8 +226,6 @@ cd services/mappy
 ./benchmark_runner.sh --redis
 ```
 
-For detailed benchmark documentation, see [REDIS_BENCHMARKS.md](mappy-core/benches/REDIS_BENCHMARKS.md).
-
 ## Error Guarantees
 
 Maplets provide the **strong maplet property**:
@@ -245,7 +243,6 @@ Where `Pr[ℓ ≥ L] ≤ ε^L`, meaning even when wrong, the result is close to 
 - **[Documentation Index](DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
 - **[Benchmark Documentation](mappy-core/benches/QUOTIENT_FILTER_BENCHMARKS.md)** - Detailed benchmark results and performance analysis
 - **[API Documentation](https://docs.rs/mappy-core)** - Auto-generated API documentation
-- **[Research Foundation](../../.cursor/research/maplets/)** - Original research papers and theoretical background
 
 ## License
 
