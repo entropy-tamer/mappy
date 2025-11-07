@@ -1225,7 +1225,7 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "mappy-client"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "mappy-core",
@@ -1237,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-python"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "mappy-core",
  "pyo3",
@@ -1278,7 +1278,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-server"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "async-trait",
