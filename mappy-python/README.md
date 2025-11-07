@@ -80,21 +80,21 @@ graph TB
     subgraph "Python Application"
         APP[Your Python Code]
     end
-    
+
     subgraph "Python Bindings"
         PYMAPLET[PyMaplet]
         PYENGINE[PyEngine]
         PYCONFIG[PyEngineConfig]
         PYSTATS[PyEngineStats]
     end
-    
+
     subgraph "Rust Core"
         MAPLET[Maplet&lt;K,V,Op&gt;]
         ENGINE[Engine]
         QF[Quotient Filter]
         STORAGE[Storage Backends]
     end
-    
+
     APP --> PYMAPLET
     APP --> PYENGINE
     PYMAPLET --> MAPLET
@@ -463,10 +463,10 @@ engine = mappy_python.PyEngine(config)
 def create_session(user_id: str) -> str:
     session_id = f"session:{uuid.uuid4()}"
     session_data = f"user_id:{user_id}:created:{int(time.time())}"
-    
+
     engine.set(session_id, session_data.encode())
     engine.expire(session_id, 3600)  # 1 hour
-    
+
     return session_id
 
 def validate_session(session_id: str) -> bool:
@@ -522,16 +522,16 @@ rate_limiter = mappy_python.PyMaplet(capacity=100_000, false_positive_rate=0.01)
 
 def check_rate_limit(client_id: str, max_requests: int, window_seconds: int) -> bool:
     rate_key = f"rate_limit:{client_id}"
-    
+
     # Get current count
     current_count = rate_limiter.query(rate_key) or 0
-    
+
     if current_count >= max_requests:
         return False  # Rate limited
-    
+
     # Increment counter
     rate_limiter.insert(rate_key, current_count + 1)
-    
+
     # Set expiration (simplified - in practice you'd use TTL)
     return True  # Allowed
 
@@ -546,26 +546,26 @@ if not allowed:
 
 ### Benchmark Results
 
-| Operation | Dataset Size | Performance | Throughput |
-|-----------|--------------|-------------|------------|
-| Insert    | 1,000 items  | 60.5 µs     | 16.5M ops/sec |
-| Insert    | 10,000 items | 565 µs      | 17.7M ops/sec |
-| Insert    | 100,000 items| 9.4 ms      | 10.6M ops/sec |
-| Query     | 1,000 items  | 22.2 µs     | 45.0M ops/sec |
-| Query     | 10,000 items | 274 µs      | 36.5M ops/sec |
-| Query     | 100,000 items| 6.1 ms      | 16.4M ops/sec |
-| Slot Finding | 1,000 items | 16.3 µs     | 61.5M ops/sec |
-| Slot Finding | 10,000 items | 201 µs      | 49.7M ops/sec |
-| Slot Finding | 100,000 items| 4.1 ms      | 24.5M ops/sec |
+| Operation    | Dataset Size  | Performance | Throughput    |
+| ------------ | ------------- | ----------- | ------------- |
+| Insert       | 1,000 items   | 60.5 µs     | 16.5M ops/sec |
+| Insert       | 10,000 items  | 565 µs      | 17.7M ops/sec |
+| Insert       | 100,000 items | 9.4 ms      | 10.6M ops/sec |
+| Query        | 1,000 items   | 22.2 µs     | 45.0M ops/sec |
+| Query        | 10,000 items  | 274 µs      | 36.5M ops/sec |
+| Query        | 100,000 items | 6.1 ms      | 16.4M ops/sec |
+| Slot Finding | 1,000 items   | 16.3 µs     | 61.5M ops/sec |
+| Slot Finding | 10,000 items  | 201 µs      | 49.7M ops/sec |
+| Slot Finding | 100,000 items | 4.1 ms      | 24.5M ops/sec |
 
 ### Memory Usage
 
-| Dataset Size | Memory Usage | Efficiency |
-|--------------|--------------|------------|
-| 1,000 items  | ~8KB         | 8 bytes/item |
-| 10,000 items | ~80KB        | 8 bytes/item |
-| 100,000 items| ~800KB       | 8 bytes/item |
-| 1,000,000 items| ~8MB       | 8 bytes/item |
+| Dataset Size    | Memory Usage | Efficiency   |
+| --------------- | ------------ | ------------ |
+| 1,000 items     | ~8KB         | 8 bytes/item |
+| 10,000 items    | ~80KB        | 8 bytes/item |
+| 100,000 items   | ~800KB       | 8 bytes/item |
+| 1,000,000 items | ~8MB         | 8 bytes/item |
 
 ### Performance Tips
 

@@ -11,7 +11,7 @@ The quotient filter implementation includes extensive testing and benchmarking t
 The implementation now includes comprehensive **Advanced Quotient Filter** features with:
 
 - **Precise Slot Finding**: Locate exact storage slots considering runs and shifting
-- **Run Detection**: Handle quotient filter runs with multiple fingerprints  
+- **Run Detection**: Handle quotient filter runs with multiple fingerprints
 - **Shifting Support**: Account for linear probing and slot shifting
 - **Comprehensive Testing**: 62+ test cases covering all edge cases and scenarios
 - **Performance Benchmarks**: Detailed benchmarks showing 10-60M operations/second
@@ -151,7 +151,7 @@ Comprehensive benchmarks show excellent performance across all operations:
 ##### Insert Performance
 
 - **1,000 items**: 60.5 µs (16.5M operations/second)
-- **10,000 items**: 565 µs (17.7M operations/second)  
+- **10,000 items**: 565 µs (17.7M operations/second)
 - **100,000 items**: 9.4 ms (10.6M operations/second)
 
 ##### Query Performance

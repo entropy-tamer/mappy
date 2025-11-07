@@ -207,29 +207,29 @@ This document provides a comprehensive index of all documentation for the Mappy 
 
 ### Recent Benchmark Results
 
-| Operation | Dataset Size | Performance | Throughput |
-|-----------|--------------|-------------|------------|
-| Insert    | 1,000 items  | 60.5 µs     | 16.5M ops/sec |
-| Insert    | 10,000 items | 565 µs      | 17.7M ops/sec |
-| Insert    | 100,000 items| 9.4 ms      | 10.6M ops/sec |
-| Query     | 1,000 items  | 22.2 µs     | 45.0M ops/sec |
-| Query     | 10,000 items | 274 µs      | 36.5M ops/sec |
-| Query     | 100,000 items| 6.1 ms      | 16.4M ops/sec |
-| Delete    | 1,000 items  | 117 µs      | 8.5M ops/sec |
-| Delete    | 10,000 items | 1.19 ms     | 8.4M ops/sec |
-| Delete    | 100,000 items| 24.7 ms     | 4.0M ops/sec |
-| Slot Finding | 1,000 items | 16.3 µs     | 61.5M ops/sec |
-| Slot Finding | 10,000 items | 201 µs      | 49.7M ops/sec |
-| Slot Finding | 100,000 items| 4.1 ms      | 24.5M ops/sec |
+| Operation    | Dataset Size  | Performance | Throughput    |
+| ------------ | ------------- | ----------- | ------------- |
+| Insert       | 1,000 items   | 60.5 µs     | 16.5M ops/sec |
+| Insert       | 10,000 items  | 565 µs      | 17.7M ops/sec |
+| Insert       | 100,000 items | 9.4 ms      | 10.6M ops/sec |
+| Query        | 1,000 items   | 22.2 µs     | 45.0M ops/sec |
+| Query        | 10,000 items  | 274 µs      | 36.5M ops/sec |
+| Query        | 100,000 items | 6.1 ms      | 16.4M ops/sec |
+| Delete       | 1,000 items   | 117 µs      | 8.5M ops/sec  |
+| Delete       | 10,000 items  | 1.19 ms     | 8.4M ops/sec  |
+| Delete       | 100,000 items | 24.7 ms     | 4.0M ops/sec  |
+| Slot Finding | 1,000 items   | 16.3 µs     | 61.5M ops/sec |
+| Slot Finding | 10,000 items  | 201 µs      | 49.7M ops/sec |
+| Slot Finding | 100,000 items | 4.1 ms      | 24.5M ops/sec |
 
 ### Memory Usage
 
-| Dataset Size | Memory Usage | Efficiency |
-|--------------|--------------|------------|
-| 1,000 items  | ~8KB         | 8 bytes/item |
-| 10,000 items | ~80KB        | 8 bytes/item |
-| 100,000 items| ~800KB       | 8 bytes/item |
-| 1,000,000 items| ~8MB       | 8 bytes/item |
+| Dataset Size    | Memory Usage | Efficiency   |
+| --------------- | ------------ | ------------ |
+| 1,000 items     | ~8KB         | 8 bytes/item |
+| 10,000 items    | ~80KB        | 8 bytes/item |
+| 100,000 items   | ~800KB       | 8 bytes/item |
+| 1,000,000 items | ~8MB         | 8 bytes/item |
 
 ## Contributing
 

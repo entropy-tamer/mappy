@@ -180,10 +180,10 @@ def test_maplet_new_feature(basic_maplet):
     """Test new feature of PyMaplet."""
     # Arrange
     basic_maplet.insert("test", 42)
-    
+
     # Act
     result = basic_maplet.new_feature("test")
-    
+
     # Assert
     assert result == expected_value
 ```

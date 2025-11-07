@@ -67,10 +67,10 @@ use mappy_core::{Maplet, CounterOperator};
 async fn main() {
     // Create a maplet with quotient filter support
     let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap();
-    
+
     // Insert some data
     maplet.insert("test_key".to_string(), 42).await.unwrap();
-    
+
     // Find the actual slot where a key's fingerprint is stored
     let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
     match slot {
@@ -112,13 +112,13 @@ async fn main() {
         persistence_mode: PersistenceMode::Hybrid,
         data_dir: Some("./data".to_string()),
     };
-    
+
     // Create engine
     let engine = Engine::new(config).await.unwrap();
-    
+
     // Insert data
     engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
-    
+
     // Find slot for key
     let slot = engine.find_slot_for_key("key1").await.unwrap();
     println!("Key 'key1' found at slot: {:?}", slot);
@@ -204,10 +204,10 @@ class PyMaplet:
     def find_slot_for_key(self, key: str) -> Optional[int]:
         """
         Find the slot for a key (advanced quotient filter feature).
-        
+
         Args:
             key: The key to find the slot for
-            
+
         Returns:
             Optional[int]: The slot index if found, None otherwise
         """
@@ -220,10 +220,10 @@ class PyEngine:
     def find_slot_for_key(self, key: str) -> Optional[int]:
         """
         Find the slot for a key (advanced quotient filter feature).
-        
+
         Args:
             key: The key to find the slot for
-            
+
         Returns:
             Optional[int]: The slot index if found, None otherwise
         """
@@ -320,37 +320,37 @@ cargo bench --bench basic_quotient_filter_benchmarks -- --sample-size 10
 
 #### Performance Characteristics
 
-| Operation | Dataset Size | Performance | Throughput |
-|-----------|--------------|-------------|------------|
-| Insert    | 1,000 items  | 60.5 µs     | 16.5M ops/sec |
-| Insert    | 10,000 items | 565 µs      | 17.7M ops/sec |
-| Insert    | 100,000 items| 9.4 ms      | 10.6M ops/sec |
-| Query     | 1,000 items  | 22.2 µs     | 45.0M ops/sec |
-| Query     | 10,000 items | 274 µs      | 36.5M ops/sec |
-| Query     | 100,000 items| 6.1 ms      | 16.4M ops/sec |
-| Delete    | 1,000 items  | 117 µs      | 8.5M ops/sec |
-| Delete    | 10,000 items | 1.19 ms     | 8.4M ops/sec |
-| Delete    | 100,000 items| 24.7 ms     | 4.0M ops/sec |
-| Slot Finding | 1,000 items | 16.3 µs     | 61.5M ops/sec |
-| Slot Finding | 10,000 items | 201 µs      | 49.7M ops/sec |
-| Slot Finding | 100,000 items| 4.1 ms      | 24.5M ops/sec |
+| Operation    | Dataset Size  | Performance | Throughput    |
+| ------------ | ------------- | ----------- | ------------- |
+| Insert       | 1,000 items   | 60.5 µs     | 16.5M ops/sec |
+| Insert       | 10,000 items  | 565 µs      | 17.7M ops/sec |
+| Insert       | 100,000 items | 9.4 ms      | 10.6M ops/sec |
+| Query        | 1,000 items   | 22.2 µs     | 45.0M ops/sec |
+| Query        | 10,000 items  | 274 µs      | 36.5M ops/sec |
+| Query        | 100,000 items | 6.1 ms      | 16.4M ops/sec |
+| Delete       | 1,000 items   | 117 µs      | 8.5M ops/sec  |
+| Delete       | 10,000 items  | 1.19 ms     | 8.4M ops/sec  |
+| Delete       | 100,000 items | 24.7 ms     | 4.0M ops/sec  |
+| Slot Finding | 1,000 items   | 16.3 µs     | 61.5M ops/sec |
+| Slot Finding | 10,000 items  | 201 µs      | 49.7M ops/sec |
+| Slot Finding | 100,000 items | 4.1 ms      | 24.5M ops/sec |
 
 #### Hash Function Performance
 
-| Hash Function | Performance | Use Case |
-|---------------|-------------|----------|
+| Hash Function | Performance | Use Case                           |
+| ------------- | ----------- | ---------------------------------- |
 | AHash         | Fastest     | General purpose, good distribution |
-| TwoX         | Medium      | Cryptographic security, slower |
-| Fnv          | Slowest     | Simple, deterministic |
+| TwoX          | Medium      | Cryptographic security, slower     |
+| Fnv           | Slowest     | Simple, deterministic              |
 
 #### Memory Usage
 
-| Dataset Size | Memory Usage | Efficiency |
-|--------------|--------------|------------|
-| 1,000 items  | ~8KB         | 8 bytes/item |
-| 10,000 items | ~80KB        | 8 bytes/item |
-| 100,000 items| ~800KB       | 8 bytes/item |
-| 1,000,000 items| ~8MB       | 8 bytes/item |
+| Dataset Size    | Memory Usage | Efficiency   |
+| --------------- | ------------ | ------------ |
+| 1,000 items     | ~8KB         | 8 bytes/item |
+| 10,000 items    | ~80KB        | 8 bytes/item |
+| 100,000 items   | ~800KB       | 8 bytes/item |
+| 1,000,000 items | ~8MB         | 8 bytes/item |
 
 ## Python Integration
 

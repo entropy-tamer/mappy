@@ -98,16 +98,16 @@ format = "json"
 
 ### Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `server.port` | u16 | `8080` | Server port |
-| `server.host` | String | `"0.0.0.0"` | Server host |
-| `maplet.capacity` | usize | `10000` | Initial maplet capacity |
-| `maplet.false_positive_rate` | f64 | `0.01` | False positive rate (1%) |
-| `storage.data_dir` | String | `"./data/mappy"` | Directory for persistent storage |
-| `storage.persistence_mode` | String | `"hybrid"` | Storage mode: `memory`, `disk`, `hybrid` |
-| `logging.level` | String | `"info"` | Log level |
-| `logging.format` | String | `"pretty"` | Log format: `pretty`, `json` |
+| Option                       | Type   | Default          | Description                              |
+| ---------------------------- | ------ | ---------------- | ---------------------------------------- |
+| `server.port`                | u16    | `8080`           | Server port                              |
+| `server.host`                | String | `"0.0.0.0"`      | Server host                              |
+| `maplet.capacity`            | usize  | `10000`          | Initial maplet capacity                  |
+| `maplet.false_positive_rate` | f64    | `0.01`           | False positive rate (1%)                 |
+| `storage.data_dir`           | String | `"./data/mappy"` | Directory for persistent storage         |
+| `storage.persistence_mode`   | String | `"hybrid"`       | Storage mode: `memory`, `disk`, `hybrid` |
+| `logging.level`              | String | `"info"`         | Log level                                |
+| `logging.format`             | String | `"pretty"`       | Log format: `pretty`, `json`             |
 
 ## 📚 API Reference
 
