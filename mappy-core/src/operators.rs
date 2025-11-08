@@ -187,6 +187,40 @@ impl<T: Clone> MergeOperator<Vec<T>> for VectorConcatOperator {
     }
 }
 
+/// Vector addition operator for element-wise addition of numeric vectors
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct VectorOperator;
+
+impl MergeOperator<Vec<f64>> for VectorOperator {
+    fn merge(&self, left: Vec<f64>, right: Vec<f64>) -> MapletResult<Vec<f64>> {
+        if left.len() != right.len() {
+            return Err(crate::MapletError::Internal(
+                format!("Vector length mismatch: {} != {}", left.len(), right.len())
+            ));
+        }
+        Ok(left.into_iter().zip(right.into_iter()).map(|(l, r)| l + r).collect())
+    }
+    
+    fn identity(&self) -> Vec<f64> {
+        Vec::new()
+    }
+}
+
+impl MergeOperator<Vec<f32>> for VectorOperator {
+    fn merge(&self, left: Vec<f32>, right: Vec<f32>) -> MapletResult<Vec<f32>> {
+        if left.len() != right.len() {
+            return Err(crate::MapletError::Internal(
+                format!("Vector length mismatch: {} != {}", left.len(), right.len())
+            ));
+        }
+        Ok(left.into_iter().zip(right.into_iter()).map(|(l, r)| l + r).collect())
+    }
+    
+    fn identity(&self) -> Vec<f32> {
+        Vec::new()
+    }
+}
+
 /// Boolean OR operator
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BoolOrOperator;

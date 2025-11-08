@@ -3,12 +3,13 @@ members = [
     "mappy-core",
     "mappy-client",
     "mappy-python",
-    "mappy-server"
+    "mappy-server",
+    "stilts"
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 authors = ["Balazs Horvath"]
 license = "MIT"
@@ -60,6 +61,11 @@ axum = { version = "0.8.6", features = ["macros"] }
 tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["cors", "trace", "fs"] }
 hyper = { version = "1.7.0", features = ["full"] }
+hyper-util = { version = "0.1.17", features = ["full"] }
 tls = { package = "tokio-rustls", version = "0.26.4" }
 config = "0.15.18"
 dotenvy = "0.15.7"
+
+# HTTP client dependencies
+reqwest = { version = "0.12.24", features = ["json"] }
+urlencoding = "2.1.3"

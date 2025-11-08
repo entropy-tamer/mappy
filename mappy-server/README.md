@@ -56,9 +56,11 @@ MAPPY_PORT=3000 ./mappy-server
 ### Environment Variables
 
 ```bash
-# Server configuration
-MAPPY_PORT=8080
-MAPPY_HOST=0.0.0.0
+# Server configuration (Unix socket is default)
+MAPPY_SOCKET_PATH="/var/run/reynard/mappy.sock"  # Unix socket path (default)
+MAPPY_ENABLE_HTTP="false"                     # Enable HTTP server (default: false)
+MAPPY_PORT=8080                               # HTTP port (only used if ENABLE_HTTP=true)
+MAPPY_HOST=0.0.0.0                            # HTTP host (only used if ENABLE_HTTP=true)
 
 # Maplet configuration
 MAPPY_CAPACITY=10000
@@ -70,6 +72,33 @@ MAPPY_PERSISTENCE_MODE="hybrid"
 
 # Log level
 RUST_LOG="mappy=info"
+```
+
+### Communication Methods
+
+Mappy Server supports two communication methods:
+
+1. **Unix Domain Sockets (Default)**: Fast, secure local communication
+   - Socket path: `/var/run/reynard/mappy.sock` (configurable via `MAPPY_SOCKET_PATH`)
+   - No network overhead, better performance
+   - Only accessible from the same machine
+
+2. **HTTP Server (Optional)**: Network-accessible API
+   - Enabled via `MAPPY_ENABLE_HTTP=true`
+   - Listens on `MAPPY_HOST:MAPPY_PORT` (default: `0.0.0.0:8003`)
+   - Can run simultaneously with Unix socket
+
+**Examples:**
+
+```bash
+# Unix socket only (default)
+./mappy-server
+
+# HTTP only
+MAPPY_ENABLE_HTTP=true MAPPY_PORT=8003 ./mappy-server
+
+# Both socket and HTTP
+MAPPY_ENABLE_HTTP=true MAPPY_SOCKET_PATH=/var/run/reynard/mappy.sock MAPPY_PORT=8003 ./mappy-server
 ```
 
 ## 🔧 Configuration

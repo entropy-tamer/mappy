@@ -12,11 +12,13 @@ categories = ["data-structures", "algorithms"]
 
 [dependencies]
 # Workspace dependencies
-mappy-core = { path = "../mappy-core", version = "0.2.1" }
+mappy-core = { path = "../mappy-core", version = "0.3.0" }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
-
-# Async runtime for tests
 tokio.workspace = true
+
+# HTTP client
+reqwest.workspace = true
+urlencoding.workspace = true

@@ -1193,4 +1193,3 @@ class TestEdgeCases:
         except Exception:
             # If exception is raised, that's also acceptable behavior
             pass
-

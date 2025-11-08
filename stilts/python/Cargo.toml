@@ -1,0 +1,19 @@
+[package]
+name = "stilts-python"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "stilts_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+stilts = { path = ".." }
+pyo3 = { version = "0.27", features = ["extension-module"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[build-system]
+requires = ["maturin"]
+build-backend = "maturin"
+

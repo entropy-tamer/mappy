@@ -22,7 +22,7 @@ pub mod ttl;
 
 // Re-export main types
 pub use maplet::Maplet;
-pub use operators::{CounterOperator, SetOperator, StringOperator, MaxOperator, MinOperator, MergeOperator};
+pub use operators::{CounterOperator, SetOperator, StringOperator, MaxOperator, MinOperator, VectorOperator, MergeOperator};
 pub use types::{MapletStats, MapletError, MapletResult};
 pub use engine::{Engine, EngineConfig, EngineStats};
 pub use storage::{Storage, StorageStats, StorageConfig, PersistenceMode};
