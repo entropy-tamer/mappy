@@ -49,3 +49,4 @@ criterion_group!(benches, benchmark_compression_methods);
 
 criterion_main!(benches);
 
+

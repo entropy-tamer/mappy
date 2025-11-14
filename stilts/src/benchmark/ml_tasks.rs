@@ -5,7 +5,6 @@
 //! hurt ML performance.
 
 use std::collections::{HashMap, HashSet};
-use anyhow::Result;
 
 /// Tag similarity metrics
 pub struct TagSimilarity;
@@ -32,8 +31,7 @@ impl TagSimilarity {
         let freq2 = Self::tag_frequencies(tags2);
         
         let all_tags: HashSet<&str> = freq1.keys()
-            .chain(freq2.keys())
-            .map(|s| *s)
+            .chain(freq2.keys()).copied()
             .collect();
         
         let mut dot_product = 0.0;
@@ -95,7 +93,7 @@ impl TagClassifier {
         let mut class_tags: HashMap<String, Vec<Vec<String>>> = HashMap::new();
         
         for (class, tags) in training_data {
-            class_tags.entry(class).or_insert_with(Vec::new).push(tags);
+            class_tags.entry(class).or_default().push(tags);
         }
         
         Self { class_tags }

@@ -53,21 +53,25 @@ impl ErrorRateController {
     }
     
     /// Get the current error rate
-    pub fn current_error_rate(&self) -> f64 {
+    #[must_use] 
+    pub const fn current_error_rate(&self) -> f64 {
         self.current_error_rate
     }
     
     /// Get the target error rate
-    pub fn target_error_rate(&self) -> f64 {
+    #[must_use] 
+    pub const fn target_error_rate(&self) -> f64 {
         self.target_error_rate
     }
     
     /// Check if the error rate is within acceptable bounds
+    #[must_use] 
     pub fn is_error_rate_acceptable(&self) -> bool {
         self.current_error_rate <= self.target_error_rate * 1.5 // Allow 50% tolerance
     }
     
     /// Get error rate statistics
+    #[must_use] 
     pub fn stats(&self) -> ErrorRateStats {
         ErrorRateStats {
             target_error_rate: self.target_error_rate,
@@ -91,6 +95,7 @@ pub struct CollisionTracker {
 
 impl CollisionTracker {
     /// Create a new collision tracker
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             fingerprint_to_slots: std::collections::HashMap::new(),
@@ -105,6 +110,7 @@ impl CollisionTracker {
     }
     
     /// Get the number of collisions
+    #[must_use] 
     pub fn collision_count(&self) -> usize {
         self.slot_to_fingerprints.values()
             .filter(|fingerprints| fingerprints.len() > 1)
@@ -112,14 +118,16 @@ impl CollisionTracker {
     }
     
     /// Get the maximum chain length
+    #[must_use] 
     pub fn max_chain_length(&self) -> usize {
         self.slot_to_fingerprints.values()
-            .map(|fingerprints| fingerprints.len())
+            .map(std::vec::Vec::len)
             .max()
             .unwrap_or(0)
     }
     
     /// Get fingerprints that collide with a given fingerprint
+    #[must_use] 
     pub fn get_colliding_fingerprints(&self, fingerprint: u64) -> Vec<u64> {
         if let Some(slots) = self.fingerprint_to_slots.get(&fingerprint) {
             let mut colliding = Vec::new();

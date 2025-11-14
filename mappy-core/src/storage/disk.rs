@@ -156,7 +156,7 @@ impl Storage for DiskStorage {
     async fn clear_database(&self) -> MapletResult<()> {
         let start = Instant::now();
         self.tree.clear()
-            .map_err(|e| MapletError::Internal(format!("Failed to clear database: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to clear database: {e}")))?;
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
@@ -172,7 +172,7 @@ impl Storage for DiskStorage {
     async fn flush(&self) -> MapletResult<()> {
         let start = Instant::now();
         self.db.flush()
-            .map_err(|e| MapletError::Internal(format!("Failed to flush: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to flush: {e}")))?;
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
         
         self.update_stats(|stats| {
@@ -185,7 +185,7 @@ impl Storage for DiskStorage {
     
     async fn close(&self) -> MapletResult<()> {
         self.db.flush()
-            .map_err(|e| MapletError::Internal(format!("Failed to flush on close: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to flush on close: {e}")))?;
         Ok(())
     }
     

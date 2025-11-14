@@ -3,7 +3,7 @@
 //! Implements the main Maplet data structure that provides space-efficient
 //! approximate key-value mappings with one-sided error guarantees.
 
-use std::hash::{Hash, BuildHasher};
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -200,7 +200,7 @@ where
     }
     
     /// Get the configured false-positive rate
-    pub fn error_rate(&self) -> f64 {
+    pub const fn error_rate(&self) -> f64 {
         self.config.false_positive_rate
     }
     
@@ -266,7 +266,7 @@ where
     }
     
     /// Merge another maplet into this one
-    pub fn merge(&self, _other: &Maplet<K, V, Op>) -> MapletResult<()> {
+    pub fn merge(&self, _other: &Self) -> MapletResult<()> {
         if !self.config.enable_merging {
             return Err(MapletError::MergeFailed("Merging not enabled".to_string()));
         }
@@ -287,9 +287,9 @@ where
         // Create a consistent hasher - we need to use the same seed as the quotient filter
         // For now, use a fixed seed to ensure consistency
         let random_state = RandomState::with_seed(42);
-        let mut hasher = random_state.build_hasher();
-        key.hash(&mut hasher);
-        hasher.finish()
+        
+        
+        random_state.hash_one(&key)
     }
     
     /// Find the slot index for a fingerprint
@@ -387,7 +387,7 @@ where
     }
     
     /// Estimate memory usage in bytes
-    fn estimate_memory_usage(&self) -> usize {
+    const fn estimate_memory_usage(&self) -> usize {
         // QuotientFilter slots: always allocated for full capacity
         let filter_slots_size = self.config.capacity * std::mem::size_of::<crate::quotient_filter::SlotMetadata>();
         

@@ -2810,6 +2810,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bitvec",
+ "chrono",
  "criterion",
  "flate2",
  "indexmap",
@@ -2821,6 +2822,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

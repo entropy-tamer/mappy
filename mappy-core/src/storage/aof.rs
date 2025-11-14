@@ -43,13 +43,13 @@ impl AOFStorage {
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)
-            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {e}")))?;
         
         let aof_path = Path::new(&config.data_dir).join("mappy.aof");
         
         let mut storage = Self {
             cache: Arc::new(DashMap::new()),
-            aof_path: aof_path.clone(),
+            aof_path: aof_path,
             config,
             stats: Arc::new(RwLock::new(StorageStats::default())),
             start_time: Instant::now(),
@@ -72,18 +72,18 @@ impl AOFStorage {
         }
         
         let file = std::fs::File::open(&self.aof_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file: {e}")))?;
         
         let reader = BufReader::new(file);
         
         for line in reader.lines() {
-            let line = line.map_err(|e| MapletError::Internal(format!("Failed to read AOF line: {}", e)))?;
+            let line = line.map_err(|e| MapletError::Internal(format!("Failed to read AOF line: {e}")))?;
             if line.trim().is_empty() {
                 continue;
             }
             
             let entry: AOFEntry = serde_json::from_str(&line)
-                .map_err(|e| MapletError::Internal(format!("Failed to parse AOF entry: {}", e)))?;
+                .map_err(|e| MapletError::Internal(format!("Failed to parse AOF entry: {e}")))?;
             
             match entry {
                 AOFEntry::Set { key, value } => {
@@ -101,16 +101,16 @@ impl AOFStorage {
     /// Append entry to AOF file
     fn append_to_aof(&self, entry: AOFEntry) -> MapletResult<()> {
         let line = serde_json::to_string(&entry)
-            .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {e}")))?;
         
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&self.aof_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {e}")))?;
         
-        writeln!(file, "{}", line)
-            .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {}", e)))?;
+        writeln!(file, "{line}")
+            .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {e}")))?;
         
         Ok(())
     }
@@ -131,7 +131,7 @@ impl AOFStorage {
                 if let Err(e) = std::fs::File::open(&aof_path)
                     .and_then(|f| f.sync_all())
                 {
-                    eprintln!("Failed to sync AOF file: {}", e);
+                    eprintln!("Failed to sync AOF file: {e}");
                 }
             }
         });
@@ -178,7 +178,7 @@ impl Storage for AOFStorage {
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(result)
@@ -198,7 +198,7 @@ impl Storage for AOFStorage {
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.cache.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
             stats.disk_usage = self.calculate_disk_usage();
@@ -221,7 +221,7 @@ impl Storage for AOFStorage {
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = self.cache.len() as u64;
             stats.memory_usage = self.calculate_memory_usage();
             stats.disk_usage = self.calculate_disk_usage();
@@ -237,7 +237,7 @@ impl Storage for AOFStorage {
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(exists)
@@ -250,7 +250,7 @@ impl Storage for AOFStorage {
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(keys)
@@ -262,13 +262,13 @@ impl Storage for AOFStorage {
         
         // Clear AOF file
         std::fs::write(&self.aof_path, "")
-            .map_err(|e| MapletError::Internal(format!("Failed to clear AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to clear AOF file: {e}")))?;
         
         let latency = start.elapsed().as_micros() as u64;
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = 0;
             stats.memory_usage = 0;
             stats.disk_usage = 0;
@@ -283,13 +283,13 @@ impl Storage for AOFStorage {
         // Force sync AOF file to disk
         std::fs::File::open(&self.aof_path)
             .and_then(|f| f.sync_all())
-            .map_err(|e| MapletError::Internal(format!("Failed to sync AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to sync AOF file: {e}")))?;
         
         let latency = start.elapsed().as_micros() as u64;
         
         self.update_stats(|stats| {
             stats.operations_count += 1;
-            stats.avg_latency_us = (stats.avg_latency_us + latency) / 2;
+            stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
         }).await;
         
         Ok(())

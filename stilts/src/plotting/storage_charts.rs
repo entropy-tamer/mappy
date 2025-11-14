@@ -26,12 +26,13 @@ impl StorageChartGenerator {
             .margin(10)
             .x_label_area_size(80)
             .y_label_area_size(80)
-            .build_cartesian_2d(0..comparisons.len(), 0.0..max_size * 1.1)?;
+            .build_cartesian_2d(0.0..comparisons.len() as f64, 0.0..max_size * 1.1)?;
         
         chart.configure_mesh()
             .x_label_formatter(&|x| {
-                if *x < comparisons.len() {
-                    comparisons[*x].method.clone()
+                let idx = *x as usize;
+                if idx < comparisons.len() {
+                    comparisons[idx].method.clone()
                 } else {
                     "".to_string()
                 }
@@ -45,9 +46,12 @@ impl StorageChartGenerator {
             .map(|(i, c)| (i, c.original_size as f64))
             .collect();
         
+        // Draw bars centered at x + 0.5, offset for grouped bars
         chart.draw_series(
             original_bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], BLUE.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.35; // Bar width for grouped bars
+                Rectangle::new([(center - width, 0.0), (center, *y)], BLUE.filled())
             })
         )?.label("Original Size");
         
@@ -60,13 +64,15 @@ impl StorageChartGenerator {
         
         chart.draw_series(
             storage_bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], RED.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.35; // Bar width for grouped bars
+                Rectangle::new([(center, 0.0), (center + width, *y)], RED.filled())
             })
         )?.label("Storage Size");
         
         chart.configure_series_labels()
-            .background_style(&WHITE.mix(0.8))
-            .border_style(&BLACK)
+            .background_style(WHITE.mix(0.8))
+            .border_style(BLACK)
             .draw()?;
         
         root.present()?;
@@ -91,12 +97,13 @@ impl StorageChartGenerator {
             .margin(10)
             .x_label_area_size(80)
             .y_label_area_size(80)
-            .build_cartesian_2d(0..comparisons.len(), 0.0..max_ratio * 1.1)?;
+            .build_cartesian_2d(0.0..comparisons.len() as f64, 0.0..max_ratio * 1.1)?;
         
         chart.configure_mesh()
             .x_label_formatter(&|x| {
-                if *x < comparisons.len() {
-                    comparisons[*x].method.clone()
+                let idx = *x as usize;
+                if idx < comparisons.len() {
+                    comparisons[idx].method.clone()
                 } else {
                     "".to_string()
                 }
@@ -109,9 +116,12 @@ impl StorageChartGenerator {
             .map(|(i, c)| (i, c.compression_ratio))
             .collect();
         
+        // Draw bars centered at x + 0.5
         chart.draw_series(
             bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], GREEN.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.8; // Bar width (80% of available space)
+                Rectangle::new([(center - width/2.0, 0.0), (center + width/2.0, *y)], GREEN.filled())
             })
         )?;
         
@@ -137,12 +147,13 @@ impl StorageChartGenerator {
             .margin(10)
             .x_label_area_size(80)
             .y_label_area_size(80)
-            .build_cartesian_2d(0..comparisons.len(), 0.0..max_memory * 1.1)?;
+            .build_cartesian_2d(0.0..comparisons.len() as f64, 0.0..max_memory * 1.1)?;
         
         chart.configure_mesh()
             .x_label_formatter(&|x| {
-                if *x < comparisons.len() {
-                    comparisons[*x].method.clone()
+                let idx = *x as usize;
+                if idx < comparisons.len() {
+                    comparisons[idx].method.clone()
                 } else {
                     "".to_string()
                 }
@@ -155,9 +166,12 @@ impl StorageChartGenerator {
             .map(|(i, c)| (i, c.memory_usage_bytes as f64))
             .collect();
         
+        // Draw bars centered at x + 0.5
         chart.draw_series(
             bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], MAGENTA.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.8; // Bar width (80% of available space)
+                Rectangle::new([(center - width/2.0, 0.0), (center + width/2.0, *y)], MAGENTA.filled())
             })
         )?;
         

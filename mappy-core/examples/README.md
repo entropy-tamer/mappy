@@ -338,7 +338,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Getting Help
 
-- Check the [API documentation](../API.md)
+- Check the [API documentation](../docs/API.md)
 - Review the [main README](../README.md)
 - Look at existing examples for patterns
 - Check error messages and logs

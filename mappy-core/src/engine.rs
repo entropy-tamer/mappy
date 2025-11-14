@@ -309,7 +309,7 @@ impl Engine {
 
     /// Get the persistence mode
     #[must_use]
-    pub fn persistence_mode(&self) -> PersistenceMode {
+    pub const fn persistence_mode(&self) -> PersistenceMode {
         self.config.persistence_mode
     }
 

@@ -41,8 +41,8 @@ impl DeletionManager {
     /// 
     /// Returns an error if the removal operation fails
     pub fn remove_instance(&mut self, fingerprint: u64, slot: usize) -> MapletResult<bool> {
-        if let Some(count) = self.instance_counts.get_mut(&fingerprint) {
-            if *count > 0 {
+        if let Some(count) = self.instance_counts.get_mut(&fingerprint)
+            && *count > 0 {
                 *count -= 1;
                 if *count == 0 {
                     self.instance_counts.remove(&fingerprint);
@@ -55,7 +55,6 @@ impl DeletionManager {
                 
                 return Ok(true);
             }
-        }
         Ok(false)
     }
     

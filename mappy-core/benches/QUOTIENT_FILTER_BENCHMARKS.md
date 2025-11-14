@@ -354,4 +354,4 @@ Tests and benchmarks are provided under the same MIT license as the main project
 
 ---
 
-For more information about the Mappy project, see the main [README.md](../README.md) and [TECHNICAL_README.md](../TECHNICAL_README.md).
+For more information about the Mappy project, see the main [README.md](../README.md) and [TECHNICAL_README.md](../docs/TECHNICAL_README.md).

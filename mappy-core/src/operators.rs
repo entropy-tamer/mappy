@@ -198,7 +198,7 @@ impl MergeOperator<Vec<f64>> for VectorOperator {
                 format!("Vector length mismatch: {} != {}", left.len(), right.len())
             ));
         }
-        Ok(left.into_iter().zip(right.into_iter()).map(|(l, r)| l + r).collect())
+        Ok(left.into_iter().zip(right).map(|(l, r)| l + r).collect())
     }
     
     fn identity(&self) -> Vec<f64> {
@@ -213,7 +213,7 @@ impl MergeOperator<Vec<f32>> for VectorOperator {
                 format!("Vector length mismatch: {} != {}", left.len(), right.len())
             ));
         }
-        Ok(left.into_iter().zip(right.into_iter()).map(|(l, r)| l + r).collect())
+        Ok(left.into_iter().zip(right).map(|(l, r)| l + r).collect())
     }
     
     fn identity(&self) -> Vec<f32> {

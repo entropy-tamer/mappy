@@ -62,3 +62,4 @@ fn benchmark_dictionary(c: &mut Criterion) {
 criterion_group!(benches, benchmark_huffman, benchmark_arithmetic, benchmark_dictionary);
 criterion_main!(benches);
 
+

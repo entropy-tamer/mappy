@@ -58,16 +58,16 @@ impl DictionaryCompressor {
         let mut bits = BitVec::new();
         
         if code < 128 {
-            bits.extend_from_bitslice(&(code as u8).view_bits::<Lsb0>());
+            bits.extend_from_bitslice((code as u8).view_bits::<Lsb0>());
         } else if code < 16384 {
             // Use 2 bytes with continuation bit
             let byte1 = ((code & 0x7F) | 0x80) as u8;
             let byte2 = ((code >> 7) & 0xFF) as u8;
-            bits.extend_from_bitslice(&byte1.view_bits::<Lsb0>());
-            bits.extend_from_bitslice(&byte2.view_bits::<Lsb0>());
+            bits.extend_from_bitslice(byte1.view_bits::<Lsb0>());
+            bits.extend_from_bitslice(byte2.view_bits::<Lsb0>());
         } else {
             // Use 4 bytes
-            bits.extend_from_bitslice(&code.to_le_bytes().view_bits::<Lsb0>());
+            bits.extend_from_bitslice(code.to_le_bytes().view_bits::<Lsb0>());
         }
         
         bits
@@ -104,19 +104,19 @@ impl DictionaryCompressor {
         let mut result = BitVec::new();
         
         // Encode dictionary size
-        result.extend_from_bitslice(&(self.dictionary.len() as u32).to_le_bytes().view_bits::<Lsb0>());
+        result.extend_from_bitslice((self.dictionary.len() as u32).to_le_bytes().view_bits::<Lsb0>());
         
         // Encode dictionary entries
         for (tag, code) in &self.dictionary {
             // Encode tag length and tag
             let tag_bytes = tag.as_bytes();
-            result.extend_from_bitslice(&(tag_bytes.len() as u32).to_le_bytes().view_bits::<Lsb0>());
-            result.extend_from_bitslice(&tag_bytes.view_bits::<Lsb0>());
-            result.extend_from_bitslice(&code.to_le_bytes().view_bits::<Lsb0>());
+            result.extend_from_bitslice((tag_bytes.len() as u32).to_le_bytes().view_bits::<Lsb0>());
+            result.extend_from_bitslice(tag_bytes.view_bits::<Lsb0>());
+            result.extend_from_bitslice(code.to_le_bytes().view_bits::<Lsb0>());
         }
         
         // Encode number of tags
-        result.extend_from_bitslice(&(tags.len() as u32).to_le_bytes().view_bits::<Lsb0>());
+        result.extend_from_bitslice((tags.len() as u32).to_le_bytes().view_bits::<Lsb0>());
         
         // Encode tags using codes
         for tag in tags {

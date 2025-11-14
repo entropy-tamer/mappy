@@ -93,7 +93,7 @@ impl HuffmanCompressor {
             heap.push(merged);
         }
         
-        Ok(heap.pop().context("Failed to build Huffman tree")?)
+        heap.pop().context("Failed to build Huffman tree")
     }
     
     fn generate_codes(&mut self, node: &HuffmanNode, mut code: BitVec<u8, Lsb0>) {
@@ -121,7 +121,7 @@ impl HuffmanCompressor {
         
         // Encode number of tags (u32)
         let count = tags.len() as u32;
-        result.extend_from_bitslice(&count.view_bits::<Lsb0>());
+        result.extend_from_bitslice(count.view_bits::<Lsb0>());
         
         // Encode each tag
         for tag in tags {
@@ -153,7 +153,7 @@ impl HuffmanCompressor {
         
         // Decode each tag
         for _ in 0..count {
-            let mut current_code: BitVec<u8, Lsb0> = BitVec::new();
+            let _current_code: BitVec<u8, Lsb0> = BitVec::new();
             let mut found = false;
             
             // Try to match codes

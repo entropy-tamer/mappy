@@ -1,7 +1,7 @@
 //! Arithmetic coding compression implementation
 
 use std::collections::HashMap;
-use anyhow::{Result, Context};
+use anyhow::Result;
 use crate::compression::Compressor;
 
 /// Arithmetic coding compressor
@@ -72,7 +72,7 @@ impl ArithmeticCompressor {
         for (start, end) in ranges {
             let range = high - low;
             high = low + range * end;
-            low = low + range * start;
+            low += range * start;
         }
         
         // Convert to fixed-point representation (32-bit)
@@ -100,9 +100,9 @@ impl ArithmeticCompressor {
         // Decode count
         let count = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
         
-        // Decode value
-        let encoded = u32::from_le_bytes(data[4..8].try_into().unwrap());
-        let value = encoded as f64 / (u32::MAX as f64);
+        // Decode value (currently unused but kept for future use)
+        let _encoded = u32::from_le_bytes(data[4..8].try_into().unwrap());
+        let _value = _encoded as f64 / (u32::MAX as f64);
         
         // Decode probabilities
         let prob_len = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
@@ -120,7 +120,7 @@ impl ArithmeticCompressor {
         sorted_tags.sort();
         
         for _ in 0..count.min(sorted_tags.len()) {
-            if let Some(tag) = sorted_tags.get(0) {
+            if let Some(tag) = sorted_tags.first() {
                 result.push((*tag).clone());
             }
         }

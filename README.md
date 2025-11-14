@@ -1,5 +1,7 @@
 # Mappy: Space-Efficient Maplet Data Structures
 
+![A friendly red fox standing in a forest, holding and examining a map with rectangular sections. The fox wears a green backpack, suggesting an expedition. The word "MAPPY" appears in large bold orange-red letters with black outline. The scene conveys exploration, navigation, and the journey of understanding complex data structures through local mappings and spatial organization.](docs/mappy_header_text.webp)
+
 A Rust implementation of maplets - space-efficient data structures for approximate key-value mappings, based on the research paper "Time To Replace Your Filter: How Maplets Simplify System Design".
 
 ## Overview
@@ -238,9 +240,11 @@ Where `Pr[ℓ ≥ L] ≤ ε^L`, meaning even when wrong, the result is close to 
 
 ## Documentation
 
-- **[Technical Documentation](TECHNICAL_README.md)** - Comprehensive technical guide with architecture diagrams, API reference, and implementation details
-- **[Quotient Filter](QUOTIENT_FILTER.md)** - Complete guide to quotient filter features, testing, and Python integration
-- **[Documentation Index](DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
+- **[Technical Documentation](docs/TECHNICAL_README.md)** - Comprehensive technical guide with architecture diagrams, API reference, and implementation details
+- **[Quotient Filter](docs/QUOTIENT_FILTER.md)** - Complete guide to quotient filter features, testing, and Python integration
+- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
+- **[API Reference](docs/API.md)** - Complete API reference and usage examples
+- **[Testing Guide](docs/TESTING.md)** - Comprehensive testing guide for Python bindings
 - **[Benchmark Documentation](mappy-core/benches/QUOTIENT_FILTER_BENCHMARKS.md)** - Detailed benchmark results and performance analysis
 - **[API Documentation](https://docs.rs/mappy-core)** - Auto-generated API documentation
 
@@ -253,3 +257,11 @@ MIT License - see LICENSE file for details.
 Based on the research paper:
 
 > Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint [arXiv:2510.05518](https://arxiv.org/abs/2510.05518).
+
+---
+
+## Visual Guide: Maplets and Transformers
+
+![A four-panel comic strip showing a fox navigating a forest, illustrating the parallel between maplets (local key-value mappings) and transformer attention mechanisms (local context views). The comic demonstrates how both systems process local information incrementally to build global understanding—one clearing, one maplet, one attention head at a time.](docs/mappy_comic.webp)
+
+This comic strip illustrates the fundamental parallel between **maplets** and **transformer attention mechanisms**. Just as maplets use local, overlapping key-value pairs that merge to form a global data structure, transformer models process information through attention heads that combine local views into coherent representations. The fox's journey through the forest represents the iterative process of building understanding from discrete, local pieces. Whether navigating a literal forest or the abstract manifold of high-dimensional data. Both systems achieve global comprehension by systematically processing and merging local information, demonstrating that the principle of "understand the local, and the global reveals itself" applies equally to space-efficient data structures and neural network architectures.

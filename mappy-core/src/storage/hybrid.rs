@@ -45,13 +45,13 @@ impl HybridStorage {
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)
-            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to create data directory: {e}")))?;
         
         let aof_path = Path::new(&config.data_dir).join("mappy.aof");
         
         let mut storage = Self {
             cache: Arc::new(DashMap::new()),
-            aof_path: aof_path.clone(),
+            aof_path: aof_path,
             config,
             stats: Arc::new(RwLock::new(StorageStats::default())),
             start_time: Instant::now(),
@@ -75,18 +75,18 @@ impl HybridStorage {
         }
         
         let file = std::fs::File::open(&self.aof_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file: {e}")))?;
         
         let reader = BufReader::new(file);
         
         for line in reader.lines() {
-            let line = line.map_err(|e| MapletError::Internal(format!("Failed to read AOF line: {}", e)))?;
+            let line = line.map_err(|e| MapletError::Internal(format!("Failed to read AOF line: {e}")))?;
             if line.trim().is_empty() {
                 continue;
             }
             
             let entry: AOFEntry = serde_json::from_str(&line)
-                .map_err(|e| MapletError::Internal(format!("Failed to parse AOF entry: {}", e)))?;
+                .map_err(|e| MapletError::Internal(format!("Failed to parse AOF entry: {e}")))?;
             
             match entry {
                 AOFEntry::Set { key, value } => {
@@ -124,13 +124,13 @@ impl HybridStorage {
             .create(true)
             .append(true)
             .open(&self.aof_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {e}")))?;
         
         for entry in buffer.iter() {
             let line = serde_json::to_string(entry)
-                .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {}", e)))?;
-            writeln!(file, "{}", line)
-                .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {}", e)))?;
+                .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {e}")))?;
+            writeln!(file, "{line}")
+                .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {e}")))?;
         }
         
         buffer.clear();
@@ -152,18 +152,17 @@ impl HybridStorage {
                 // Flush any pending writes
                 {
                     let mut buffer = write_buffer.write().await;
-                    if !buffer.is_empty() {
-                        if let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path) {
-                            eprintln!("Failed to flush AOF buffer: {}", e);
+                    if !buffer.is_empty()
+                        && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path) {
+                            eprintln!("Failed to flush AOF buffer: {e}");
                         }
-                    }
                 }
                 
                 // Force sync to disk
                 if let Err(e) = std::fs::File::open(&aof_path)
                     .and_then(|f| f.sync_all())
                 {
-                    eprintln!("Failed to sync AOF file: {}", e);
+                    eprintln!("Failed to sync AOF file: {e}");
                 }
             }
         });
@@ -171,7 +170,7 @@ impl HybridStorage {
         self.sync_handle = Some(handle);
     }
     
-    /// Static version of flush_buffer_internal for use in background task
+    /// Static version of `flush_buffer_internal` for use in background task
     fn flush_buffer_internal_static(
         buffer: &mut Vec<AOFEntry>,
         aof_path: &std::path::Path,
@@ -184,13 +183,13 @@ impl HybridStorage {
             .create(true)
             .append(true)
             .open(aof_path)
-            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {}", e)))?;
+            .map_err(|e| MapletError::Internal(format!("Failed to open AOF file for append: {e}")))?;
         
         for entry in buffer.iter() {
             let line = serde_json::to_string(entry)
-                .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {}", e)))?;
-            writeln!(file, "{}", line)
-                .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {}", e)))?;
+                .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {e}")))?;
+            writeln!(file, "{line}")
+                .map_err(|e| MapletError::Internal(format!("Failed to write to AOF file: {e}")))?;
         }
         
         buffer.clear();

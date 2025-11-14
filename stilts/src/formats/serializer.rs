@@ -15,6 +15,12 @@ pub trait TagSerializer: Send + Sync {
 /// Space-separated serializer
 pub struct SpaceSeparatedSerializer;
 
+impl Default for SpaceSeparatedSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpaceSeparatedSerializer {
     pub fn new() -> Self {
         Self
@@ -33,6 +39,12 @@ impl TagSerializer for SpaceSeparatedSerializer {
 
 /// Comma-separated serializer
 pub struct CommaSeparatedSerializer;
+
+impl Default for CommaSeparatedSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl CommaSeparatedSerializer {
     pub fn new() -> Self {
@@ -53,6 +65,12 @@ impl TagSerializer for CommaSeparatedSerializer {
 /// JSON serializer
 pub struct JsonSerializer;
 
+impl Default for JsonSerializer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsonSerializer {
     pub fn new() -> Self {
         Self
@@ -68,4 +86,5 @@ impl TagSerializer for JsonSerializer {
         "json"
     }
 }
+
 

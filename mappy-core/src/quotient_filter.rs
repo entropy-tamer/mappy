@@ -9,6 +9,7 @@ use crate::{MapletError, MapletResult, hash::{FingerprintHasher, PerfectHash, Ha
 
 /// Metadata bits for quotient filter slots
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub struct SlotMetadata {
     /// Remainder bits (the actual fingerprint data)
     pub remainder: u64,
@@ -20,16 +21,6 @@ pub struct SlotMetadata {
     pub shifted: bool,
 }
 
-impl Default for SlotMetadata {
-    fn default() -> Self {
-        Self {
-            remainder: 0,
-            runend: false,
-            occupied: false,
-            shifted: false,
-        }
-    }
-}
 
 /// Quotient filter implementation with multiset support
 #[derive(Debug, Clone)]
@@ -65,7 +56,7 @@ impl QuotientFilter {
         }
         
         if fingerprint_bits == 0 || fingerprint_bits > 64 {
-            return Err(MapletError::InvalidErrorRate(fingerprint_bits as f64));
+            return Err(MapletError::InvalidErrorRate(f64::from(fingerprint_bits)));
         }
         
         // Calculate quotient and remainder bits
@@ -127,6 +118,7 @@ impl QuotientFilter {
     }
     
     /// Query if a fingerprint might be in the filter
+    #[must_use] 
     pub fn query(&self, fingerprint: u64) -> bool {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
@@ -193,6 +185,7 @@ impl QuotientFilter {
     }
     
     /// Get the number of instances of a fingerprint
+    #[must_use] 
     pub fn count(&self, fingerprint: u64) -> usize {
         self.multiset_counts.get(&fingerprint).copied().unwrap_or(0)
     }

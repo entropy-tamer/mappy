@@ -36,3 +36,4 @@ python -c "import stilts_python; c = stilts_python.StiltsCompressor(); c.plot_co
 
 The `reports/` directory is automatically created if it doesn't exist.
 
+

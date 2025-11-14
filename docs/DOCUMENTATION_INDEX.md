@@ -8,7 +8,7 @@ This document provides a comprehensive index of all documentation for the Mappy 
 
 ### Core Documentation
 
-1. **[README.md](README.md)** - Main project documentation
+1. **[README.md](../README.md)** - Main project documentation
    - Project overview and key features
    - Quick start guide and basic usage
    - Advanced quotient filter features
@@ -185,8 +185,8 @@ This document provides a comprehensive index of all documentation for the Mappy 
 
 ### For Users
 
-1. **Read [README.md](README.md)** for project overview and quick start
-2. **Check [ADVANCED_QUOTIENT_FILTER.md](ADVANCED_QUOTIENT_FILTER.md)** for advanced features
+1. **Read [README.md](../README.md)** for project overview and quick start
+2. **Check [QUOTIENT_FILTER.md](QUOTIENT_FILTER.md)** for advanced features
 3. **Run tests**: `./run_tests_and_benchmarks.sh`
 4. **Run benchmarks**: `cargo bench --bench basic_quotient_filter_benchmarks`
 
@@ -199,7 +199,7 @@ This document provides a comprehensive index of all documentation for the Mappy 
 
 ### For Python Users
 
-1. **Read Python sections** in [ADVANCED_QUOTIENT_FILTER.md](ADVANCED_QUOTIENT_FILTER.md)
+1. **Read Python sections** in [QUOTIENT_FILTER.md](QUOTIENT_FILTER.md)
 2. **Run Python tests**: `python3 test_python_advanced_quotient_filter.py`
 3. **Check Python bindings** in [mappy-python/src/lib.rs](mappy-python/src/lib.rs)
 

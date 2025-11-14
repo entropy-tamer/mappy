@@ -21,9 +21,18 @@ impl ChartGenerator {
             .margin(5)
             .x_label_area_size(40)
             .y_label_area_size(60)
-            .build_cartesian_2d(0..metrics.len(), 0.0..1.0)?;
+            .build_cartesian_2d(0.0..metrics.len() as f64, 0.0..1.0)?;
         
-        chart.configure_mesh().draw()?;
+        chart.configure_mesh()
+            .x_label_formatter(&|x| {
+                let idx = *x as usize;
+                if idx < metrics.len() {
+                    metrics[idx].algorithm.clone()
+                } else {
+                    "".to_string()
+                }
+            })
+            .draw()?;
         
         let bars: Vec<(usize, f64)> = metrics
             .iter()
@@ -31,9 +40,12 @@ impl ChartGenerator {
             .map(|(i, m)| (i, m.stats.compression_ratio))
             .collect();
         
+        // Draw bars centered at x + 0.5
         chart.draw_series(
             bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], BLUE.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.8; // Bar width (80% of available space)
+                Rectangle::new([(center - width/2.0, 0.0), (center + width/2.0, *y)], BLUE.filled())
             })
         )?;
         
@@ -59,9 +71,18 @@ impl ChartGenerator {
             .margin(5)
             .x_label_area_size(40)
             .y_label_area_size(60)
-            .build_cartesian_2d(0..metrics.len(), 0.0..max_speed * 1.1)?;
+            .build_cartesian_2d(0.0..metrics.len() as f64, 0.0..max_speed * 1.1)?;
         
-        chart.configure_mesh().draw()?;
+        chart.configure_mesh()
+            .x_label_formatter(&|x| {
+                let idx = *x as usize;
+                if idx < metrics.len() {
+                    metrics[idx].algorithm.clone()
+                } else {
+                    "".to_string()
+                }
+            })
+            .draw()?;
         
         // Compression speed
         let comp_bars: Vec<(usize, f64)> = metrics
@@ -70,11 +91,14 @@ impl ChartGenerator {
             .map(|(i, m)| (i, m.stats.compression_speed_mbps))
             .collect();
         
+        // Draw bars centered at x + 0.5, offset for grouped bars
         chart.draw_series(
             comp_bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], BLUE.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.35; // Bar width for grouped bars
+                Rectangle::new([(center - width, 0.0), (center, *y)], BLUE.filled())
             })
-        )?;
+        )?.label("Compression");
         
         // Decompression speed
         let decomp_bars: Vec<(usize, f64)> = metrics
@@ -85,9 +109,16 @@ impl ChartGenerator {
         
         chart.draw_series(
             decomp_bars.iter().map(|(x, y)| {
-                Rectangle::new([(*x, 0.0), (*x + 1, *y)], RED.filled())
+                let center = *x as f64 + 0.5;
+                let width = 0.35; // Bar width for grouped bars
+                Rectangle::new([(center, 0.0), (center + width, *y)], RED.filled())
             })
-        )?;
+        )?.label("Decompression");
+        
+        chart.configure_series_labels()
+            .background_style(WHITE.mix(0.8))
+            .border_style(BLACK)
+            .draw()?;
         
         root.present()?;
         Ok(())

@@ -697,9 +697,11 @@ print(f"Key stored at slot: {slot}")
 ## 📚 Documentation
 
 - **[Main Documentation](../README.md)** - Complete Mappy documentation
-- **[Technical Guide](../TECHNICAL_README.md)** - Detailed technical documentation
-- **[API Reference](../API.md)** - Complete API reference
-- **[Quotient Filter](../QUOTIENT_FILTER.md)** - Advanced quotient filter features
+- **[Technical Guide](../docs/TECHNICAL_README.md)** - Detailed technical documentation
+- **[API Reference](../docs/API.md)** - Complete API reference
+- **[Quotient Filter](../docs/QUOTIENT_FILTER.md)** - Advanced quotient filter features
+- **[Testing Guide](../docs/TESTING.md)** - Comprehensive testing guide
+- **[Documentation Index](../docs/DOCUMENTATION_INDEX.md)** - Index of all documentation
 - **[Research Paper](../../.cursor/research/maplets/)** - Original research papers
 
 ## 🤝 Contributing

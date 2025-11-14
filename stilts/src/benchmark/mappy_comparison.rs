@@ -3,12 +3,7 @@
 use std::time::Instant;
 use std::collections::HashMap;
 use anyhow::Result;
-use crate::compression::{HuffmanCompressor, ArithmeticCompressor, DictionaryCompressor, Compressor};
-use crate::benchmark::metrics::{BenchmarkMetrics, CompressionStats};
 use crate::mappy_integration::MappyTagStorage;
-
-#[cfg(feature = "mappy-integration")]
-use mappy_core::{Maplet, VectorOperator};
 
 /// Storage comparison metrics
 #[derive(Debug, Clone)]

@@ -4,32 +4,29 @@
 //! hashing with configurable hash functions and collision detection.
 
 use ahash::RandomState;
-use std::hash::{Hash, Hasher, BuildHasher};
+use std::hash::{Hash, Hasher};
 use crate::{MapletError, MapletResult};
 
 /// Hash function types supported by the maplet
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum HashFunction {
-    /// AHash - fast, high-quality hashing
+    /// `AHash` - fast, high-quality hashing
+    #[default]
     AHash,
-    /// TwoX - deterministic, good distribution
+    /// `TwoX` - deterministic, good distribution
     TwoX,
     /// FNV - simple, fast for small keys
     Fnv,
 }
 
-impl Default for HashFunction {
-    fn default() -> Self {
-        Self::AHash
-    }
-}
 
 /// Fingerprint-based hasher for maplets
 #[derive(Debug, Clone)]
 pub struct FingerprintHasher {
     /// Hash function to use
     hash_fn: HashFunction,
-    /// Random state for AHash
+    /// Random state for `AHash`
     random_state: RandomState,
     /// Fingerprint size in bits
     fingerprint_bits: u32,
@@ -39,6 +36,7 @@ pub struct FingerprintHasher {
 
 impl FingerprintHasher {
     /// Create a new fingerprint hasher
+    #[must_use] 
     pub fn new(hash_fn: HashFunction, fingerprint_bits: u32) -> Self {
         let fingerprint_mask = if fingerprint_bits >= 64 {
             u64::MAX
@@ -64,9 +62,9 @@ impl FingerprintHasher {
     pub fn hash_key<T: Hash>(&self, key: &T) -> u64 {
         match self.hash_fn {
             HashFunction::AHash => {
-                let mut hasher = self.random_state.build_hasher();
-                key.hash(&mut hasher);
-                hasher.finish()
+                
+                
+                self.random_state.hash_one(&key)
             }
             HashFunction::TwoX => {
                 use twox_hash::XxHash64;
@@ -84,16 +82,19 @@ impl FingerprintHasher {
     }
     
     /// Get the fingerprint size in bits
-    pub fn fingerprint_bits(&self) -> u32 {
+    #[must_use] 
+    pub const fn fingerprint_bits(&self) -> u32 {
         self.fingerprint_bits
     }
     
     /// Get the fingerprint mask
-    pub fn fingerprint_mask(&self) -> u64 {
+    #[must_use] 
+    pub const fn fingerprint_mask(&self) -> u64 {
         self.fingerprint_mask
     }
     
     /// Calculate the optimal fingerprint size for a given false-positive rate
+    #[must_use] 
     pub fn optimal_fingerprint_size(false_positive_rate: f64) -> u32 {
         if false_positive_rate <= 0.0 || false_positive_rate >= 1.0 {
             return 8; // Default to 8 bits
@@ -116,6 +117,7 @@ pub struct PerfectHash {
 
 impl PerfectHash {
     /// Create a new perfect hash function
+    #[must_use] 
     pub fn new(num_slots: usize, hash_fn: HashFunction) -> Self {
         // Use a different hash function for slot mapping to avoid correlation
         let slot_hash_fn = match hash_fn {
@@ -131,13 +133,15 @@ impl PerfectHash {
     }
     
     /// Map a fingerprint to a slot index
+    #[must_use] 
     pub fn slot_index(&self, fingerprint: u64) -> usize {
         let hash = self.slot_hasher.hash_key(&fingerprint);
         (hash as usize) % self.num_slots
     }
     
     /// Get the number of slots
-    pub fn num_slots(&self) -> usize {
+    #[must_use] 
+    pub const fn num_slots(&self) -> usize {
         self.num_slots
     }
 }
@@ -155,7 +159,8 @@ pub struct CollisionDetector {
 
 impl CollisionDetector {
     /// Create a new collision detector
-    pub fn new(max_collisions: usize) -> Self {
+    #[must_use] 
+    pub const fn new(max_collisions: usize) -> Self {
         Self {
             max_collisions,
             collision_count: 0,
@@ -183,17 +188,19 @@ impl CollisionDetector {
     }
     
     /// Get the current collision count
-    pub fn collision_count(&self) -> usize {
+    #[must_use] 
+    pub const fn collision_count(&self) -> usize {
         self.collision_count
     }
     
     /// Reset the collision count
-    pub fn reset(&mut self) {
+    pub const fn reset(&mut self) {
         self.collision_count = 0;
     }
     
     /// Check if we're approaching the collision limit
-    pub fn is_approaching_limit(&self) -> bool {
+    #[must_use] 
+    pub const fn is_approaching_limit(&self) -> bool {
         self.collision_count > self.warning_threshold
     }
 }
