@@ -1,24 +1,22 @@
-"""
-Performance and benchmark tests for mappy-python bindings
-"""
+"""Performance and benchmark tests for mappy-python bindings."""
 
 import random
 import statistics
 import time
-from typing import Any, Dict, List
 
 import mappy_python as mappy
 import numpy as np
 import pytest
+
 from . import Stats
 
 
 class TestPerformanceBenchmarks:
-    """Performance benchmark tests"""
+    """Performance benchmark tests."""
 
     @pytest.mark.benchmark
     def test_insert_performance(self, benchmark):
-        """Benchmark insert performance"""
+        """Benchmark insert performance."""
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         def benchmark_insert():
@@ -31,7 +29,7 @@ class TestPerformanceBenchmarks:
 
     @pytest.mark.benchmark
     def test_query_performance(self, benchmark):
-        """Benchmark query performance"""
+        """Benchmark query performance."""
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         # Pre-populate maplet
@@ -55,7 +53,7 @@ class TestPerformanceBenchmarks:
 
     @pytest.mark.benchmark
     def test_contains_performance(self, benchmark):
-        """Benchmark contains performance"""
+        """Benchmark contains performance."""
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         # Pre-populate maplet
@@ -79,7 +77,7 @@ class TestPerformanceBenchmarks:
 
     @pytest.mark.benchmark
     def test_mixed_operations_performance(self, benchmark):
-        """Benchmark mixed operations performance"""
+        """Benchmark mixed operations performance."""
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         def benchmark_mixed():
@@ -91,18 +89,18 @@ class TestPerformanceBenchmarks:
                 maplet.insert(key, value)
 
                 # Query - allow None for probabilistic data structure
-                result = maplet.query(key)
+                maplet.query(key)
                 # Note: result may be None due to probabilistic nature
 
                 # Contains - allow False for probabilistic data structure
-                exists = maplet.contains(key)
+                maplet.contains(key)
                 # Note: exists may be False due to probabilistic nature
 
         benchmark(benchmark_mixed)
 
     @pytest.mark.benchmark
     def test_numpy_array_performance(self, benchmark):
-        """Benchmark NumPy array operations"""
+        """Benchmark NumPy array operations."""
         maplet = mappy.Maplet(10000, 0.001, mappy.VectorOperator())
 
         def benchmark_numpy():
@@ -114,17 +112,17 @@ class TestPerformanceBenchmarks:
                 maplet.insert(key, array)
 
                 # Query array - allow None for probabilistic data structure
-                result = maplet.query(key)
+                maplet.query(key)
                 # Note: result may be None due to probabilistic nature
 
         benchmark(benchmark_numpy)
 
 
 class TestScalabilityTests:
-    """Scalability tests for different data sizes"""
+    """Scalability tests for different data sizes."""
 
     def test_scalability_insert(self):
-        """Test insert performance scalability"""
+        """Test insert performance scalability."""
         sizes = [1000, 5000, 10000, 20000]
         results = {}
 
@@ -154,7 +152,7 @@ class TestScalabilityTests:
             )  # Should be faster than 1ms per operation
 
     def test_scalability_query(self):
-        """Test query performance scalability"""
+        """Test query performance scalability."""
         sizes = [1000, 5000, 10000, 20000]
         results = {}
 
@@ -176,7 +174,7 @@ class TestScalabilityTests:
                 if result is not None:
                     success_count += 1
             end_time = time.time()
-            
+
             # At least 90% should succeed
             assert success_count >= int(size * 0.9), f"Only {success_count}/{size} queries succeeded"
 
@@ -188,7 +186,7 @@ class TestScalabilityTests:
             assert result["rate"] > 5000  # At least 5000 queries/sec
 
     def test_memory_scalability(self):
-        """Test memory usage scalability"""
+        """Test memory usage scalability."""
         sizes = [1000, 5000, 10000, 20000]
         results = {}
 
@@ -211,7 +209,7 @@ class TestScalabilityTests:
         # Memory per item should be reasonable and consistent
         memory_per_item_values = [r["memory_per_item"] for r in results.values()]
         memory_variance = statistics.stdev(memory_per_item_values) / statistics.mean(
-            memory_per_item_values
+            memory_per_item_values,
         )
 
         assert memory_variance < 0.5  # Memory per item should be relatively consistent
@@ -220,7 +218,7 @@ class TestScalabilityTests:
         )  # Less than 1KB per item
 
     def test_false_positive_rate_accuracy(self):
-        """Test false positive rate accuracy"""
+        """Test false positive rate accuracy."""
         maplet = mappy.Maplet(10000, 0.01, mappy.CounterOperator())
 
         # Insert known keys
@@ -251,10 +249,10 @@ class TestScalabilityTests:
 
 
 class TestConcurrentPerformance:
-    """Concurrent performance tests"""
+    """Concurrent performance tests."""
 
     def test_concurrent_insert_performance(self):
-        """Test concurrent insert performance"""
+        """Test concurrent insert performance."""
         import threading
 
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
@@ -275,7 +273,7 @@ class TestConcurrentPerformance:
                         "worker_id": worker_id,
                         "time": end_time - start_time,
                         "operations": num_operations,
-                    }
+                    },
                 )
             except Exception as e:
                 errors.append(f"Worker {worker_id} error: {e}")
@@ -315,7 +313,7 @@ class TestConcurrentPerformance:
         assert total_time < 10.0  # Should complete in under 10 seconds
 
     def test_concurrent_query_performance(self):
-        """Test concurrent query performance"""
+        """Test concurrent query performance."""
         import threading
 
         maplet = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
@@ -347,7 +345,7 @@ class TestConcurrentPerformance:
                         "worker_id": worker_id,
                         "time": end_time - start_time,
                         "queries": num_queries,
-                    }
+                    },
                 )
             except Exception as e:
                 errors.append(f"Query worker {worker_id} error: {e}")
@@ -388,10 +386,10 @@ class TestConcurrentPerformance:
 
 
 class TestMemoryPerformance:
-    """Memory performance tests"""
+    """Memory performance tests."""
 
     def test_memory_usage_under_load(self):
-        """Test memory usage under heavy load"""
+        """Test memory usage under heavy load."""
         # Use larger capacity to avoid hitting limits
         maplet = mappy.Maplet(200000, 0.001, mappy.CounterOperator())
 
@@ -418,7 +416,7 @@ class TestMemoryPerformance:
         assert final_stats.load_factor < 0.8  # Load factor should be reasonable
 
     def test_memory_fragmentation(self):
-        """Test memory fragmentation over time"""
+        """Test memory fragmentation over time."""
         maplet = mappy.Maplet(10000, 0.01, mappy.CounterOperator())
 
         # Insert and delete data multiple times
@@ -440,7 +438,7 @@ class TestMemoryPerformance:
             assert stats.item_count >= 500  # Should have at least 500 items
 
     def test_large_value_memory_usage(self):
-        """Test memory usage with large values"""
+        """Test memory usage with large values."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert large values

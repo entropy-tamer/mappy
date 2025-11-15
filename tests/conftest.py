@@ -1,19 +1,16 @@
-"""
-Pytest configuration and fixtures for mappy-python tests
-"""
+"""Pytest configuration and fixtures for mappy-python tests."""
 
 import asyncio
 import random
 import string
-import time
-from typing import Generator, List, Tuple
 
 import numpy as np
 import pytest
 
 
 class Stats:
-    """Helper class to convert stats dict to object with attributes"""
+    """Helper class to convert stats dict to object with attributes."""
+
     def __init__(self, stats_dict):
         if isinstance(stats_dict, dict):
             self.item_count = stats_dict.get("item_count", 0)
@@ -31,8 +28,8 @@ class Stats:
 
 
 @pytest.fixture
-def sample_strings() -> List[str]:
-    """Generate sample string data for testing"""
+def sample_strings() -> list[str]:
+    """Generate sample string data for testing."""
     return [
         "user:123",
         "session:abc",
@@ -46,20 +43,20 @@ def sample_strings() -> List[str]:
 
 
 @pytest.fixture
-def sample_integers() -> List[int]:
-    """Generate sample integer data for testing"""
+def sample_integers() -> list[int]:
+    """Generate sample integer data for testing."""
     return [random.randint(1, 1000) for _ in range(100)]
 
 
 @pytest.fixture
-def sample_floats() -> List[float]:
-    """Generate sample float data for testing"""
+def sample_floats() -> list[float]:
+    """Generate sample float data for testing."""
     return [random.uniform(0.0, 100.0) for _ in range(100)]
 
 
 @pytest.fixture
-def sample_numpy_arrays() -> List[np.ndarray]:
-    """Generate sample NumPy arrays for testing"""
+def sample_numpy_arrays() -> list[np.ndarray]:
+    """Generate sample NumPy arrays for testing."""
     return [
         np.random.rand(10),
         np.random.randint(0, 100, 20),
@@ -70,18 +67,18 @@ def sample_numpy_arrays() -> List[np.ndarray]:
 
 
 @pytest.fixture
-def dna_sequences() -> List[str]:
-    """Generate DNA sequences for k-mer testing"""
-    bases = ['A', 'T', 'C', 'G']
+def dna_sequences() -> list[str]:
+    """Generate DNA sequences for k-mer testing."""
+    bases = ["A", "T", "C", "G"]
     return [
-        ''.join(random.choices(bases, k=100))
+        "".join(random.choices(bases, k=100))
         for _ in range(10)
     ]
 
 
 @pytest.fixture
-def network_traffic_data() -> List[Tuple[str, int]]:
-    """Generate network traffic data for testing"""
+def network_traffic_data() -> list[tuple[str, int]]:
+    """Generate network traffic data for testing."""
     ip_addresses = [
         f"192.168.1.{i}" for i in range(1, 11)
     ] + [
@@ -105,45 +102,45 @@ def event_loop():
 
 @pytest.fixture
 def performance_benchmark_data():
-    """Generate large dataset for performance testing"""
+    """Generate large dataset for performance testing."""
     return {
-        'keys': [f"key_{i}" for i in range(10000)],
-        'values': [random.randint(1, 100) for _ in range(10000)],
-        'batch_size': 1000,
+        "keys": [f"key_{i}" for i in range(10000)],
+        "values": [random.randint(1, 100) for _ in range(10000)],
+        "batch_size": 1000,
     }
 
 
 @pytest.fixture
 def memory_test_data():
-    """Generate data for memory usage testing"""
+    """Generate data for memory usage testing."""
     return {
-        'small': [(f"small_{i}", i) for i in range(100)],
-        'medium': [(f"medium_{i}", i) for i in range(1000)],
-        'large': [(f"large_{i}", i) for i in range(10000)],
+        "small": [(f"small_{i}", i) for i in range(100)],
+        "medium": [(f"medium_{i}", i) for i in range(1000)],
+        "large": [(f"large_{i}", i) for i in range(10000)],
     }
 
 
 def pytest_configure(config):
-    """Configure pytest with custom markers"""
+    """Configure pytest with custom markers."""
     config.addinivalue_line(
-        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     )
     config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
+        "markers", "integration: marks tests as integration tests",
     )
     config.addinivalue_line(
-        "markers", "benchmark: marks tests as benchmark tests"
+        "markers", "benchmark: marks tests as benchmark tests",
     )
     config.addinivalue_line(
-        "markers", "memory: marks tests that check memory usage"
+        "markers", "memory: marks tests that check memory usage",
     )
     config.addinivalue_line(
-        "markers", "stress: marks tests as stress tests"
+        "markers", "stress: marks tests as stress tests",
     )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add markers based on test names"""
+    """Modify test collection to add markers based on test names."""
     for item in items:
         if "benchmark" in item.nodeid:
             item.add_marker(pytest.mark.benchmark)

@@ -1,15 +1,14 @@
 //! Fingerprint hashing and perfect hash foundation
-//! 
+//!
 //! Implements the hashing layer for maplets, providing fingerprint-based
 //! hashing with configurable hash functions and collision detection.
 
+use crate::{MapletError, MapletResult};
 use ahash::RandomState;
 use std::hash::{Hash, Hasher};
-use crate::{MapletError, MapletResult};
 
 /// Hash function types supported by the maplet
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum HashFunction {
     /// `AHash` - fast, high-quality hashing
     #[default]
@@ -19,7 +18,6 @@ pub enum HashFunction {
     /// FNV - simple, fast for small keys
     Fnv,
 }
-
 
 /// Fingerprint-based hasher for maplets
 #[derive(Debug, Clone)]
@@ -36,14 +34,14 @@ pub struct FingerprintHasher {
 
 impl FingerprintHasher {
     /// Create a new fingerprint hasher
-    #[must_use] 
+    #[must_use]
     pub fn new(hash_fn: HashFunction, fingerprint_bits: u32) -> Self {
         let fingerprint_mask = if fingerprint_bits >= 64 {
             u64::MAX
         } else {
             (1u64 << fingerprint_bits) - 1
         };
-        
+
         Self {
             hash_fn,
             random_state: RandomState::with_seed(42), // Use consistent seed
@@ -51,21 +49,17 @@ impl FingerprintHasher {
             fingerprint_mask,
         }
     }
-    
+
     /// Calculate fingerprint for a key
     pub fn fingerprint<T: Hash>(&self, key: &T) -> u64 {
         let hash = self.hash_key(key);
         hash & self.fingerprint_mask
     }
-    
+
     /// Calculate full hash for a key
     pub fn hash_key<T: Hash>(&self, key: &T) -> u64 {
         match self.hash_fn {
-            HashFunction::AHash => {
-                
-                
-                self.random_state.hash_one(&key)
-            }
+            HashFunction::AHash => self.random_state.hash_one(&key),
             HashFunction::TwoX => {
                 use twox_hash::XxHash64;
                 let mut hasher = XxHash64::default();
@@ -80,26 +74,26 @@ impl FingerprintHasher {
             }
         }
     }
-    
+
     /// Get the fingerprint size in bits
-    #[must_use] 
+    #[must_use]
     pub const fn fingerprint_bits(&self) -> u32 {
         self.fingerprint_bits
     }
-    
+
     /// Get the fingerprint mask
-    #[must_use] 
+    #[must_use]
     pub const fn fingerprint_mask(&self) -> u64 {
         self.fingerprint_mask
     }
-    
+
     /// Calculate the optimal fingerprint size for a given false-positive rate
-    #[must_use] 
+    #[must_use]
     pub fn optimal_fingerprint_size(false_positive_rate: f64) -> u32 {
         if false_positive_rate <= 0.0 || false_positive_rate >= 1.0 {
             return 8; // Default to 8 bits
         }
-        
+
         // From the paper: fingerprint size = ⌈log₂(1/ε)⌉ + 3
         let bits = (-false_positive_rate.log2()).ceil() as u32 + 3;
         bits.min(64).max(4) // Clamp between 4 and 64 bits
@@ -117,7 +111,7 @@ pub struct PerfectHash {
 
 impl PerfectHash {
     /// Create a new perfect hash function
-    #[must_use] 
+    #[must_use]
     pub fn new(num_slots: usize, hash_fn: HashFunction) -> Self {
         // Use a different hash function for slot mapping to avoid correlation
         let slot_hash_fn = match hash_fn {
@@ -125,22 +119,22 @@ impl PerfectHash {
             HashFunction::TwoX => HashFunction::Fnv,
             HashFunction::Fnv => HashFunction::AHash,
         };
-        
+
         Self {
             num_slots,
             slot_hasher: FingerprintHasher::new(slot_hash_fn, 32), // 32 bits for slot hashing
         }
     }
-    
+
     /// Map a fingerprint to a slot index
-    #[must_use] 
+    #[must_use]
     pub fn slot_index(&self, fingerprint: u64) -> usize {
         let hash = self.slot_hasher.hash_key(&fingerprint);
         (hash as usize) % self.num_slots
     }
-    
+
     /// Get the number of slots
-    #[must_use] 
+    #[must_use]
     pub const fn num_slots(&self) -> usize {
         self.num_slots
     }
@@ -159,7 +153,7 @@ pub struct CollisionDetector {
 
 impl CollisionDetector {
     /// Create a new collision detector
-    #[must_use] 
+    #[must_use]
     pub const fn new(max_collisions: usize) -> Self {
         Self {
             max_collisions,
@@ -167,15 +161,15 @@ impl CollisionDetector {
             warning_threshold: max_collisions / 2,
         }
     }
-    
+
     /// Record a collision
     pub fn record_collision(&mut self) -> MapletResult<()> {
         self.collision_count += 1;
-        
+
         if self.collision_count > self.max_collisions {
             return Err(MapletError::CollisionLimitExceeded);
         }
-        
+
         if self.collision_count > self.warning_threshold {
             tracing::warn!(
                 "High collision count: {} (threshold: {})",
@@ -183,23 +177,23 @@ impl CollisionDetector {
                 self.warning_threshold
             );
         }
-        
+
         Ok(())
     }
-    
+
     /// Get the current collision count
-    #[must_use] 
+    #[must_use]
     pub const fn collision_count(&self) -> usize {
         self.collision_count
     }
-    
+
     /// Reset the collision count
     pub const fn reset(&mut self) {
         self.collision_count = 0;
     }
-    
+
     /// Check if we're approaching the collision limit
-    #[must_use] 
+    #[must_use]
     pub const fn is_approaching_limit(&self) -> bool {
         self.collision_count > self.warning_threshold
     }
@@ -213,10 +207,10 @@ mod tests {
     fn test_fingerprint_hasher() {
         let hasher = FingerprintHasher::new(HashFunction::AHash, 8);
         let key = "test_key";
-        
+
         let fingerprint = hasher.fingerprint(&key);
         assert!(fingerprint < (1u64 << 8));
-        
+
         // Same key should produce same fingerprint
         let fingerprint2 = hasher.fingerprint(&key);
         assert_eq!(fingerprint, fingerprint2);
@@ -226,10 +220,10 @@ mod tests {
     fn test_perfect_hash() {
         let perfect_hash = PerfectHash::new(100, HashFunction::AHash);
         let fingerprint = 12345u64;
-        
+
         let slot = perfect_hash.slot_index(fingerprint);
         assert!(slot < 100);
-        
+
         // Same fingerprint should map to same slot
         let slot2 = perfect_hash.slot_index(fingerprint);
         assert_eq!(slot, slot2);
@@ -238,23 +232,23 @@ mod tests {
     #[test]
     fn test_collision_detector() {
         let mut detector = CollisionDetector::new(10);
-        
+
         // Record some collisions
         for _ in 0..5 {
             assert!(detector.record_collision().is_ok());
         }
-        
+
         assert_eq!(detector.collision_count(), 5);
         assert!(!detector.is_approaching_limit());
-        
+
         // Record more collisions to trigger warning
         for _ in 0..5 {
             assert!(detector.record_collision().is_ok());
         }
-        
+
         assert_eq!(detector.collision_count(), 10);
         assert!(detector.is_approaching_limit());
-        
+
         // Try to record one more collision - should fail
         assert!(detector.record_collision().is_err());
     }

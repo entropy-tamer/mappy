@@ -1,9 +1,10 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark calculations
 //! Benchmark comparison: storing compressed tags in mappy vs other data structures
 
-use std::time::Instant;
-use std::collections::HashMap;
-use anyhow::Result;
 use crate::mappy_integration::MappyTagStorage;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::time::Instant;
 
 /// Storage comparison metrics
 #[derive(Debug, Clone)]
@@ -24,33 +25,52 @@ impl MappyComparisonRunner {
     /// Generate test tags (fuzzed/varied formats)
     pub fn generate_test_tags(count: usize) -> Vec<String> {
         let base_tags = vec![
-            "2007", "3_toes", "4_fingers", "anthro", "biped",
-            "black_and_white", "breasts", "canid", "canine", "claws",
-            "collar", "dialogue", "domestic_dog", "english_text", "eyewear",
-            "fangs", "feet", "female", "fingers", "genitals",
+            "2007",
+            "3_toes",
+            "4_fingers",
+            "anthro",
+            "biped",
+            "black_and_white",
+            "chest",
+            "canid",
+            "canine",
+            "claws",
+            "collar",
+            "dialogue",
+            "domestic_dog",
+            "english_text",
+            "eyewear",
+            "fangs",
+            "feet",
+            "female",
+            "fingers",
+            "accessories",
         ];
-        
+
         (0..count)
             .map(|i| base_tags[i % base_tags.len()].to_string())
             .collect()
     }
-    
+
     /// Benchmark storing uncompressed tags in mappy
     #[cfg(feature = "mappy-integration")]
-    pub fn benchmark_mappy_uncompressed(tags: &[String], _iterations: usize) -> Result<StorageComparison> {
+    pub fn benchmark_mappy_uncompressed(
+        tags: &[String],
+        _iterations: usize,
+    ) -> Result<StorageComparison> {
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         // Convert tags to bytes for storage (simulate mappy storage)
         let mut tag_bytes = Vec::new();
         for tag in tags {
             tag_bytes.extend_from_slice(tag.as_bytes());
             tag_bytes.push(b' ');
         }
-        
+
         // For mappy, we estimate storage size (mappy adds overhead for probabilistic structure)
         // Rough estimate: original size + 10% overhead for mappy structure
         let storage_size = (tag_bytes.len() as f64 * 1.1) as usize;
-        
+
         Ok(StorageComparison {
             method: "mappy_uncompressed".to_string(),
             original_size,
@@ -61,25 +81,28 @@ impl MappyComparisonRunner {
             memory_usage_bytes: storage_size,
         })
     }
-    
+
     /// Benchmark storing Huffman-compressed tags in mappy
     #[cfg(feature = "mappy-integration")]
-    pub fn benchmark_mappy_huffman(tags: &[String], iterations: usize) -> Result<StorageComparison> {
+    pub fn benchmark_mappy_huffman(
+        tags: &[String],
+        iterations: usize,
+    ) -> Result<StorageComparison> {
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         let mut storage = MappyTagStorage::with_huffman();
         // Build corpus once
         storage.build_corpus(tags)?;
         // Compress once to get size
         let compressed = storage.compress_tags(tags)?;
-        
+
         // Benchmark compression only (corpus already built)
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = storage.compress_tags(tags);
         }
         let insert_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         Ok(StorageComparison {
             method: "mappy_huffman".to_string(),
             original_size,
@@ -90,25 +113,28 @@ impl MappyComparisonRunner {
             memory_usage_bytes: compressed.len(),
         })
     }
-    
+
     /// Benchmark storing Arithmetic-compressed tags in mappy
     #[cfg(feature = "mappy-integration")]
-    pub fn benchmark_mappy_arithmetic(tags: &[String], iterations: usize) -> Result<StorageComparison> {
+    pub fn benchmark_mappy_arithmetic(
+        tags: &[String],
+        iterations: usize,
+    ) -> Result<StorageComparison> {
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         let mut storage = MappyTagStorage::with_arithmetic();
         // Build corpus once
         storage.build_corpus(tags)?;
         // Compress once to get size
         let compressed = storage.compress_tags(tags)?;
-        
+
         // Benchmark compression only (corpus already built)
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = storage.compress_tags(tags);
         }
         let insert_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         Ok(StorageComparison {
             method: "mappy_arithmetic".to_string(),
             original_size,
@@ -119,25 +145,28 @@ impl MappyComparisonRunner {
             memory_usage_bytes: compressed.len(),
         })
     }
-    
+
     /// Benchmark storing Dictionary-compressed tags in mappy
     #[cfg(feature = "mappy-integration")]
-    pub fn benchmark_mappy_dictionary(tags: &[String], iterations: usize) -> Result<StorageComparison> {
+    pub fn benchmark_mappy_dictionary(
+        tags: &[String],
+        iterations: usize,
+    ) -> Result<StorageComparison> {
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         let mut storage = MappyTagStorage::with_dictionary();
         // Build corpus once
         storage.build_corpus(tags)?;
         // Compress once to get size
         let compressed = storage.compress_tags(tags)?;
-        
+
         // Benchmark compression only (corpus already built)
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = storage.compress_tags(tags);
         }
         let insert_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         Ok(StorageComparison {
             method: "mappy_dictionary".to_string(),
             original_size,
@@ -148,19 +177,19 @@ impl MappyComparisonRunner {
             memory_usage_bytes: compressed.len(),
         })
     }
-    
+
     /// Benchmark storing in Python dict
     pub fn benchmark_dict(tags: &[String], _iterations: usize) -> Result<StorageComparison> {
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         let mut dict = HashMap::new();
         for (i, tag) in tags.iter().enumerate() {
             dict.insert(format!("key_{}", i), tag.clone());
         }
-        
+
         // Estimate memory usage (simplified)
         let storage_size = original_size + (tags.len() * 8); // Rough estimate
-        
+
         Ok(StorageComparison {
             method: "dict".to_string(),
             original_size,
@@ -171,21 +200,21 @@ impl MappyComparisonRunner {
             memory_usage_bytes: storage_size,
         })
     }
-    
+
     /// Benchmark storing zlib-compressed in dict
     pub fn benchmark_dict_zlib(tags: &[String], iterations: usize) -> Result<StorageComparison> {
         use flate2::Compression;
         use flate2::write::ZlibEncoder;
         use std::io::Write;
-        
+
         let original_size: usize = tags.iter().map(|t| t.len()).sum();
-        
+
         let mut tag_bytes = Vec::new();
         for tag in tags {
             tag_bytes.extend_from_slice(tag.as_bytes());
             tag_bytes.push(b' ');
         }
-        
+
         let start = Instant::now();
         let mut compressed_data = Vec::new();
         for _ in 0..iterations {
@@ -194,7 +223,7 @@ impl MappyComparisonRunner {
             compressed_data = encoder.finish()?;
         }
         let insert_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         Ok(StorageComparison {
             method: "dict_zlib".to_string(),
             original_size,
@@ -205,15 +234,18 @@ impl MappyComparisonRunner {
             memory_usage_bytes: compressed_data.len(),
         })
     }
-    
+
     /// Compare all storage methods
-    pub fn compare_all_storage(tags: &[String], iterations: usize) -> Result<Vec<StorageComparison>> {
+    pub fn compare_all_storage(
+        tags: &[String],
+        iterations: usize,
+    ) -> Result<Vec<StorageComparison>> {
         let mut results = Vec::new();
-        
+
         // Dict baseline
         results.push(Self::benchmark_dict(tags, iterations)?);
         results.push(Self::benchmark_dict_zlib(tags, iterations)?);
-        
+
         #[cfg(feature = "mappy-integration")]
         {
             results.push(Self::benchmark_mappy_uncompressed(tags, iterations)?);
@@ -221,8 +253,7 @@ impl MappyComparisonRunner {
             results.push(Self::benchmark_mappy_arithmetic(tags, iterations)?);
             results.push(Self::benchmark_mappy_dictionary(tags, iterations)?);
         }
-        
+
         Ok(results)
     }
 }
-

@@ -1,19 +1,17 @@
-"""
-Basic functionality tests for mappy-python bindings
-"""
+"""Basic functionality tests for mappy-python bindings."""
 
-from typing import Any, List
 
 import mappy_python as mappy
 import pytest
+
 from . import Stats
 
 
 class TestBasicMapletOperations:
-    """Test basic maplet operations"""
+    """Test basic maplet operations."""
 
     def test_maplet_creation(self):
-        """Test creating maplets with different operators"""
+        """Test creating maplets with different operators."""
         # Counter operator
         counter_maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
         assert counter_maplet is not None
@@ -26,8 +24,8 @@ class TestBasicMapletOperations:
         min_maplet = mappy.Maplet(1000, 0.01, mappy.MinOperator())
         assert min_maplet is not None
 
-    def test_insert_and_query_strings(self, sample_strings: List[str]):
-        """Test inserting and querying string keys"""
+    def test_insert_and_query_strings(self, sample_strings: list[str]):
+        """Test inserting and querying string keys."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert string keys with integer values
@@ -40,8 +38,8 @@ class TestBasicMapletOperations:
             assert result is not None
             assert result >= i + 1  # May be higher due to collisions
 
-    def test_insert_and_query_integers(self, sample_integers: List[int]):
-        """Test inserting and querying with integer keys and values"""
+    def test_insert_and_query_integers(self, sample_integers: list[int]):
+        """Test inserting and querying with integer keys and values."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert integer keys with integer values
@@ -56,8 +54,8 @@ class TestBasicMapletOperations:
             assert result is not None
             assert result >= expected_value
 
-    def test_contains_operation(self, sample_strings: List[str]):
-        """Test contains operation"""
+    def test_contains_operation(self, sample_strings: list[str]):
+        """Test contains operation."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert some keys
@@ -76,8 +74,8 @@ class TestBasicMapletOperations:
             result = maplet.contains(key)
             assert isinstance(result, bool)
 
-    def test_delete_operation(self, sample_strings: List[str]):
-        """Test delete operation"""
+    def test_delete_operation(self, sample_strings: list[str]):
+        """Test delete operation."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert keys
@@ -99,8 +97,8 @@ class TestBasicMapletOperations:
             # After deletion, result should be None or 0
             assert result is None or result == 0
 
-    def test_stats_operation(self, sample_strings: List[str]):
-        """Test statistics operation"""
+    def test_stats_operation(self, sample_strings: list[str]):
+        """Test statistics operation."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert some data
@@ -123,8 +121,8 @@ class TestBasicMapletOperations:
         assert stats.item_count >= 0
         assert 0.0 <= stats.false_positive_rate <= 1.0
 
-    def test_clear_operation(self, sample_strings: List[str]):
-        """Test clear operation"""
+    def test_clear_operation(self, sample_strings: list[str]):
+        """Test clear operation."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert data
@@ -141,7 +139,7 @@ class TestBasicMapletOperations:
             maplet.clear()
 
     def test_capacity_and_resize(self):
-        """Test maplet capacity and resize functionality"""
+        """Test maplet capacity and resize functionality."""
         # Create small maplet
         maplet = mappy.Maplet(100, 0.01, mappy.CounterOperator())
 
@@ -161,10 +159,10 @@ class TestBasicMapletOperations:
 
 
 class TestMergeOperators:
-    """Test different merge operators"""
+    """Test different merge operators."""
 
     def test_counter_operator(self):
-        """Test counter operator behavior"""
+        """Test counter operator behavior."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert same key multiple times
@@ -179,7 +177,7 @@ class TestMergeOperators:
         assert result >= 10  # 5 + 3 + 2, may be higher due to collisions
 
     def test_max_operator(self):
-        """Test max operator behavior"""
+        """Test max operator behavior."""
         maplet = mappy.Maplet(1000, 0.01, mappy.MaxOperator())
 
         # Insert same key with different values
@@ -194,7 +192,7 @@ class TestMergeOperators:
         assert result >= 10  # Max of 5, 10, 3
 
     def test_min_operator(self):
-        """Test min operator behavior"""
+        """Test min operator behavior."""
         maplet = mappy.Maplet(1000, 0.01, mappy.MinOperator())
 
         # Insert same key with different values
@@ -209,7 +207,7 @@ class TestMergeOperators:
         assert result <= 3  # Min of 5, 10, 3
 
     def test_custom_operator(self):
-        """Test custom operator behavior"""
+        """Test custom operator behavior."""
         # Note: CustomOperator may not be implemented yet
         # Skip this test if CustomOperator is not available
         try:
@@ -233,10 +231,10 @@ class TestMergeOperators:
 
 
 class TestErrorHandling:
-    """Test error handling and edge cases"""
+    """Test error handling and edge cases."""
 
     def test_invalid_parameters(self):
-        """Test maplet creation with invalid parameters"""
+        """Test maplet creation with invalid parameters."""
         # Test with zero capacity
         with pytest.raises((ValueError, RuntimeError)):
             mappy.Maplet(0, 0.01, mappy.CounterOperator())
@@ -249,7 +247,7 @@ class TestErrorHandling:
             mappy.Maplet(1000, 1.0, mappy.CounterOperator())
 
     def test_none_values(self):
-        """Test handling of None values"""
+        """Test handling of None values."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Test inserting None key
@@ -261,7 +259,7 @@ class TestErrorHandling:
             maplet.query(None)
 
     def test_empty_string_handling(self):
-        """Test handling of empty strings"""
+        """Test handling of empty strings."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert empty string
@@ -273,7 +271,7 @@ class TestErrorHandling:
         assert result >= 1
 
     def test_very_large_values(self):
-        """Test handling of very large values"""
+        """Test handling of very large values."""
         maplet = mappy.Maplet(1000, 0.01, mappy.CounterOperator())
 
         # Insert very large value
@@ -287,10 +285,10 @@ class TestErrorHandling:
 
 
 class TestConcurrency:
-    """Test concurrent access to maplets"""
+    """Test concurrent access to maplets."""
 
-    def test_thread_safety(self, sample_strings: List[str]):
-        """Test thread safety of maplet operations"""
+    def test_thread_safety(self, sample_strings: list[str]):
+        """Test thread safety of maplet operations."""
         import threading
         import time
 
@@ -304,7 +302,7 @@ class TestConcurrency:
                     key = f"worker_{worker_id}_item_{i}"
                     maplet.insert(key, 1)
                     time.sleep(
-                        0.001
+                        0.001,
                     )  # Small delay to increase chance of race conditions
                 results.append(f"worker_{worker_id}_completed")
             except Exception as e:

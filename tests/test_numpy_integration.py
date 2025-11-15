@@ -1,21 +1,19 @@
-"""
-NumPy integration tests for mappy-python bindings
-"""
+"""NumPy integration tests for mappy-python bindings."""
 
 import time
-from typing import List
 
 import mappy_python as mappy
 import numpy as np
 import pytest
+
 from . import Stats
 
 
 class TestNumPyArraySupport:
-    """Test NumPy array support in maplets"""
+    """Test NumPy array support in maplets."""
 
-    def test_numpy_array_insertion(self, sample_numpy_arrays: List[np.ndarray]):
-        """Test inserting NumPy arrays as values"""
+    def test_numpy_array_insertion(self, sample_numpy_arrays: list[np.ndarray]):
+        """Test inserting NumPy arrays as values."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Insert NumPy arrays
@@ -34,7 +32,7 @@ class TestNumPyArraySupport:
             assert result.shape == expected_array.shape
 
     def test_numpy_array_operations(self):
-        """Test NumPy array operations"""
+        """Test NumPy array operations."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Create test arrays
@@ -66,7 +64,7 @@ class TestNumPyArraySupport:
         assert np.allclose(result3, array3, atol=1e-6)
 
     def test_numpy_array_merge_operations(self):
-        """Test NumPy array merge operations"""
+        """Test NumPy array merge operations."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Insert same key with different arrays
@@ -89,7 +87,7 @@ class TestNumPyArraySupport:
         assert np.allclose(result, expected, atol=1e-6)
 
     def test_numpy_array_types(self):
-        """Test different NumPy array types"""
+        """Test different NumPy array types."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Test different data types (only float64 supported for VectorOperator)
@@ -108,7 +106,7 @@ class TestNumPyArraySupport:
             assert result.shape == array.shape
 
     def test_numpy_array_dimensions(self):
-        """Test NumPy arrays with different dimensions"""
+        """Test NumPy arrays with different dimensions."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Test 1D arrays (VectorOperator supports 1D)
@@ -124,7 +122,7 @@ class TestNumPyArraySupport:
         assert result.shape == test_array.shape or len(result) == len(test_array)
 
     def test_numpy_array_performance(self):
-        """Test NumPy array performance"""
+        """Test NumPy array performance."""
         maplet = mappy.Maplet(10000, 0.001, mappy.VectorOperator())
 
         # Create large arrays
@@ -148,7 +146,7 @@ class TestNumPyArraySupport:
         assert query_time < 5.0  # Should query 100 arrays in under 5 seconds
 
     def test_numpy_array_memory_usage(self):
-        """Test memory usage with NumPy arrays"""
+        """Test memory usage with NumPy arrays."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Get initial memory usage
@@ -174,7 +172,7 @@ class TestNumPyArraySupport:
         # The exact amount depends on the internal structure and compression
 
     def test_numpy_array_edge_cases(self):
-        """Test NumPy array edge cases"""
+        """Test NumPy array edge cases."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Test empty array
@@ -197,7 +195,7 @@ class TestNumPyArraySupport:
         assert result[0] == 42.0
 
     def test_numpy_array_serialization(self):
-        """Test NumPy array serialization/deserialization"""
+        """Test NumPy array serialization/deserialization."""
         maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
 
         # Create 1D array (VectorOperator supports 1D)
@@ -215,7 +213,7 @@ class TestNumPyArraySupport:
         assert np.array_equal(result, complex_array) or np.allclose(result, complex_array)
 
     def test_numpy_array_with_different_operators(self):
-        """Test NumPy arrays with different merge operators"""
+        """Test NumPy arrays with different merge operators."""
         # Test with VectorOperator (element-wise sum)
         vector_maplet = mappy.Maplet(1000, 0.01, mappy.VectorOperator())
         array1 = np.array([1.0, 2.0, 3.0])
@@ -233,11 +231,11 @@ class TestNumPyArraySupport:
 
 
 class TestNumPyPerformance:
-    """Test NumPy performance characteristics"""
+    """Test NumPy performance characteristics."""
 
     @pytest.mark.benchmark
     def test_numpy_array_benchmark(self, benchmark):
-        """Benchmark NumPy array operations"""
+        """Benchmark NumPy array operations."""
         maplet = mappy.Maplet(10000, 0.001, mappy.VectorOperator())
 
         def benchmark_operations():
@@ -255,7 +253,7 @@ class TestNumPyPerformance:
 
     @pytest.mark.benchmark
     def test_numpy_array_batch_operations(self, benchmark):
-        """Benchmark batch NumPy array operations"""
+        """Benchmark batch NumPy array operations."""
         maplet = mappy.Maplet(10000, 0.001, mappy.VectorOperator())
 
         def benchmark_batch():

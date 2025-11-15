@@ -6,6 +6,8 @@ authors = ["Balazs Horvath"]
 license = "MIT"
 description = "Tag compression library with multiple algorithms (Huffman, Arithmetic, Dictionary)"
 repository = "https://github.com/entropy-tamer/mappy"
+keywords = ["compression", "huffman", "arithmetic", "dictionary", "tags"]
+categories = ["compression", "algorithms"]
 
 [dependencies]
 # Error handling

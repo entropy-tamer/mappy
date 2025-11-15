@@ -5,18 +5,20 @@ This module provides complete test coverage for all mappy-python functionalities
 including PyMaplet, PyEngine, PyEngineConfig, and PyEngineStats.
 """
 
-import os
-import sys
-import time
-import tempfile
-import shutil
-import threading
+import contextlib
 import queue
+import shutil
+import sys
+import tempfile
+import threading
+import time
+
+# Add the current directory to the path so we can import mappy_python
+from pathlib import Path
 
 import pytest
 
-# Add the current directory to the path so we can import mappy_python
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 try:
     import mappy_python
@@ -24,7 +26,7 @@ except ImportError:
     pytest.skip(
         "mappy_python module not found. Make sure to build the Python bindings first.\n"
         "Run: cd mappy-python && maturin develop",
-        allow_module_level=True
+        allow_module_level=True,
     )
 
 
@@ -106,10 +108,8 @@ def memory_engine(memory_engine_config):
     """Create a PyEngine with memory persistence."""
     engine = mappy_python.PyEngine(memory_engine_config)
     yield engine
-    try:
+    with contextlib.suppress(Exception):
         engine.close()
-    except Exception:
-        pass
 
 
 @pytest.fixture
@@ -120,10 +120,8 @@ def populated_engine(memory_engine_config):
     engine.set("key2", b"value2")
     engine.set("key3", b"value3")
     yield engine
-    try:
+    with contextlib.suppress(Exception):
         engine.close()
-    except Exception:
-        pass
 
 
 # ============================================================================
@@ -223,20 +221,20 @@ class TestPyMaplet:
         assert slot3 is not None
 
         # Test with non-existing key (may return None or a slot due to false positives)
-        non_existing_slot = populated_maplet.find_slot_for_key("non_existing")
+        populated_maplet.find_slot_for_key("non_existing")
         # Result is acceptable either way due to false positive behavior
 
     def test_maplet_find_slot_for_empty_key(self, basic_maplet):
         """Test finding slot for empty key."""
         # Empty keys might raise an exception or return None
-        slot = basic_maplet.find_slot_for_key("")
+        basic_maplet.find_slot_for_key("")
         # Result depends on implementation
 
     def test_maplet_large_insertions(self):
         """Test inserting many items."""
         # Use larger capacity to accommodate 1000 items with some headroom
         maplet = mappy_python.PyMaplet(capacity=2000, false_positive_rate=0.01)
-        
+
         for i in range(1000):
             maplet.insert(f"key_{i}", i)
 
@@ -408,19 +406,15 @@ class TestPyEngine:
         config = mappy_python.PyEngineConfig(None, None, None, None, None, None, None, None)
         engine = mappy_python.PyEngine(config)
         assert engine is not None
-        try:
+        with contextlib.suppress(Exception):
             engine.close()
-        except Exception:
-            pass
 
     def test_engine_creation_with_config(self, memory_engine_config):
         """Test creating an engine with custom config."""
         engine = mappy_python.PyEngine(memory_engine_config)
         assert engine is not None
-        try:
+        with contextlib.suppress(Exception):
             engine.close()
-        except Exception:
-            pass
 
     def test_engine_set_and_get(self, memory_engine):
         """Test setting and getting values."""
@@ -506,12 +500,12 @@ class TestPyEngine:
         """Test removing TTL from a key."""
         memory_engine.set("key1", b"value1")
         memory_engine.expire("key1", 3600)
-        
+
         assert memory_engine.ttl("key1") is not None
-        
+
         success = memory_engine.persist("key1")
         assert success is True
-        
+
         ttl = memory_engine.ttl("key1")
         assert ttl is None or ttl == -1
 
@@ -534,7 +528,7 @@ class TestPyEngine:
     def test_engine_expire_many_partial(self, memory_engine):
         """Test setting TTL for keys where some don't exist."""
         memory_engine.set("key1", b"value1")
-        
+
         keys = ["key1", "nonexistent1", "nonexistent2"]
         count = memory_engine.expire_many(keys, 300)
         assert count == 1
@@ -564,19 +558,19 @@ class TestPyEngine:
     def test_engine_stats_properties(self, populated_engine):
         """Test all PyEngineStats properties."""
         stats = populated_engine.stats()
-        
+
         # Check all properties exist and are accessible
-        assert hasattr(stats, 'uptime_seconds')
-        assert hasattr(stats, 'total_operations')
-        assert hasattr(stats, 'maplet_capacity')
-        assert hasattr(stats, 'maplet_size')
-        assert hasattr(stats, 'maplet_load_factor')
-        assert hasattr(stats, 'maplet_error_rate')
-        assert hasattr(stats, 'maplet_memory_usage')
-        assert hasattr(stats, 'storage_operations')
-        assert hasattr(stats, 'storage_memory_usage')
-        assert hasattr(stats, 'ttl_entries')
-        assert hasattr(stats, 'ttl_cleanups')
+        assert hasattr(stats, "uptime_seconds")
+        assert hasattr(stats, "total_operations")
+        assert hasattr(stats, "maplet_capacity")
+        assert hasattr(stats, "maplet_size")
+        assert hasattr(stats, "maplet_load_factor")
+        assert hasattr(stats, "maplet_error_rate")
+        assert hasattr(stats, "maplet_memory_usage")
+        assert hasattr(stats, "storage_operations")
+        assert hasattr(stats, "storage_memory_usage")
+        assert hasattr(stats, "ttl_entries")
+        assert hasattr(stats, "ttl_cleanups")
 
     def test_engine_memory_usage(self, memory_engine):
         """Test getting memory usage."""
@@ -624,7 +618,7 @@ class TestPyEngine:
 
     def test_engine_find_slot_for_nonexistent(self, memory_engine):
         """Test finding slot for non-existent key."""
-        slot = memory_engine.find_slot_for_key("nonexistent")
+        memory_engine.find_slot_for_key("nonexistent")
         # May return None or a slot due to false positives
 
     def test_engine_large_values(self, memory_engine):
@@ -654,7 +648,7 @@ class TestPyEngine:
         """Test overwriting an existing value."""
         memory_engine.set("key1", b"value1")
         memory_engine.set("key1", b"value2")
-        
+
         result = memory_engine.get("key1")
         assert result == b"value2"
 
@@ -690,29 +684,29 @@ class TestPersistence:
 
     def test_disk_persistence(self, temp_dir):
         """Test disk persistence across engine instances.
-        
+
         IMPORTANT: This test reveals a known limitation in the Engine design:
         - The Engine.get() method first checks the maplet for membership
         - If the key doesn't exist in the maplet, it returns None immediately
         - When a new Engine is created, it starts with an empty maplet
         - Therefore, keys loaded from disk storage won't be accessible until
           they're re-inserted into the new engine's maplet
-        
+
         This is actually correct behavior for the approximate membership design,
         but it means disk persistence requires the maplet to be populated first.
-        
+
         The test currently verifies that:
         1. Data can be written and read within the same engine instance
         2. The database can be reopened (lock release works)
         3. Keys exist in storage (via keys() method)
-        
+
         Future work: The Engine could be enhanced to reconstruct the maplet from
         storage when loading from disk, or provide a separate method to load
         existing keys into the maplet.
         """
-        import time
         import gc
-        
+        import time
+
         config = mappy_python.PyEngineConfig(
             capacity=None,
             false_positive_rate=None,
@@ -728,20 +722,20 @@ class TestPersistence:
         engine1 = mappy_python.PyEngine(config)
         engine1.set("key1", b"value1")
         engine1.set("key2", b"value2")
-        
+
         # Verify data was written
         assert engine1.get("key1") == b"value1"
         assert engine1.get("key2") == b"value2"
-        
+
         # Flush to ensure data is persisted
         engine1.flush()
-        
+
         # Close the first engine
         engine1.close()
-        
+
         # Explicitly delete the engine to ensure it's dropped
         del engine1
-        
+
         # Force garbage collection and wait for database locks to be released
         # Sled uses file-based locking, and the lock is released when the Db is dropped
         gc.collect()
@@ -759,7 +753,7 @@ class TestPersistence:
             ttl_enabled=None,
             ttl_cleanup_interval_ms=None,
         )
-        
+
         # Database lock issues may occur - retry with exponential backoff
         engine2 = None
         max_retries = 5
@@ -774,31 +768,29 @@ class TestPersistence:
                     time.sleep(wait_time)
                     gc.collect()  # Try garbage collection again
                     continue
-                else:
-                    # If we can't acquire lock after all retries, skip with explanation
-                    pytest.skip(
-                        f"Could not acquire database lock after {max_retries} attempts. "
-                        f"This is a known limitation of Sled - database locks are released "
-                        f"when the Db is dropped, but there can be delays. Error: {e}"
-                    )
-        
+                # If we can't acquire lock after all retries, skip with explanation
+                pytest.skip(
+                    f"Could not acquire database lock after {max_retries} attempts. "
+                    f"This is a known limitation of Sled - database locks are released "
+                    f"when the Db is dropped, but there can be delays. Error: {e}",
+                )
+
         if engine2 is not None:
             try:
                 # Check that keys exist in storage
                 stored_keys = engine2.keys()
                 assert "key1" in stored_keys, "key1 should exist in storage"
                 assert "key2" in stored_keys, "key2 should exist in storage"
-                
+
                 # Note: Due to Engine design, get() will return None for keys not in the maplet
                 # The maplet is empty for a new engine, so values won't be accessible via get()
                 # until they're re-inserted. This is expected behavior.
-                # 
+                #
                 # To verify persistence works, we would need to re-insert keys or enhance
                 # the Engine to reconstruct the maplet from storage.
                 #
                 # For now, we verify the keys exist in storage (which they do, as shown above)
                 # and that the database can be reopened successfully.
-                pass
             finally:
                 engine2.close()
                 del engine2
@@ -820,7 +812,7 @@ class TestPersistence:
         try:
             engine.set("key1", b"value1")
             engine.flush()
-            
+
             result = engine.get("key1")
             assert result == b"value1"
         finally:
@@ -843,7 +835,7 @@ class TestPersistence:
         try:
             engine.set("key1", b"value1")
             engine.set("key2", b"value2")
-            
+
             assert engine.get("key1") == b"value1"
             assert engine.get("key2") == b"value2"
         finally:
@@ -875,12 +867,12 @@ class TestTTL:
         """Test extending TTL of a key."""
         memory_engine.set("key1", b"value1")
         memory_engine.expire("key1", 10)
-        
+
         ttl1 = memory_engine.ttl("key1")
-        
+
         memory_engine.expire("key1", 60)
         ttl2 = memory_engine.ttl("key1")
-        
+
         assert ttl2 is not None
         assert ttl2 > ttl1
 
@@ -900,7 +892,7 @@ class TestTTL:
         try:
             engine.set("key1", b"value1")
             # Expire might not work or return False
-            result = engine.expire("key1", 3600)
+            engine.expire("key1", 3600)
             # Result depends on implementation
         finally:
             engine.close()
@@ -978,11 +970,11 @@ class TestConcurrency:
                 for i in range(num_operations):
                     key = f"worker_{worker_id}_key_{i}"
                     value = f"value_{worker_id}_{i}".encode()
-                    
+
                     memory_engine.set(key, value)
                     retrieved = memory_engine.get(key)
                     exists = memory_engine.exists(key)
-                    
+
                     results.put((worker_id, i, retrieved == value, exists))
             except Exception as e:
                 errors.put((worker_id, i, str(e)))
@@ -1019,42 +1011,40 @@ class TestPerformance:
     def test_maplet_insertion_performance(self):
         """Benchmark insertion performance."""
         maplet = mappy_python.PyMaplet(capacity=2000, false_positive_rate=0.01)
-        
+
         start_time = time.time()
         for i in range(1000):
             maplet.insert(f"key_{i}", i)
         insert_time = time.time() - start_time
-        
+
         assert insert_time < 1.0  # Should complete in under 1 second
-        ops_per_sec = 1000 / insert_time
-        print(f"\nMaplet insertion: {ops_per_sec:.0f} ops/sec")
+        1000 / insert_time
 
     def test_maplet_query_performance(self):
         """Benchmark query performance."""
         maplet = mappy_python.PyMaplet(capacity=2000, false_positive_rate=0.01)
-        
+
         # Insert data
         for i in range(1000):
             maplet.insert(f"key_{i}", i)
-        
+
         # Query data
         start_time = time.time()
         for i in range(1000):
             maplet.query(f"key_{i}")
         query_time = time.time() - start_time
-        
+
         assert query_time < 1.0  # Should complete in under 1 second
-        ops_per_sec = 1000 / query_time
-        print(f"\nMaplet query: {ops_per_sec:.0f} ops/sec")
+        1000 / query_time
 
     def test_maplet_slot_finding_performance(self):
         """Benchmark slot finding performance."""
         maplet = mappy_python.PyMaplet(capacity=2000, false_positive_rate=0.01)
-        
+
         # Insert data
         for i in range(1000):
             maplet.insert(f"key_{i}", i)
-        
+
         # Find slots
         start_time = time.time()
         slots = []
@@ -1062,10 +1052,9 @@ class TestPerformance:
             slot = maplet.find_slot_for_key(f"key_{i}")
             slots.append(slot)
         slot_time = time.time() - start_time
-        
+
         assert slot_time < 1.0  # Should complete in under 1 second
-        ops_per_sec = 1000 / slot_time
-        print(f"\nMaplet slot finding: {ops_per_sec:.0f} ops/sec")
+        1000 / slot_time
 
     def test_engine_insertion_performance(self, temp_dir):
         """Benchmark engine insertion performance."""
@@ -1086,10 +1075,9 @@ class TestPerformance:
             for i in range(1000):
                 engine.set(f"key_{i}", f"value_{i}".encode())
             insert_time = time.time() - start_time
-            
+
             assert insert_time < 2.0  # Should complete in under 2 seconds
-            ops_per_sec = 1000 / insert_time
-            print(f"\nEngine insertion: {ops_per_sec:.0f} ops/sec")
+            1000 / insert_time
         finally:
             engine.close()
 
@@ -1111,16 +1099,15 @@ class TestPerformance:
             # Insert data
             for i in range(1000):
                 engine.set(f"key_{i}", f"value_{i}".encode())
-            
+
             # Query data
             start_time = time.time()
             for i in range(1000):
                 engine.get(f"key_{i}")
             query_time = time.time() - start_time
-            
+
             assert query_time < 2.0  # Should complete in under 2 seconds
-            ops_per_sec = 1000 / query_time
-            print(f"\nEngine query: {ops_per_sec:.0f} ops/sec")
+            1000 / query_time
         finally:
             engine.close()
 
@@ -1182,7 +1169,7 @@ class TestEdgeCases:
         """Test operations after engine is closed."""
         engine = mappy_python.PyEngine(memory_engine_config)
         engine.close()
-        
+
         # Operations after close might raise exceptions or return None
         # The behavior depends on implementation - some engines allow operations
         # after close, others don't. We'll test that it doesn't crash.

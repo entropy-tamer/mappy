@@ -1,14 +1,14 @@
 //! TTL (Time-To-Live) management for mappy
-//! 
+//!
 //! Provides expiration tracking and automatic cleanup of expired keys.
 
 use crate::MapletResult;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time::{Duration, interval};
-use serde::{Serialize, Deserialize};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// TTL configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,8 +49,9 @@ impl TTLEntry {
         let expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs() + ttl_seconds;
-        
+            .as_secs()
+            + ttl_seconds;
+
         Self {
             key,
             expires_at,
@@ -76,7 +77,9 @@ impl TTLEntry {
             .unwrap_or_default()
             .as_secs();
         #[allow(clippy::cast_possible_wrap)]
-        { self.expires_at as i64 - now as i64 }
+        {
+            self.expires_at as i64 - now as i64
+        }
     }
 }
 
@@ -118,7 +121,8 @@ impl TTLManager {
         // Add to new expiration time
         {
             let mut expiration_map = self.expiration_map.write().await;
-            expiration_map.entry(expires_at)
+            expiration_map
+                .entry(expires_at)
                 .or_insert_with(Vec::new)
                 .push(entry);
         }
@@ -189,7 +193,7 @@ impl TTLManager {
 
         let mut expired_entries = Vec::new();
         let mut expiration_map = self.expiration_map.write().await;
-        
+
         // Get all entries that have expired
         let expired_times: Vec<u64> = expiration_map
             .range(..=now)
@@ -227,7 +231,7 @@ impl TTLManager {
 
         let handle = tokio::spawn(async move {
             let mut interval = interval(Duration::from_secs(config.cleanup_interval_secs));
-            
+
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
@@ -311,7 +315,9 @@ impl TTLManager {
 
     /// Get TTL statistics
     pub async fn get_stats(&self) -> MapletResult<TTLStats> {
+        #[allow(clippy::significant_drop_in_scrutinee)] // Guards needed for entire operation
         let expiration_map = self.expiration_map.read().await;
+        #[allow(clippy::significant_drop_in_scrutinee)] // Guards needed for entire operation
         let key_map = self.key_to_expiration.read().await;
 
         let total_keys = key_map.len();
@@ -328,10 +334,7 @@ impl TTLManager {
         Ok(TTLStats {
             total_keys_with_ttl: total_keys as u64,
             expired_keys: expired_count as u64,
-            next_expiration: expiration_map
-                .range(now..)
-                .next()
-                .map(|(&time, _)| time),
+            next_expiration: expiration_map.range(now..).next().map(|(&time, _)| time),
         })
     }
 
@@ -360,7 +363,6 @@ pub struct TTLStats {
     pub next_expiration: Option<u64>,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -372,7 +374,7 @@ mod tests {
 
         // Set TTL for a key
         manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        
+
         // Check TTL
         let ttl = manager.get_ttl("key1").await.unwrap();
         assert!(ttl.is_some());
@@ -393,13 +395,13 @@ mod tests {
 
         // Set very short TTL
         manager.set_ttl("key1".to_string(), 0, 1).await.unwrap();
-        
+
         // Wait for expiration
         tokio::time::sleep(Duration::from_millis(1100)).await;
-        
+
         // Check if expired
         assert!(manager.is_expired("key1").await.unwrap());
-        
+
         // Get expired keys
         let expired = manager.get_expired_keys().await.unwrap();
         assert!(!expired.is_empty());

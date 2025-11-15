@@ -1,11 +1,11 @@
 //! Mappy Server - Network server for the Mappy service
 
 use axum::{
+    Router,
     extract::{Path, State},
     http::StatusCode,
     response::Json,
     routing::{get as get_route, post},
-    Router,
 };
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
 use serde::{Deserialize, Serialize};
@@ -143,10 +143,7 @@ impl AsyncWrite for UnixStreamAdapter {
 
 // Use hyper_util for Unix socket support
 
-async fn serve_unix_socket(
-    listener: UnixListener,
-    app: Router,
-) -> anyhow::Result<()> {
+async fn serve_unix_socket(listener: UnixListener, app: Router) -> anyhow::Result<()> {
     use hyper::service::service_fn;
     use hyper_util::rt::TokioIo;
     use hyper_util::server::conn::auto::Builder;
@@ -154,7 +151,7 @@ async fn serve_unix_socket(
     loop {
         let (stream, _) = listener.accept().await?;
         let app = app.clone();
-        
+
         tokio::spawn(async move {
             let io = TokioIo::new(UnixStreamAdapter(stream));
             let svc = service_fn(move |req| {
@@ -165,9 +162,9 @@ async fn serve_unix_socket(
                     })
                 }
             });
-            
+
             let builder = Builder::new(hyper_util::rt::TokioExecutor::new());
-            
+
             if let Err(e) = builder.serve_connection(io, svc).await {
                 tracing::error!("Error serving Unix socket connection: {}", e);
             }
@@ -199,21 +196,28 @@ async fn main() -> anyhow::Result<()> {
     let port = std::env::var("MAPPY_PORT")
         .unwrap_or_else(|_| "8003".to_string())
         .parse::<u16>()?;
-    let host = std::env::var("MAPPY_HOST")
-        .unwrap_or_else(|_| "0.0.0.0".to_string());
+    let host = std::env::var("MAPPY_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let capacity = std::env::var("MAPPY_CAPACITY")
         .unwrap_or_else(|_| "10000".to_string())
         .parse::<usize>()?;
     let false_positive_rate = std::env::var("MAPPY_FALSE_POSITIVE_RATE")
         .unwrap_or_else(|_| "0.01".to_string())
         .parse::<f64>()?;
-    let data_dir = std::env::var("MAPPY_DATA_DIR")
-        .unwrap_or_else(|_| "./data/mappy".to_string());
-    let persistence_mode = std::env::var("MAPPY_PERSISTENCE_MODE")
-        .unwrap_or_else(|_| "memory".to_string());
+    let data_dir = std::env::var("MAPPY_DATA_DIR").unwrap_or_else(|_| "./data/mappy".to_string());
+    let persistence_mode =
+        std::env::var("MAPPY_PERSISTENCE_MODE").unwrap_or_else(|_| "memory".to_string());
 
-    info!("Configuration: socket_path={}, enable_http={}, port={}, host={}, capacity={}, false_positive_rate={}, data_dir={}, persistence={}",
-        socket_path, enable_http, port, host, capacity, false_positive_rate, data_dir, persistence_mode);
+    info!(
+        "Configuration: socket_path={}, enable_http={}, port={}, host={}, capacity={}, false_positive_rate={}, data_dir={}, persistence={}",
+        socket_path,
+        enable_http,
+        port,
+        host,
+        capacity,
+        false_positive_rate,
+        data_dir,
+        persistence_mode
+    );
 
     // Initialize engine
     let persistence = match persistence_mode.as_str() {
@@ -257,32 +261,29 @@ async fn main() -> anyhow::Result<()> {
         if socket_path_std.exists() {
             fs::remove_file(socket_path_std)?;
         }
-        
+
         if let Some(parent) = socket_path_std.parent() {
             fs::create_dir_all(parent)?;
             let mut dir_perms = fs::metadata(parent)?.permissions();
             dir_perms.set_mode(0o775);
             fs::set_permissions(parent, dir_perms)?;
         }
-        
+
         let unix_listener = UnixListener::bind(socket_path_std)?;
         let mut perms = fs::metadata(socket_path_std)?.permissions();
         perms.set_mode(0o664);
         fs::set_permissions(socket_path_std, perms)?;
         info!("Mappy Server Unix socket listening on {}", socket_path);
-        
+
         let http_listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
         info!("Mappy Server HTTP listening on {}:{}", host, port);
-        
+
         let app_clone = app.clone();
-        let socket_handle = tokio::spawn(async move {
-            serve_unix_socket(unix_listener, app_clone).await
-        });
-        
-        let http_handle = tokio::spawn(async move {
-            axum::serve(http_listener, app).await
-        });
-        
+        let socket_handle =
+            tokio::spawn(async move { serve_unix_socket(unix_listener, app_clone).await });
+
+        let http_handle = tokio::spawn(async move { axum::serve(http_listener, app).await });
+
         tokio::select! {
             result = socket_handle => {
                 if let Err(e) = result? {
@@ -306,14 +307,14 @@ async fn main() -> anyhow::Result<()> {
         if socket_path_std.exists() {
             fs::remove_file(socket_path_std)?;
         }
-        
+
         if let Some(parent) = socket_path_std.parent() {
             fs::create_dir_all(parent)?;
             let mut dir_perms = fs::metadata(parent)?.permissions();
             dir_perms.set_mode(0o775);
             fs::set_permissions(parent, dir_perms)?;
         }
-        
+
         let unix_listener = UnixListener::bind(socket_path_std)?;
         let mut perms = fs::metadata(socket_path_std)?.permissions();
         perms.set_mode(0o664);
@@ -321,7 +322,9 @@ async fn main() -> anyhow::Result<()> {
         info!("Mappy Server Unix socket listening on {}", socket_path);
         serve_unix_socket(unix_listener, app).await?;
     } else {
-        return Err(anyhow::anyhow!("At least one of HTTP or socket must be enabled"));
+        return Err(anyhow::anyhow!(
+            "At least one of HTTP or socket must be enabled"
+        ));
     }
 
     Ok(())

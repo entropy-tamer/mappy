@@ -3,7 +3,5 @@
 pub mod parser;
 pub mod serializer;
 
-pub use parser::{TagParser, SpaceSeparatedParser, CommaSeparatedParser, JsonParser};
+pub use parser::{CommaSeparatedParser, JsonParser, SpaceSeparatedParser, TagParser};
 pub use serializer::TagSerializer;
-
-

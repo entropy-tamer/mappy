@@ -1,19 +1,19 @@
 //! Engine layer for mappy
-//! 
+//!
 //! Integrates storage backends with maplet functionality to provide a complete key-value store.
 
-use crate::{Maplet, MapletResult, MergeOperator};
-use crate::types::MapletConfig;
-use crate::storage::{Storage, StorageStats, StorageConfig, PersistenceMode};
-use crate::storage::memory::MemoryStorage;
-use crate::storage::disk::DiskStorage;
 use crate::storage::aof::AOFStorage;
+use crate::storage::disk::DiskStorage;
 use crate::storage::hybrid::HybridStorage;
-use crate::ttl::{TTLManager, TTLConfig, TTLStats};
+use crate::storage::memory::MemoryStorage;
+use crate::storage::{PersistenceMode, Storage, StorageConfig, StorageStats};
+use crate::ttl::{TTLConfig, TTLManager, TTLStats};
+use crate::types::MapletConfig;
+use crate::{Maplet, MapletResult, MergeOperator};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 use std::time::SystemTime;
+use tokio::sync::RwLock;
 
 /// Simple merge operator for Vec<u8> that replaces values
 #[derive(Debug, Clone, Default)]
@@ -91,22 +91,14 @@ impl Engine {
     /// Create a new engine with the given configuration
     pub async fn new(config: EngineConfig) -> MapletResult<Self> {
         let maplet = Arc::new(RwLock::new(
-            Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(config.maplet.clone())?
+            Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(config.maplet.clone())?,
         ));
 
         let storage: Arc<dyn Storage> = match config.persistence_mode {
-            PersistenceMode::Memory => {
-                Arc::new(MemoryStorage::new(config.storage.clone())?)
-            },
-            PersistenceMode::Disk => {
-                Arc::new(DiskStorage::new(config.storage.clone())?)
-            },
-            PersistenceMode::AOF => {
-                Arc::new(AOFStorage::new(config.storage.clone())?)
-            },
-            PersistenceMode::Hybrid => {
-                Arc::new(HybridStorage::new(config.storage.clone())?)
-            },
+            PersistenceMode::Memory => Arc::new(MemoryStorage::new(config.storage.clone())?),
+            PersistenceMode::Disk => Arc::new(DiskStorage::new(config.storage.clone())?),
+            PersistenceMode::AOF => Arc::new(AOFStorage::new(config.storage.clone())?),
+            PersistenceMode::Hybrid => Arc::new(HybridStorage::new(config.storage.clone())?),
         };
 
         // Create TTL manager
@@ -114,19 +106,21 @@ impl Engine {
 
         // Start TTL cleanup task
         let storage_clone = Arc::clone(&storage);
-        ttl_manager.start_cleanup(move |expired_entries| {
-            let storage = Arc::clone(&storage_clone);
-            
-            // Spawn async task for cleanup
-            tokio::spawn(async move {
-                for entry in expired_entries {
-                    // Remove expired key from storage
-                    let _ = storage.delete(&entry.key).await;
-                }
-            });
-            
-            Ok(())
-        }).await?;
+        ttl_manager
+            .start_cleanup(move |expired_entries| {
+                let storage = Arc::clone(&storage_clone);
+
+                // Spawn async task for cleanup
+                tokio::spawn(async move {
+                    for entry in expired_entries {
+                        // Remove expired key from storage
+                        let _ = storage.delete(&entry.key).await;
+                    }
+                });
+
+                Ok(())
+            })
+            .await?;
 
         Ok(Self {
             maplet,
@@ -158,7 +152,7 @@ impl Engine {
 
         // If the key exists in the maplet, get the actual value from storage
         let result = self.storage.get(key).await;
-        
+
         // Increment operation counter
         {
             let mut count = self.operation_count.write().await;
@@ -171,10 +165,7 @@ impl Engine {
     /// Set a key-value pair
     pub async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()> {
         // Store in the maplet for approximate membership
-        {
-            let maplet_guard = self.maplet.write().await;
-            maplet_guard.insert(key.clone(), value.clone()).await?;
-        }
+        self.maplet.write().await.insert(key.clone(), value.clone()).await?;
 
         // Store in the actual storage backend
         self.storage.set(key, value).await?;
@@ -247,7 +238,9 @@ impl Engine {
         {
             let mut maplet_guard = self.maplet.write().await;
             // Note: Maplet doesn't have a clear method, so we create a new one
-            *maplet_guard = Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(self.config.maplet.clone())?;
+            *maplet_guard = Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(
+                self.config.maplet.clone(),
+            )?;
         }
 
         // Clear storage
@@ -272,7 +265,7 @@ impl Engine {
     pub async fn close(&self) -> MapletResult<()> {
         // Stop TTL cleanup task
         self.ttl_manager.stop_cleanup().await?;
-        
+
         // Close storage
         self.storage.close().await?;
         Ok(())
@@ -287,10 +280,8 @@ impl Engine {
         let storage_stats = self.storage.stats().await?;
         let ttl_stats = self.ttl_manager.get_stats().await?;
         let operation_count = *self.operation_count.read().await;
-        
-        let uptime = self.start_time.elapsed()
-            .unwrap_or_default()
-            .as_secs();
+
+        let uptime = self.start_time.elapsed().unwrap_or_default().as_secs();
 
         Ok(EngineStats {
             maplet_stats,
@@ -327,8 +318,10 @@ impl Engine {
         }
 
         // Set TTL
-        self.ttl_manager.set_ttl(key.to_string(), 0, ttl_seconds).await?;
-        
+        self.ttl_manager
+            .set_ttl(key.to_string(), 0, ttl_seconds)
+            .await?;
+
         // Increment operation counter
         {
             let mut count = self.operation_count.write().await;
@@ -341,7 +334,7 @@ impl Engine {
     /// Get TTL for a key in seconds
     pub async fn ttl(&self, key: &str) -> MapletResult<Option<i64>> {
         let result = self.ttl_manager.get_ttl(key).await?;
-        
+
         // Increment operation counter
         {
             let mut count = self.operation_count.write().await;
@@ -355,7 +348,7 @@ impl Engine {
     pub async fn persist(&self, key: &str) -> MapletResult<bool> {
         let had_ttl = self.ttl_manager.get_ttl(key).await?.is_some();
         self.ttl_manager.remove_ttl(key).await?;
-        
+
         // Increment operation counter
         {
             let mut count = self.operation_count.write().await;
@@ -364,7 +357,7 @@ impl Engine {
 
         Ok(had_ttl)
     }
-    
+
     /// Find the slot for a key (advanced quotient filter feature)
     #[cfg(feature = "quotient-filter")]
     pub async fn find_slot_for_key(&self, key: &str) -> MapletResult<Option<usize>> {
@@ -393,7 +386,10 @@ mod tests {
         let engine = Engine::new(config).await.unwrap();
 
         // Test set and get
-        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
         let value = engine.get("key1").await.unwrap();
         assert_eq!(value, Some(b"value1".to_vec()));
 
@@ -411,27 +407,34 @@ mod tests {
     async fn test_engine_with_disk_storage() {
         let temp_dir = TempDir::new().unwrap();
         // Use unique subdirectory to avoid lock conflicts
-        let data_dir = temp_dir.path().join("disk_test").to_string_lossy().to_string();
+        let data_dir = temp_dir
+            .path()
+            .join("disk_test")
+            .to_string_lossy()
+            .to_string();
         let config = EngineConfig {
             persistence_mode: PersistenceMode::Disk,
             data_dir: Some(data_dir),
             ..Default::default()
         };
-        
+
         let engine = Engine::new(config).await.unwrap();
-        
+
         // Test operations
-        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
         let value = engine.get("key1").await.unwrap();
         assert_eq!(value, Some(b"value1".to_vec()));
-        
+
         engine.close().await.unwrap();
     }
 
     #[tokio::test]
     async fn test_engine_disk_persistence_behavior() {
         // This test verifies the Engine's persistence behavior across instances.
-        // 
+        //
         // IMPORTANT: The Engine uses a maplet-first design where get() first checks
         // the maplet for approximate membership. If a key doesn't exist in the maplet,
         // get() returns None immediately, even if the value exists in persistent storage.
@@ -443,13 +446,17 @@ mod tests {
         // This is by design: the maplet is an approximate membership filter that
         // provides fast negative lookups. The storage backend stores the actual values,
         // but the maplet determines which keys are "known" to the engine.
-        
+
         use std::time::Duration;
         use tokio::time::sleep;
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let data_dir = temp_dir.path().join("test_db").to_string_lossy().to_string();
-        
+        let data_dir = temp_dir
+            .path()
+            .join("test_db")
+            .to_string_lossy()
+            .to_string();
+
         // Create first engine and write data
         {
             let config1 = EngineConfig {
@@ -457,34 +464,40 @@ mod tests {
                 data_dir: Some(data_dir.clone()),
                 ..Default::default()
             };
-            
+
             let engine1 = Engine::new(config1).await.unwrap();
-            engine1.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
-            engine1.set("key2".to_string(), b"value2".to_vec()).await.unwrap();
-            
+            engine1
+                .set("key1".to_string(), b"value1".to_vec())
+                .await
+                .unwrap();
+            engine1
+                .set("key2".to_string(), b"value2".to_vec())
+                .await
+                .unwrap();
+
             // Verify data can be read within the same engine instance
             assert_eq!(engine1.get("key1").await.unwrap(), Some(b"value1".to_vec()));
             assert_eq!(engine1.get("key2").await.unwrap(), Some(b"value2".to_vec()));
-            
+
             // Flush to ensure data is persisted
             engine1.flush().await.unwrap();
-            
+
             // Close the first engine - it will be dropped when going out of scope
             engine1.close().await.unwrap();
         } // engine1 is dropped here, ensuring database lock is released
-        
+
         // Wait for database locks to be released (Sled uses file-based locking)
         // Retry with exponential backoff to handle lock release delays
         let mut engine2_opt = None;
         for attempt in 0..5 {
             sleep(Duration::from_millis(500 * (attempt + 1))).await;
-            
+
             let config2 = EngineConfig {
                 persistence_mode: PersistenceMode::Disk,
                 data_dir: Some(data_dir.clone()),
                 ..Default::default()
             };
-            
+
             match Engine::new(config2).await {
                 Ok(engine) => {
                     engine2_opt = Some(engine);
@@ -493,20 +506,25 @@ mod tests {
                 Err(e) => {
                     if attempt < 4 && e.to_string().contains("could not acquire lock") {
                         continue; // Retry on lock error
-                    } else {
-                        panic!("Failed to create engine2 after retries: {}", e);
                     }
+                    panic!("Failed to create engine2 after retries: {}", e);
                 }
             }
         }
-        
+
         let engine2 = engine2_opt.expect("Failed to create engine2 after all retries");
-        
+
         // Verify keys exist in storage (via keys() method)
         let keys = engine2.keys().await.unwrap();
-        assert!(keys.contains(&"key1".to_string()), "key1 should exist in storage");
-        assert!(keys.contains(&"key2".to_string()), "key2 should exist in storage");
-        
+        assert!(
+            keys.contains(&"key1".to_string()),
+            "key1 should exist in storage"
+        );
+        assert!(
+            keys.contains(&"key2".to_string()),
+            "key2 should exist in storage"
+        );
+
         // IMPORTANT: Due to maplet-first design, get() will return None for keys
         // not in the maplet. The new engine has an empty maplet, so values won't
         // be accessible via get() until they're re-inserted.
@@ -516,16 +534,19 @@ mod tests {
         // a separate method to load existing keys into the maplet.
         let value1 = engine2.get("key1").await.unwrap();
         let value2 = engine2.get("key2").await.unwrap();
-        
+
         // Currently, get() returns None because the maplet is empty
         assert_eq!(value1, None, "get() returns None for keys not in maplet");
         assert_eq!(value2, None, "get() returns None for keys not in maplet");
-        
+
         // However, if we re-insert the keys, they become accessible
-        engine2.set("key1".to_string(), b"value1_updated".to_vec()).await.unwrap();
+        engine2
+            .set("key1".to_string(), b"value1_updated".to_vec())
+            .await
+            .unwrap();
         let value1_after_reinsert = engine2.get("key1").await.unwrap();
         assert_eq!(value1_after_reinsert, Some(b"value1_updated".to_vec()));
-        
+
         engine2.close().await.unwrap();
     }
 
@@ -535,7 +556,10 @@ mod tests {
         let engine = Engine::new(config).await.unwrap();
 
         // Perform some operations
-        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
         engine.get("key1").await.unwrap();
 
         let stats = engine.stats().await.unwrap();
@@ -549,8 +573,11 @@ mod tests {
         let engine = Engine::new(config).await.unwrap();
 
         // Set a key
-        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
-        
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+
         // Set TTL
         let result = engine.expire("key1", 60).await.unwrap();
         assert!(result);
@@ -575,12 +602,15 @@ mod tests {
         let engine = Engine::new(config).await.unwrap();
 
         // Set a key with very short TTL
-        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
         engine.expire("key1", 1).await.unwrap();
-        
+
         // Wait for expiration
         tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
-        
+
         // Key should be expired
         let value = engine.get("key1").await.unwrap();
         assert!(value.is_none());

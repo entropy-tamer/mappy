@@ -1,5 +1,5 @@
 //! Cache-friendly memory layout optimization
-//! 
+//!
 //! Implements memory layout optimizations for better cache locality.
 
 use crate::MapletResult;
@@ -23,19 +23,19 @@ impl LayoutOptimizer {
             use_interleaved: true,
         }
     }
-    
+
     /// Calculate optimal alignment for a type
     #[must_use]
     pub fn calculate_alignment<T>(&self) -> usize {
         std::cmp::max(std::mem::align_of::<T>(), self.cache_line_size)
     }
-    
+
     /// Calculate padding needed for alignment
     #[must_use]
     pub const fn calculate_padding(&self, size: usize, alignment: usize) -> usize {
         (alignment - (size % alignment)) % alignment
     }
-    
+
     /// Check if layout is cache-friendly
     #[must_use]
     pub const fn is_cache_friendly<T>(&self, data: &[T]) -> bool {
@@ -60,19 +60,19 @@ impl<T: Clone> InterleavedStorage<T> {
     pub fn new(capacity: usize, cache_line_size: usize) -> Self {
         let element_size = std::mem::size_of::<T>();
         let elements_per_line = cache_line_size / element_size;
-        
+
         Self {
             data: Vec::with_capacity(capacity),
             elements_per_line,
         }
     }
-    
+
     /// Get element at index
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.data.get(index)
     }
-    
+
     /// Set element at index
     pub fn set(&mut self, index: usize, value: T) -> MapletResult<()> {
         if index >= self.data.len() {
@@ -90,10 +90,10 @@ mod tests {
     #[test]
     fn test_layout_optimizer() {
         let optimizer = LayoutOptimizer::new(64);
-        
+
         let alignment = optimizer.calculate_alignment::<u64>();
         assert!(alignment >= 8);
-        
+
         let padding = optimizer.calculate_padding(10, 8);
         assert_eq!(padding, 6);
     }
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_interleaved_storage() {
         let mut storage = InterleavedStorage::<u64>::new(100, 64);
-        
+
         assert!(storage.set(0, 42).is_ok());
         assert_eq!(storage.get(0), Some(&42));
     }

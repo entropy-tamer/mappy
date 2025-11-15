@@ -1,9 +1,8 @@
-"""
-Test utilities for mappy-python
-"""
+"""Test utilities for mappy-python."""
 
 class Stats:
-    """Helper class to convert stats dict to object with attributes"""
+    """Helper class to convert stats dict to object with attributes."""
+
     def __init__(self, stats_dict):
         self.item_count = stats_dict.get("item_count", 0)
         self.load_factor = stats_dict.get("load_factor", 0.0)

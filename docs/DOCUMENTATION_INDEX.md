@@ -13,6 +13,7 @@ This document provides a comprehensive index of all documentation for the Mappy 
    - Quick start guide and basic usage
    - Advanced quotient filter features
    - Performance characteristics and benchmarks
+   - ML benchmarks with compressed tags
    - Use cases and examples
 
 2. **[TECHNICAL_README.md](TECHNICAL_README.md)** - Comprehensive technical guide
@@ -140,6 +141,17 @@ This document provides a comprehensive index of all documentation for the Mappy 
     - Build configuration
 
 ## Key Features Documented
+
+### ML Benchmarks with Compressed Tags
+
+- **Production-Ready Performance**: All 4 ML tasks achieve excellent or acceptable performance
+- **Perfect Accuracy**: All tasks maintain exact accuracy with approximate storage
+- **Optimization Techniques**: Cache-first strategy and vocabulary caching eliminate bottlenecks
+- **Storage Efficiency**: 90% storage reduction with Huffman compression
+- **Performance Results**: Similarity search (0.72x, faster than exact!), Embeddings (1.13x), Classification (1.08x), Clustering (2.42x)
+- **Comprehensive Testing**: Proves Mappy's approximate nature does NOT hurt ML performance
+
+For detailed ML benchmark results, see [stilts/README.md](../stilts/README.md#ml-benchmarks).
 
 ### Advanced Quotient Filter Features
 

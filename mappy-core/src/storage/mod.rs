@@ -1,15 +1,15 @@
 //! Storage layer for mappy
-//! 
+//!
 //! Provides different storage backends for persistence and durability.
 
-use async_trait::async_trait;
 use crate::MapletResult;
-use serde::{Serialize, Deserialize};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
-pub mod memory;
-pub mod disk;
 pub mod aof;
+pub mod disk;
 pub mod hybrid;
+pub mod memory;
 
 /// Storage statistics
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -26,34 +26,33 @@ pub struct StorageStats {
     pub avg_latency_us: u64,
 }
 
-
 /// Storage trait for different backends
 #[async_trait]
 pub trait Storage: Send + Sync {
     /// Get a value by key
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>;
-    
+
     /// Set a key-value pair
     async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>;
-    
+
     /// Delete a key
     async fn delete(&self, key: &str) -> MapletResult<bool>;
-    
+
     /// Check if a key exists
     async fn exists(&self, key: &str) -> MapletResult<bool>;
-    
+
     /// Get all keys
     async fn keys(&self) -> MapletResult<Vec<String>>;
-    
+
     /// Clear all data
     async fn clear_database(&self) -> MapletResult<()>;
-    
+
     /// Flush any pending writes
     async fn flush(&self) -> MapletResult<()>;
-    
+
     /// Close the storage backend
     async fn close(&self) -> MapletResult<()>;
-    
+
     /// Get storage statistics
     async fn stats(&self) -> MapletResult<StorageStats>;
 }
@@ -68,18 +67,10 @@ impl StorageFactory {
         config: StorageConfig,
     ) -> MapletResult<Box<dyn Storage>> {
         match mode {
-            PersistenceMode::Memory => {
-                Ok(Box::new(memory::MemoryStorage::new(config)?))
-            }
-            PersistenceMode::Disk => {
-                Ok(Box::new(disk::DiskStorage::new(config)?))
-            }
-            PersistenceMode::AOF => {
-                Ok(Box::new(aof::AOFStorage::new(config)?))
-            }
-            PersistenceMode::Hybrid => {
-                Ok(Box::new(hybrid::HybridStorage::new(config)?))
-            }
+            PersistenceMode::Memory => Ok(Box::new(memory::MemoryStorage::new(config)?)),
+            PersistenceMode::Disk => Ok(Box::new(disk::DiskStorage::new(config)?)),
+            PersistenceMode::AOF => Ok(Box::new(aof::AOFStorage::new(config)?)),
+            PersistenceMode::Hybrid => Ok(Box::new(hybrid::HybridStorage::new(config)?)),
         }
     }
 }

@@ -1,12 +1,13 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Benchmarks comparing maplet performance with standard data structures
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
-use std::hint::black_box;
-use mappy_core::{Maplet, CounterOperator, SetOperator};
-use std::collections::{HashMap, BTreeMap};
-use std::sync::Arc;
-use rand::{Rng, SeedableRng};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use mappy_core::{CounterOperator, Maplet, SetOperator};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
+use std::collections::{BTreeMap, HashMap};
+use std::hint::black_box;
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 /// Generate random test data
@@ -21,10 +22,10 @@ fn generate_test_data(size: usize) -> Vec<(String, u64)> {
 fn bench_insert(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("insert_operations");
-    
+
     for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
-        
+
         // Benchmark HashMap
         group.bench_with_input(BenchmarkId::new("HashMap", size), size, |b, _| {
             b.iter(|| {
@@ -35,7 +36,7 @@ fn bench_insert(c: &mut Criterion) {
                 black_box(map);
             })
         });
-        
+
         // Benchmark BTreeMap
         group.bench_with_input(BenchmarkId::new("BTreeMap", size), size, |b, _| {
             b.iter(|| {
@@ -46,36 +47,42 @@ fn bench_insert(c: &mut Criterion) {
                 black_box(map);
             })
         });
-        
+
         // Benchmark Maplet (Counter)
         group.bench_with_input(BenchmarkId::new("Maplet-Counter", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet = Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet =
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
                     for (key, value) in &test_data {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
-                black_box(maplet);
-            })
+                    black_box(maplet);
+                })
             })
         });
-        
+
         // Benchmark Maplet (Set) - using HashSet as value type
         group.bench_with_input(BenchmarkId::new("Maplet-Set", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet = Maplet::<String, std::collections::HashSet<u64>, SetOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet =
+                        Maplet::<String, std::collections::HashSet<u64>, SetOperator>::new(
+                            *size * 8,
+                            0.01,
+                        )
+                        .unwrap();
                     for (key, value) in &test_data {
                         let mut set = std::collections::HashSet::new();
                         set.insert(*value);
                         maplet.insert(key.clone(), set).await.unwrap();
                     }
-                black_box(maplet);
-            })
+                    black_box(maplet);
+                })
             })
         });
     }
-    
+
     group.finish();
 }
 
@@ -83,23 +90,23 @@ fn bench_insert(c: &mut Criterion) {
 fn bench_query(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("query_operations");
-    
+
     for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
         let query_keys: Vec<String> = test_data.iter().map(|(k, _)| k.clone()).collect();
-        
+
         // Prepare HashMap
         let mut hashmap = HashMap::new();
         for (key, value) in &test_data {
             hashmap.insert(key.clone(), *value);
         }
-        
+
         // Prepare BTreeMap
         let mut btreemap = BTreeMap::new();
         for (key, value) in &test_data {
             btreemap.insert(key.clone(), *value);
         }
-        
+
         // Prepare Maplet
         let maplet = rt.block_on(async {
             let maplet = Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap();
@@ -108,7 +115,7 @@ fn bench_query(c: &mut Criterion) {
             }
             maplet
         });
-        
+
         // Benchmark HashMap queries
         group.bench_with_input(BenchmarkId::new("HashMap", size), size, |b, _| {
             b.iter(|| {
@@ -117,7 +124,7 @@ fn bench_query(c: &mut Criterion) {
                 }
             })
         });
-        
+
         // Benchmark BTreeMap queries
         group.bench_with_input(BenchmarkId::new("BTreeMap", size), size, |b, _| {
             b.iter(|| {
@@ -126,7 +133,7 @@ fn bench_query(c: &mut Criterion) {
                 }
             })
         });
-        
+
         // Benchmark Maplet queries
         group.bench_with_input(BenchmarkId::new("Maplet", size), size, |b, _| {
             b.iter(|| {
@@ -138,7 +145,7 @@ fn bench_query(c: &mut Criterion) {
             })
         });
     }
-    
+
     group.finish();
 }
 
@@ -146,10 +153,10 @@ fn bench_query(c: &mut Criterion) {
 fn bench_memory_usage(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
-    
+
     for size in &[1000, 10000, 100_000] {
         let test_data = generate_test_data(*size);
-        
+
         // Benchmark HashMap memory
         group.bench_with_input(BenchmarkId::new("HashMap", size), size, |b, _| {
             b.iter(|| {
@@ -161,12 +168,13 @@ fn bench_memory_usage(c: &mut Criterion) {
                 black_box(map.capacity());
             })
         });
-        
+
         // Benchmark Maplet memory
         group.bench_with_input(BenchmarkId::new("Maplet", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet = Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet =
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
                     for (key, value) in &test_data {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
@@ -177,7 +185,7 @@ fn bench_memory_usage(c: &mut Criterion) {
             })
         });
     }
-    
+
     group.finish();
 }
 
@@ -185,10 +193,10 @@ fn bench_memory_usage(c: &mut Criterion) {
 fn bench_merge_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("merge_operations");
-    
+
     for size in &[100, 1000, 10000] {
         let test_data = generate_test_data(*size);
-        
+
         // Benchmark HashMap merge (manual)
         group.bench_with_input(BenchmarkId::new("HashMap-Merge", size), size, |b, _| {
             b.iter(|| {
@@ -199,21 +207,22 @@ fn bench_merge_operations(c: &mut Criterion) {
                 black_box(map);
             })
         });
-        
+
         // Benchmark Maplet merge (automatic)
         group.bench_with_input(BenchmarkId::new("Maplet-Merge", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet = Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet =
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
                     for (key, value) in &test_data {
                         maplet.insert(key.clone(), *value).await.unwrap();
                     }
-                black_box(maplet);
-            })
+                    black_box(maplet);
+                })
             })
         });
     }
-    
+
     group.finish();
 }
 
@@ -221,63 +230,74 @@ fn bench_merge_operations(c: &mut Criterion) {
 fn bench_concurrent(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("concurrent_operations");
-    
+
     for size in &[1000, 10000] {
         let test_data = generate_test_data(*size);
-        
+
         // Benchmark concurrent HashMap (with RwLock)
-        group.bench_with_input(BenchmarkId::new("HashMap-Concurrent", size), size, |b, _| {
-            b.iter(|| {
-                rt.block_on(async {
-                    use tokio::sync::RwLock;
-                    let map = Arc::new(RwLock::new(HashMap::new()));
-                    
-                    let handles: Vec<_> = test_data.chunks(100).map(|chunk| {
-                        let map = Arc::clone(&map);
-                        let chunk = chunk.to_vec();
-                        tokio::spawn(async move {
-                            let mut map = map.write().await;
-                            for (key, value) in chunk {
-                                map.insert(key, value);
-                            }
-                        })
-                    }).collect();
-                    
-                    for handle in handles {
-                        handle.await.unwrap();
-                    }
-                    
-                    black_box(map);
+        group.bench_with_input(
+            BenchmarkId::new("HashMap-Concurrent", size),
+            size,
+            |b, _| {
+                b.iter(|| {
+                    rt.block_on(async {
+                        use tokio::sync::RwLock;
+                        let map = Arc::new(RwLock::new(HashMap::new()));
+
+                        let handles: Vec<_> = test_data
+                            .chunks(100)
+                            .map(|chunk| {
+                                let map = Arc::clone(&map);
+                                let chunk = chunk.to_vec();
+                                tokio::spawn(async move {
+                                    let mut map = map.write().await;
+                                    for (key, value) in chunk {
+                                        map.insert(key, value);
+                                    }
+                                })
+                            })
+                            .collect();
+
+                        for handle in handles {
+                            handle.await.unwrap();
+                        }
+
+                        black_box(map);
+                    });
                 });
-            });
-        });
-        
+            },
+        );
+
         // Benchmark concurrent Maplet
         group.bench_with_input(BenchmarkId::new("Maplet-Concurrent", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap());
-                    
-                    let handles: Vec<_> = test_data.chunks(100).map(|chunk| {
-                        let maplet = Arc::clone(&maplet);
-                        let chunk = chunk.to_vec();
-                        tokio::spawn(async move {
-                            for (key, value) in chunk {
-                                maplet.insert(key, value).await.unwrap();
-                            }
+                    let maplet =
+                        Arc::new(Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap());
+
+                    let handles: Vec<_> = test_data
+                        .chunks(100)
+                        .map(|chunk| {
+                            let maplet = Arc::clone(&maplet);
+                            let chunk = chunk.to_vec();
+                            tokio::spawn(async move {
+                                for (key, value) in chunk {
+                                    maplet.insert(key, value).await.unwrap();
+                                }
+                            })
                         })
-                    }).collect();
-                    
+                        .collect();
+
                     for handle in handles {
                         handle.await.unwrap();
                     }
-                    
+
                     black_box(maplet);
                 });
             });
         });
     }
-    
+
     group.finish();
 }
 

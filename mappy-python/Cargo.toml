@@ -6,6 +6,8 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Python bindings for mappy maplet data structures"
+keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets", "python"]
+categories = ["data-structures", "algorithms", "python"]
 
 [lib]
 name = "mappy_python"

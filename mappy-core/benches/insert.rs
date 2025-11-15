@@ -1,14 +1,15 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Benchmark for insert operations
 
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use mappy_core::{CounterOperator, Maplet};
 use std::hint::black_box;
-use mappy_core::{Maplet, CounterOperator};
 use tokio::runtime::Runtime;
 
 fn bench_insert_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("insert_operations");
-    
+
     for size in &[100, 1000, 10000] {
         let size = *size;
         group.bench_with_input(BenchmarkId::new("maplet", size), &size, |b, &size| {
@@ -21,13 +22,9 @@ fn bench_insert_operations(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 
 criterion_group!(benches, bench_insert_operations);
 criterion_main!(benches);
-
-
-
-

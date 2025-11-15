@@ -1,15 +1,15 @@
 //! Thread-safe operations for maplets
-//! 
+//!
 //! Implements concurrent access patterns for maplets.
 
+use crate::MapletResult;
 use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::MapletResult;
 
 /// Thread-safe maplet wrapper
 #[derive(Debug)]
-pub struct ConcurrentMaplet<K, V, Op> 
+pub struct ConcurrentMaplet<K, V, Op>
 where
     K: Hash + Eq + Clone + Send + Sync + std::fmt::Debug,
     V: Clone + Send + Sync + std::fmt::Debug,
@@ -32,43 +32,43 @@ where
             inner: Arc::new(RwLock::new(maplet)),
         })
     }
-    
+
     /// Insert a key-value pair (write lock)
     pub async fn insert(&self, key: K, value: V) -> MapletResult<()> {
         let maplet = self.inner.read().await;
         maplet.insert(key, value).await
     }
-    
+
     /// Query a key (read lock)
     pub async fn query(&self, key: &K) -> Option<V> {
         let maplet = self.inner.read().await;
         maplet.query(key).await
     }
-    
+
     /// Check if key exists (read lock)
     pub async fn contains(&self, key: &K) -> bool {
         let maplet = self.inner.read().await;
         maplet.contains(key).await
     }
-    
+
     /// Delete a key-value pair (write lock)
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
         let maplet = self.inner.read().await;
         maplet.delete(key, value).await
     }
-    
+
     /// Get length (read lock)
     pub async fn len(&self) -> usize {
         let maplet = self.inner.read().await;
         maplet.len().await
     }
-    
+
     /// Check if empty (read lock)
     pub async fn is_empty(&self) -> bool {
         let maplet = self.inner.read().await;
         maplet.is_empty().await
     }
-    
+
     /// Get statistics (read lock)
     pub async fn stats(&self) -> crate::MapletStats {
         let maplet = self.inner.read().await;
@@ -85,7 +85,7 @@ mod tests {
     #[tokio::test]
     async fn test_concurrent_maplet() {
         let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         // Test basic operations
         assert!(maplet.insert("key1".to_string(), 5).await.is_ok());
         assert_eq!(maplet.query(&"key1".to_string()).await, Some(5));
@@ -95,9 +95,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_concurrent_access() {
-        let maplet = Arc::new(ConcurrentMaplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap());
+        let maplet =
+            Arc::new(ConcurrentMaplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap());
         let mut handles = vec![];
-        
+
         // Spawn multiple tasks to insert data
         for i in 0..4 {
             let maplet = Arc::clone(&maplet);
@@ -109,12 +110,12 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all tasks to complete
         for handle in handles {
             handle.await.unwrap();
         }
-        
+
         // Verify some data was inserted
         assert!(maplet.len().await > 0);
     }

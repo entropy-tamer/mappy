@@ -1,11 +1,12 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Performance benchmarks for ML tasks with Huffman-compressed mappy storage
 //!
 //! These benchmarks prove that there are no speed hits when using approximate
 //! mappy storage for ML tasks compared to exact storage.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use stilts::benchmark::ml_benchmarks::MLBenchmarkRunner;
-use stilts::benchmark::ml_tasks::{TagSimilarity, TagClustering, TagEmbedding};
+use stilts::benchmark::ml_tasks::{TagClustering, TagEmbedding, TagSimilarity};
 
 #[cfg(feature = "mappy-integration")]
 use tokio::runtime::Runtime;
@@ -18,14 +19,11 @@ fn generate_benchmark_data() -> Vec<Vec<String>> {
 fn benchmark_similarity_search_exact(c: &mut Criterion) {
     let tag_sets = generate_benchmark_data();
     let query_tags = tag_sets[0].clone();
-    
+
     c.bench_function("similarity_search_exact", |b| {
         b.iter(|| {
-            let results = TagSimilarity::find_most_similar(
-                black_box(&query_tags),
-                black_box(&tag_sets),
-                10,
-            );
+            let results =
+                TagSimilarity::find_most_similar(black_box(&query_tags), black_box(&tag_sets), 10);
             black_box(results)
         })
     });
@@ -36,7 +34,7 @@ fn benchmark_similarity_search_approximate(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let tag_sets = generate_benchmark_data();
     let query_tags = tag_sets[0].clone();
-    
+
     c.bench_function("similarity_search_approximate", |b| {
         b.iter(|| {
             rt.block_on(async {
@@ -44,7 +42,8 @@ fn benchmark_similarity_search_approximate(c: &mut Criterion) {
                     black_box(&tag_sets),
                     black_box(&query_tags),
                     10,
-                ).await;
+                )
+                .await;
                 black_box(result)
             })
         })
@@ -54,14 +53,10 @@ fn benchmark_similarity_search_approximate(c: &mut Criterion) {
 #[cfg(feature = "mappy-integration")]
 fn benchmark_clustering_exact(c: &mut Criterion) {
     let tag_sets = generate_benchmark_data();
-    
+
     c.bench_function("clustering_exact", |b| {
         b.iter(|| {
-            let clusters = TagClustering::cluster(
-                black_box(&tag_sets),
-                5,
-                10,
-            );
+            let clusters = TagClustering::cluster(black_box(&tag_sets), 5, 10);
             black_box(clusters)
         })
     });
@@ -71,14 +66,11 @@ fn benchmark_clustering_exact(c: &mut Criterion) {
 fn benchmark_clustering_approximate(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let tag_sets = generate_benchmark_data();
-    
+
     c.bench_function("clustering_approximate", |b| {
         b.iter(|| {
             rt.block_on(async {
-                let result = MLBenchmarkRunner::benchmark_clustering(
-                    black_box(&tag_sets),
-                    5,
-                ).await;
+                let result = MLBenchmarkRunner::benchmark_clustering(black_box(&tag_sets), 5).await;
                 black_box(result)
             })
         })
@@ -90,13 +82,10 @@ fn benchmark_embeddings_exact(c: &mut Criterion) {
     let tag_sets = generate_benchmark_data();
     let query_tags = tag_sets[0].clone();
     let vocabulary = TagEmbedding::build_vocabulary(&tag_sets);
-    
+
     c.bench_function("embeddings_exact", |b| {
         b.iter(|| {
-            let emb = TagEmbedding::embed(
-                black_box(&query_tags),
-                black_box(&vocabulary),
-            );
+            let emb = TagEmbedding::embed(black_box(&query_tags), black_box(&vocabulary));
             black_box(emb)
         })
     });
@@ -107,14 +96,15 @@ fn benchmark_embeddings_approximate(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let tag_sets = generate_benchmark_data();
     let query_tags = tag_sets[0].clone();
-    
+
     c.bench_function("embeddings_approximate", |b| {
         b.iter(|| {
             rt.block_on(async {
                 let result = MLBenchmarkRunner::benchmark_embeddings(
                     black_box(&tag_sets),
                     black_box(&query_tags),
-                ).await;
+                )
+                .await;
                 black_box(result)
             })
         })
@@ -126,16 +116,14 @@ fn benchmark_ml_tasks_comparison(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let tag_sets = generate_benchmark_data();
     let query_tags = tag_sets[0].clone();
-    
+
     let mut group = c.benchmark_group("ml_tasks_comparison");
-    
+
     // Similarity search
     group.bench_function("similarity_exact", |b| {
-        b.iter(|| {
-            TagSimilarity::find_most_similar(&query_tags, &tag_sets, 10)
-        })
+        b.iter(|| TagSimilarity::find_most_similar(&query_tags, &tag_sets, 10))
     });
-    
+
     group.bench_function("similarity_approximate", |b| {
         b.iter(|| {
             rt.block_on(async {
@@ -143,22 +131,18 @@ fn benchmark_ml_tasks_comparison(c: &mut Criterion) {
             })
         })
     });
-    
+
     // Clustering
     group.bench_function("clustering_exact", |b| {
-        b.iter(|| {
-            TagClustering::cluster(&tag_sets, 5, 10)
-        })
+        b.iter(|| TagClustering::cluster(&tag_sets, 5, 10))
     });
-    
+
     group.bench_function("clustering_approximate", |b| {
         b.iter(|| {
-            rt.block_on(async {
-                MLBenchmarkRunner::benchmark_clustering(&tag_sets, 5).await
-            })
+            rt.block_on(async { MLBenchmarkRunner::benchmark_clustering(&tag_sets, 5).await })
         })
     });
-    
+
     group.finish();
 }
 
@@ -178,4 +162,3 @@ criterion_group!(
 criterion_group!(benches);
 
 criterion_main!(benches);
-

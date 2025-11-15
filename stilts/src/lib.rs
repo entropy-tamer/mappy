@@ -18,14 +18,13 @@
 //! let decompressed = compressor.decompress(&compressed).unwrap();
 //! ```
 
+pub mod benchmark;
 pub mod compression;
 pub mod formats;
-pub mod benchmark;
 pub mod plotting;
 
 #[cfg(feature = "mappy-integration")]
 pub mod mappy_integration;
 
-pub use compression::{Compressor, HuffmanCompressor, ArithmeticCompressor, DictionaryCompressor};
-pub use formats::{TagParser, SpaceSeparatedParser, CommaSeparatedParser, JsonParser};
-
+pub use compression::{ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor};
+pub use formats::{CommaSeparatedParser, JsonParser, SpaceSeparatedParser, TagParser};

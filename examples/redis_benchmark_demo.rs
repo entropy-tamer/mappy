@@ -1,3 +1,4 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Redis Benchmark Demo
 //! 
 //! This example demonstrates how to run Redis benchmarks and interpret the results.

@@ -1,36 +1,32 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for plotting calculations
 //! ML benchmark report generation
 
+use crate::benchmark::ml_tasks::MLTaskResults;
+use anyhow::Result;
 use std::fs::File;
 use std::io::Write;
-use anyhow::Result;
-use crate::benchmark::ml_tasks::MLTaskResults;
 
 /// Generate HTML report for ML benchmark results
 pub struct MLReportGenerator;
 
 impl MLReportGenerator {
     /// Generate comprehensive ML benchmark report
-    pub fn generate_ml_report(
-        results: &[MLTaskResults],
-        output_path: &str,
-    ) -> Result<String> {
+    pub fn generate_ml_report(results: &[MLTaskResults], output_path: &str) -> Result<String> {
         // Ensure reports directory exists
         let reports_dir = std::path::Path::new("reports");
         std::fs::create_dir_all(reports_dir)?;
-        
+
         // Calculate summary statistics
-        let avg_accuracy_diff: f64 = results.iter()
-            .map(|r| r.accuracy_difference)
-            .sum::<f64>() / results.len() as f64;
-        
-        let avg_speed_ratio: f64 = results.iter()
-            .map(|r| r.speed_ratio)
-            .sum::<f64>() / results.len() as f64;
-        
-        let all_acceptable = results.iter()
-            .all(|r| r.is_acceptable(0.1, 3.0));
-        
-        let mut html = String::from(r#"<!DOCTYPE html>
+        let avg_accuracy_diff: f64 =
+            results.iter().map(|r| r.accuracy_difference).sum::<f64>() / results.len() as f64;
+
+        let avg_speed_ratio: f64 =
+            results.iter().map(|r| r.speed_ratio).sum::<f64>() / results.len() as f64;
+
+        let all_acceptable = results.iter().all(|r| r.is_acceptable(0.1, 3.0));
+
+        let mut html = String::from(
+            r#"<!DOCTYPE html>
 <html>
 <head>
     <title>ML Benchmark Results: Mappy Approximate Storage</title>
@@ -122,14 +118,15 @@ impl MLReportGenerator {
 <body>
     <div class="container">
         <h1>ML Benchmark Results: Mappy Approximate Storage</h1>
-        <p><strong>Date:</strong> "#
+        <p><strong>Date:</strong> "#,
         );
-        
+
         // Add current date
         let now = chrono::Utc::now();
         html.push_str(&format!("{}", now.format("%Y-%m-%d %H:%M:%S UTC")));
-        
-        html.push_str(r#"
+
+        html.push_str(
+            r#"
         </p>
         
         <div class="summary-box">
@@ -147,13 +144,15 @@ impl MLReportGenerator {
                 <div class="metric-value">{}</div>
             </div>
         </div>
-"#);
-        
+"#,
+        );
+
         html = html.replace("{:.4}%", &format!("{:.4}%", avg_accuracy_diff * 100.0));
         html = html.replace("{:.2}x", &format!("{:.2}x", avg_speed_ratio));
         html = html.replace("{}", if all_acceptable { "✓ YES" } else { "✗ NO" });
-        
-        html.push_str(r#"
+
+        html.push_str(
+            r#"
         <h2>Detailed Results</h2>
         <table>
             <tr>
@@ -166,12 +165,21 @@ impl MLReportGenerator {
                 <th>Speed Ratio</th>
                 <th>Status</th>
             </tr>
-"#);
-        
+"#,
+        );
+
         for result in results {
-            let status_class = if result.is_acceptable(0.1, 3.0) { "acceptable" } else { "unacceptable" };
-            let status_text = if result.is_acceptable(0.1, 3.0) { "✓ Acceptable" } else { "✗ Needs Optimization" };
-            
+            let status_class = if result.is_acceptable(0.1, 3.0) {
+                "acceptable"
+            } else {
+                "unacceptable"
+            };
+            let status_text = if result.is_acceptable(0.1, 3.0) {
+                "✓ Acceptable"
+            } else {
+                "✗ Needs Optimization"
+            };
+
             html.push_str(&format!(
                 r#"            <tr>
                 <td><strong>{}</strong></td>
@@ -195,7 +203,7 @@ impl MLReportGenerator {
                 status_text,
             ));
         }
-        
+
         html.push_str(r#"        </table>
         
         <h2>Key Findings</h2>
@@ -208,7 +216,7 @@ impl MLReportGenerator {
         
         <h2>Recommendations</h2>
 "#);
-        
+
         if all_acceptable {
             html.push_str(r#"
         <div class="summary-box">
@@ -221,11 +229,13 @@ impl MLReportGenerator {
         </div>
 "#);
         } else {
-            html.push_str(r#"
+            html.push_str(
+                r#"
         <div class="warning-box">
             <p><strong>⚠ Some tasks may need optimization:</strong></p>
             <ul>
-"#);
+"#,
+            );
             for result in results {
                 if !result.is_acceptable(0.1, 3.0) {
                     html.push_str(&format!(
@@ -235,22 +245,25 @@ impl MLReportGenerator {
                     ));
                 }
             }
-            html.push_str(r#"
+            html.push_str(
+                r#"
             </ul>
         </div>
-"#);
+"#,
+            );
         }
-        
-        html.push_str(r#"
+
+        html.push_str(
+            r#"
     </div>
 </body>
-</html>"#);
-        
+</html>"#,
+        );
+
         // Write HTML file
         let mut file = File::create(output_path)?;
         file.write_all(html.as_bytes())?;
-        
+
         Ok(output_path.to_string())
     }
 }
-

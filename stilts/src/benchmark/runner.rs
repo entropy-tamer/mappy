@@ -1,9 +1,12 @@
+#![allow(clippy::cast_precision_loss)] // Acceptable for benchmark calculations
 //! Benchmark runner for compression algorithms
 
-use std::time::Instant;
-use anyhow::Result;
-use crate::compression::{Compressor, HuffmanCompressor, ArithmeticCompressor, DictionaryCompressor};
 use crate::benchmark::metrics::{BenchmarkMetrics, CompressionStats};
+use crate::compression::{
+    ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor,
+};
+use anyhow::Result;
+use std::time::Instant;
 
 /// Benchmark runner
 pub struct BenchmarkRunner;
@@ -22,12 +25,12 @@ impl BenchmarkRunner {
             original_bytes.push(b' ');
         }
         let original_size = original_bytes.len();
-        
+
         // Warmup
         for _ in 0..3 {
             let _ = compressor.compress(tags);
         }
-        
+
         // Benchmark compression
         let start = Instant::now();
         let mut compressed_data = Vec::new();
@@ -35,17 +38,17 @@ impl BenchmarkRunner {
             compressed_data = compressor.compress(tags)?;
         }
         let compression_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         // Benchmark decompression
         let start = Instant::now();
         for _ in 0..iterations {
             let _ = compressor.decompress(&compressed_data)?;
         }
         let decompression_time = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-        
+
         let compressed_size = compressed_data.len();
         let dictionary_size = 0; // TODO: Get actual dictionary size
-        
+
         let stats = CompressionStats::new(
             original_size,
             compressed_size,
@@ -53,34 +56,33 @@ impl BenchmarkRunner {
             decompression_time,
             dictionary_size,
         );
-        
+
         Ok(BenchmarkMetrics {
             algorithm: compressor.algorithm_name().to_string(),
             stats,
             memory_usage_bytes: compressed_size,
         })
     }
-    
+
     /// Benchmark all algorithms
     pub fn benchmark_all(tags: &[String], iterations: usize) -> Result<Vec<BenchmarkMetrics>> {
         let mut results = Vec::new();
-        
+
         // Huffman
         let mut huffman = HuffmanCompressor::new();
         huffman.build_from_corpus(tags)?;
         results.push(Self::benchmark(&huffman, tags, iterations)?);
-        
+
         // Arithmetic
         let mut arithmetic = ArithmeticCompressor::new();
         arithmetic.build_from_corpus(tags)?;
         results.push(Self::benchmark(&arithmetic, tags, iterations)?);
-        
+
         // Dictionary
         let mut dictionary = DictionaryCompressor::new();
         dictionary.build_from_corpus(tags)?;
         results.push(Self::benchmark(&dictionary, tags, iterations)?);
-        
+
         Ok(results)
     }
 }
-

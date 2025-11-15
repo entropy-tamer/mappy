@@ -1,32 +1,35 @@
 //! # Mappy Core
-//! 
+//!
 //! Core implementation of maplet data structures for space-efficient approximate key-value mappings.
-//! 
+//!
 //! Based on the research paper "Time To Replace Your Filter: How Maplets Simplify System Design"
 //! by Bender, Conway, Farach-Colton, Johnson, and Pandey.
 
-pub mod maplet;
-pub mod hash;
-pub mod quotient_filter;
-pub mod operators;
-pub mod deletion;
-pub mod resize;
-pub mod encoding;
-pub mod error;
-pub mod layout;
 pub mod concurrent;
-pub mod types;
-pub mod storage;
+pub mod deletion;
+pub mod encoding;
 pub mod engine;
+pub mod error;
+pub mod hash;
+pub mod layout;
+pub mod maplet;
+pub mod operators;
+pub mod quotient_filter;
+pub mod resize;
+pub mod storage;
 pub mod ttl;
+pub mod types;
 
 // Re-export main types
-pub use maplet::Maplet;
-pub use operators::{CounterOperator, SetOperator, StringOperator, MaxOperator, MinOperator, VectorOperator, MergeOperator};
-pub use types::{MapletStats, MapletError, MapletResult};
 pub use engine::{Engine, EngineConfig, EngineStats};
-pub use storage::{Storage, StorageStats, StorageConfig, PersistenceMode};
-pub use ttl::{TTLManager, TTLConfig, TTLStats, TTLEntry};
+pub use maplet::Maplet;
+pub use operators::{
+    CounterOperator, MaxOperator, MergeOperator, MinOperator, SetOperator, StringOperator,
+    VectorOperator,
+};
+pub use storage::{PersistenceMode, Storage, StorageConfig, StorageStats};
+pub use ttl::{TTLConfig, TTLEntry, TTLManager, TTLStats};
+pub use types::{MapletError, MapletResult, MapletStats};
 
 /// Common result type for maplet operations
 pub type Result<T> = std::result::Result<T, MapletError>;

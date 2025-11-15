@@ -7,7 +7,7 @@ use serde_json;
 pub trait TagParser: Send + Sync {
     /// Parse input string into a vector of tags
     fn parse(&self, input: &str) -> Result<Vec<String>>;
-    
+
     /// Get the format name
     fn format_name(&self) -> &'static str;
 }
@@ -35,7 +35,7 @@ impl TagParser for SpaceSeparatedParser {
             .filter(|s| !s.is_empty())
             .collect())
     }
-    
+
     fn format_name(&self) -> &'static str {
         "space-separated"
     }
@@ -64,7 +64,7 @@ impl TagParser for CommaSeparatedParser {
             .filter(|s| !s.is_empty())
             .collect())
     }
-    
+
     fn format_name(&self) -> &'static str {
         "comma-separated"
     }
@@ -90,7 +90,7 @@ impl TagParser for JsonParser {
         let tags: Vec<String> = serde_json::from_str(input)?;
         Ok(tags)
     }
-    
+
     fn format_name(&self) -> &'static str {
         "json"
     }
@@ -99,21 +99,21 @@ impl TagParser for JsonParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_space_separated() {
         let parser = SpaceSeparatedParser::new();
         let tags = parser.parse("tag1 tag2 tag3").unwrap();
         assert_eq!(tags, vec!["tag1", "tag2", "tag3"]);
     }
-    
+
     #[test]
     fn test_comma_separated() {
         let parser = CommaSeparatedParser::new();
         let tags = parser.parse("tag1,tag2,tag3").unwrap();
         assert_eq!(tags, vec!["tag1", "tag2", "tag3"]);
     }
-    
+
     #[test]
     fn test_json() {
         let parser = JsonParser::new();
@@ -121,5 +121,3 @@ mod tests {
         assert_eq!(tags, vec!["tag1", "tag2", "tag3"]);
     }
 }
-
-

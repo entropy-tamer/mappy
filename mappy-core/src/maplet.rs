@@ -1,30 +1,30 @@
 //! Core maplet implementation
-//! 
+//!
 //! Implements the main Maplet data structure that provides space-efficient
 //! approximate key-value mappings with one-sided error guarantees.
 
+use crate::{
+    MapletError, MapletResult, MapletStats,
+    hash::{CollisionDetector, FingerprintHasher, HashFunction, PerfectHash},
+    operators::MergeOperator,
+    quotient_filter::QuotientFilter,
+    types::MapletConfig,
+};
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::{
-    MapletError, MapletResult, MapletStats,
-    types::MapletConfig,
-    hash::{FingerprintHasher, HashFunction, CollisionDetector, PerfectHash},
-    quotient_filter::QuotientFilter,
-    operators::MergeOperator,
-};
 
 /// Core maplet data structure
-/// 
+///
 /// A maplet provides space-efficient approximate key-value mappings with
 /// one-sided error guarantees. When queried with a key k, it returns a
 /// value m[k] that is an approximation of the true value M[k].
-/// 
+///
 /// The maplet guarantees that M[k] ≺ m[k] for some application-specific
 /// ordering relation ≺, and that m[k] = M[k] with probability at least 1-ε.
 #[derive(Debug)]
-pub struct Maplet<K, V, Op> 
+pub struct Maplet<K, V, Op>
 where
     K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync,
     V: Clone + std::fmt::Debug + Send + Sync,
@@ -60,29 +60,35 @@ where
         let config = MapletConfig::new(capacity, false_positive_rate);
         Self::with_config(config)
     }
-    
+
     /// Create a new maplet with custom operator
-    pub fn with_operator(capacity: usize, false_positive_rate: f64, operator: Op) -> MapletResult<Self> {
+    pub fn with_operator(
+        capacity: usize,
+        false_positive_rate: f64,
+        operator: Op,
+    ) -> MapletResult<Self> {
         let config = MapletConfig::new(capacity, false_positive_rate);
         Self::with_config_and_operator(config, operator)
     }
-    
+
     /// Create a new maplet with custom configuration
     pub fn with_config(config: MapletConfig) -> MapletResult<Self> {
         let operator = Op::default();
         Self::with_config_and_operator(config, operator)
     }
-    
+
     /// Create a new maplet with custom configuration and operator
     pub fn with_config_and_operator(config: MapletConfig, operator: Op) -> MapletResult<Self> {
         config.validate()?;
-        
-        let fingerprint_bits = FingerprintHasher::optimal_fingerprint_size(config.false_positive_rate);
-        let filter = QuotientFilter::new(config.capacity, fingerprint_bits, HashFunction::default())?;
-        
+
+        let fingerprint_bits =
+            FingerprintHasher::optimal_fingerprint_size(config.false_positive_rate);
+        let filter =
+            QuotientFilter::new(config.capacity, fingerprint_bits, HashFunction::default())?;
+
         let collision_detector = CollisionDetector::new(config.capacity / 4); // Allow 25% collisions
         let perfect_hash = PerfectHash::new(config.capacity, HashFunction::default());
-        
+
         Ok(Self {
             config,
             filter: Arc::new(RwLock::new(filter)),
@@ -94,7 +100,7 @@ where
             _phantom: PhantomData,
         })
     }
-    
+
     /// Insert a key-value pair into the maplet
     pub async fn insert(&self, key: K, value: V) -> MapletResult<()> {
         let current_len = *self.len.read().await;
@@ -105,14 +111,14 @@ where
                 return Err(MapletError::CapacityExceeded);
             }
         }
-        
+
         let fingerprint = self.hash_key(&key);
-        
+
         // Check if key already exists in values HashMap (more reliable than filter)
         let values_guard = self.values.read().await;
         let key_exists = values_guard.contains_key(&fingerprint);
         drop(values_guard);
-        
+
         if key_exists {
             // Key exists, merge with existing value
             self.merge_value(fingerprint, value).await?;
@@ -128,101 +134,104 @@ where
                 *len_guard += 1;
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Query a key to get its associated value
     pub async fn query(&self, key: &K) -> Option<V> {
         let fingerprint = self.hash_key(key);
-        
+
         let filter_guard = self.filter.read().await;
         if !filter_guard.query(fingerprint) {
             return None;
         }
         drop(filter_guard);
-        
+
         // Get the value directly from the HashMap using the fingerprint
         let values_guard = self.values.read().await;
         values_guard.get(&fingerprint).cloned()
     }
-    
+
     /// Check if a key exists in the maplet
     pub async fn contains(&self, key: &K) -> bool {
         let fingerprint = self.hash_key(key);
         let filter_guard = self.filter.read().await;
         filter_guard.query(fingerprint)
     }
-    
+
     /// Delete a key-value pair from the maplet
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
         if !self.config.enable_deletion {
             return Err(MapletError::Internal("Deletion not enabled".to_string()));
         }
-        
+
         let fingerprint = self.hash_key(key);
-        
+
         let filter_guard = self.filter.read().await;
         if !filter_guard.query(fingerprint) {
             return Ok(false);
         }
         drop(filter_guard);
-        
-        let mut values_guard = self.values.write().await;
-        if let Some(existing_value) = values_guard.get(&fingerprint) {
-            // Check if the values match (for exact deletion)
-            if existing_value == value {
-                // Remove from filter and clear value
-                {
-                    let mut filter_guard = self.filter.write().await;
-                    filter_guard.delete(fingerprint)?;
+
+        {
+            let mut values_guard = self.values.write().await;
+            if let Some(existing_value) = values_guard.get(&fingerprint) {
+                // Check if the values match (for exact deletion)
+                if existing_value == value {
+                    // Remove from filter and clear value
+                    {
+                        let mut filter_guard = self.filter.write().await;
+                        filter_guard.delete(fingerprint)?;
+                    }
+                    values_guard.remove(&fingerprint);
+                    {
+                        let mut len_guard = self.len.write().await;
+                        *len_guard -= 1;
+                    }
+                    return Ok(true);
                 }
-                values_guard.remove(&fingerprint);
-                {
-                    let mut len_guard = self.len.write().await;
-                    *len_guard -= 1;
-                }
-                return Ok(true);
             }
         }
-        
+
         Ok(false)
     }
-    
+
     /// Get the current number of items stored
     pub async fn len(&self) -> usize {
         *self.len.read().await
     }
-    
+
     /// Check if the maplet is empty
     pub async fn is_empty(&self) -> bool {
         *self.len.read().await == 0
     }
-    
+
     /// Get the configured false-positive rate
     pub const fn error_rate(&self) -> f64 {
         self.config.false_positive_rate
     }
-    
+
     /// Get the current load factor
+    #[allow(clippy::cast_precision_loss)] // Acceptable for ratio calculation
     pub async fn load_factor(&self) -> f64 {
         let current_len = *self.len.read().await;
         current_len as f64 / self.config.capacity as f64
     }
-    
+
     /// Get statistics about the maplet
     pub async fn stats(&self) -> MapletStats {
         let filter_guard = self.filter.read().await;
         let filter_stats = filter_guard.stats();
         drop(filter_guard);
-        
+
         let memory_usage = self.estimate_memory_usage();
         let current_len = *self.len.read().await;
-        
+
         let collision_guard = self.collision_detector.read().await;
         let collision_count = collision_guard.collision_count() as u64;
         drop(collision_guard);
-        
+
         let mut stats = MapletStats::new(
             self.config.capacity,
             current_len,
@@ -236,74 +245,74 @@ where
         );
         stats
     }
-    
+
     /// Resize the maplet to a new capacity
     pub async fn resize(&self, new_capacity: usize) -> MapletResult<()> {
         if new_capacity <= self.config.capacity {
-            return Err(MapletError::ResizeFailed("New capacity must be larger".to_string()));
+            return Err(MapletError::ResizeFailed(
+                "New capacity must be larger".to_string(),
+            ));
         }
-        
+
         // Create new filter with larger capacity
-        let fingerprint_bits = FingerprintHasher::optimal_fingerprint_size(self.config.false_positive_rate);
-        let new_filter = QuotientFilter::new(
-            new_capacity,
-            fingerprint_bits,
-            HashFunction::default(),
-        )?;
-        
+        let fingerprint_bits =
+            FingerprintHasher::optimal_fingerprint_size(self.config.false_positive_rate);
+        let new_filter =
+            QuotientFilter::new(new_capacity, fingerprint_bits, HashFunction::default())?;
+
         // Replace the filter and resize values array
         {
             let mut filter_guard = self.filter.write().await;
             *filter_guard = new_filter;
         }
-        
+
         // HashMap doesn't need explicit resizing - it grows automatically
-        
+
         // Note: In a full implementation, config.capacity would also need to be updated
         // For now, we rely on the actual filter and values array capacity
-        
+
         Ok(())
     }
-    
+
     /// Merge another maplet into this one
     pub fn merge(&self, _other: &Self) -> MapletResult<()> {
         if !self.config.enable_merging {
             return Err(MapletError::MergeFailed("Merging not enabled".to_string()));
         }
-        
+
         // This is a simplified merge implementation
         // In practice, we'd need to iterate through all items in the other maplet
         // and insert them into this one using the merge operator
-        Err(MapletError::MergeFailed("Merge not fully implemented".to_string()))
+        Err(MapletError::MergeFailed(
+            "Merge not fully implemented".to_string(),
+        ))
     }
-    
+
     /// Hash a key to get its fingerprint
     fn hash_key(&self, key: &K) -> u64 {
         // Use the same hasher as the quotient filter
         // We need to use the same hasher instance to ensure consistency
         use ahash::RandomState;
-        use std::hash::Hasher;
-        
+
         // Create a consistent hasher - we need to use the same seed as the quotient filter
         // For now, use a fixed seed to ensure consistency
         let random_state = RandomState::with_seed(42);
-        
-        
+
         random_state.hash_one(&key)
     }
-    
+
     /// Find the slot index for a fingerprint
     #[allow(dead_code)]
     fn find_slot_for_fingerprint(&self, fingerprint: u64) -> usize {
         // Use the same slot mapping as the quotient filter
         let quotient = self.extract_quotient(fingerprint);
-        
+
         // Use the same perfect hash as the quotient filter
         self.perfect_hash.slot_index(quotient)
     }
-    
+
     /// Extract quotient from fingerprint (same as quotient filter)
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::cast_precision_loss)] // Acceptable for bit calculation
     fn extract_quotient(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let quotient_mask = if quotient_bits >= 64 {
@@ -313,9 +322,9 @@ where
         };
         fingerprint & quotient_mask
     }
-    
+
     /// Extract remainder from fingerprint (same as quotient filter)
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::cast_precision_loss)] // Acceptable for bit calculation
     fn extract_remainder(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let remainder_bits = 64 - quotient_bits;
@@ -326,33 +335,37 @@ where
         };
         (fingerprint >> quotient_bits) & remainder_mask
     }
-    
+
     /// Find the target slot for a quotient and remainder
     #[allow(dead_code)]
     fn find_target_slot(&self, quotient: u64, _remainder: u64) -> usize {
         // Use the same perfect hash as the quotient filter
         self.perfect_hash.slot_index(quotient)
     }
-    
+
     /// Find the actual slot where a fingerprint is stored
     /// This replicates the quotient filter's slot finding logic
     #[cfg(feature = "quotient-filter")]
-    async fn find_actual_slot_for_fingerprint(&self, quotient: u64, remainder: u64) -> Option<usize> {
+    async fn find_actual_slot_for_fingerprint(
+        &self,
+        quotient: u64,
+        remainder: u64,
+    ) -> Option<usize> {
         // We need to access the quotient filter to find the actual slot
         // The quotient filter has the logic to find runs and search within them
         let filter_guard = self.filter.read().await;
-        
+
         // Use the quotient filter's method to find the actual slot
         // This handles runs, shifting, and all the complex logic
         // The fingerprint is reconstructed by combining quotient and remainder
         // The quotient goes in the lower bits, remainder in the upper bits
         let fingerprint = quotient | (remainder << filter_guard.quotient_bits());
         let actual_slot = filter_guard.get_actual_slot_for_fingerprint(fingerprint);
-        
+
         drop(filter_guard);
         actual_slot
     }
-    
+
     /// Find the actual slot where a key's fingerprint is stored
     /// This is useful for debugging and advanced operations
     #[cfg(feature = "quotient-filter")]
@@ -360,54 +373,62 @@ where
         let fingerprint = self.hash_key(key);
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
-        
-        self.find_actual_slot_for_fingerprint(quotient, remainder).await
+
+        self.find_actual_slot_for_fingerprint(quotient, remainder)
+            .await
     }
-    
+
     /// Merge a value with an existing value at a fingerprint
     async fn merge_value(&self, fingerprint: u64, value: V) -> MapletResult<()> {
-        let mut values_guard = self.values.write().await;
-        if let Some(existing_value) = values_guard.get(&fingerprint) {
-            let merged_value = self.operator.merge(existing_value.clone(), value)?;
-            values_guard.insert(fingerprint, merged_value);
-        } else {
-            // False positive or concurrent deletion - treat as new insertion
-            values_guard.insert(fingerprint, value);
+        {
+            let mut values_guard = self.values.write().await;
+            if let Some(existing_value) = values_guard.get(&fingerprint) {
+                let merged_value = self.operator.merge(existing_value.clone(), value)?;
+                values_guard.insert(fingerprint, merged_value);
+            } else {
+                // False positive or concurrent deletion - treat as new insertion
+                values_guard.insert(fingerprint, value);
+            }
         }
-        
+
         Ok(())
     }
-    
+
     /// Store a value at a fingerprint
     async fn store_value(&self, fingerprint: u64, value: V) -> MapletResult<()> {
-        let mut values_guard = self.values.write().await;
-        values_guard.insert(fingerprint, value);
-        
+        {
+            let mut values_guard = self.values.write().await;
+            values_guard.insert(fingerprint, value);
+        }
+
         Ok(())
     }
-    
+
     /// Estimate memory usage in bytes
     const fn estimate_memory_usage(&self) -> usize {
         // QuotientFilter slots: always allocated for full capacity
-        let filter_slots_size = self.config.capacity * std::mem::size_of::<crate::quotient_filter::SlotMetadata>();
-        
+        let filter_slots_size =
+            self.config.capacity * std::mem::size_of::<crate::quotient_filter::SlotMetadata>();
+
         // For now, use a simpler estimation that doesn't require async access
         // In a real implementation, we'd need to make this async or use a different approach
         let estimated_values_count = self.config.capacity / 4; // Assume 25% load factor
         let estimated_values_capacity = self.config.capacity / 2; // HashMap typically allocates 2x
-        
+
         // HashMap: capacity * (key_size + value_size) + overhead
-        let values_size = estimated_values_capacity * (std::mem::size_of::<u64>() + std::mem::size_of::<V>());
-        
+        let values_size =
+            estimated_values_capacity * (std::mem::size_of::<u64>() + std::mem::size_of::<V>());
+
         // HashMap overhead (buckets, hash table)
         let hashmap_overhead = estimated_values_capacity * std::mem::size_of::<usize>() / 2;
-        
+
         // Multiset counts in QuotientFilter (approximate)
-        let multiset_size = estimated_values_count * (std::mem::size_of::<u64>() + std::mem::size_of::<usize>());
-        
+        let multiset_size =
+            estimated_values_count * (std::mem::size_of::<u64>() + std::mem::size_of::<usize>());
+
         // Struct overhead
         let overhead = std::mem::size_of::<Self>();
-        
+
         filter_slots_size + values_size + hashmap_overhead + multiset_size + overhead
     }
 }
@@ -433,7 +454,7 @@ mod tests {
     async fn test_maplet_creation() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01);
         assert!(maplet.is_ok());
-        
+
         let maplet = maplet.unwrap();
         assert_eq!(maplet.len().await, 0);
         assert!(maplet.is_empty().await);
@@ -443,18 +464,18 @@ mod tests {
     #[tokio::test]
     async fn test_maplet_insert_query() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         // Insert some key-value pairs
         assert!(maplet.insert("key1".to_string(), 5).await.is_ok());
         assert!(maplet.insert("key2".to_string(), 10).await.is_ok());
-        
+
         assert_eq!(maplet.len().await, 2);
         assert!(!maplet.is_empty().await);
-        
+
         // Query existing keys
         assert!(maplet.contains(&"key1".to_string()).await);
         assert!(maplet.contains(&"key2".to_string()).await);
-        
+
         // Query non-existing key
         assert!(!maplet.contains(&"key3".to_string()).await);
     }
@@ -462,13 +483,13 @@ mod tests {
     #[tokio::test]
     async fn test_maplet_merge_values() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         // Insert same key multiple times
         assert!(maplet.insert("key1".to_string(), 5).await.is_ok());
         assert!(maplet.insert("key1".to_string(), 3).await.is_ok());
-        
+
         assert_eq!(maplet.len().await, 1); // Still only one unique key
-        
+
         // Query should return merged value
         let value = maplet.query(&"key1".to_string()).await;
         assert!(value.is_some());
@@ -479,10 +500,10 @@ mod tests {
     #[tokio::test]
     async fn test_maplet_stats() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         maplet.insert("key1".to_string(), 5).await.unwrap();
         maplet.insert("key2".to_string(), 10).await.unwrap();
-        
+
         let stats = maplet.stats().await;
         assert_eq!(stats.capacity, 100);
         assert_eq!(stats.len, 2);
@@ -522,7 +543,7 @@ mod tests {
         // Due to hash collisions, we might have more than 50 entries
         // The important thing is that the test doesn't panic with filter inconsistency
         assert!(len <= 1000, "Should not exceed capacity");
-        
+
         // Test that we can query without errors
         for i in 0..50 {
             let key = format!("key_{i}");
@@ -535,20 +556,26 @@ mod tests {
     #[tokio::test]
     async fn test_memory_usage_accuracy() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         // Insert some items
         for i in 0..10 {
             let key = format!("key_{i}");
-            maplet.insert(key, u64::try_from(i).unwrap_or(0)).await.unwrap();
+            maplet
+                .insert(key, u64::try_from(i).unwrap_or(0))
+                .await
+                .unwrap();
         }
 
         let stats = maplet.stats().await;
         let memory_usage = stats.memory_usage;
-        
+
         // Memory usage should be reasonable and not based on full capacity
         assert!(memory_usage > 0, "Memory usage should be positive");
-        assert!(memory_usage < 100_000, "Memory usage should be reasonable for 10 items");
-        
+        assert!(
+            memory_usage < 100_000,
+            "Memory usage should be reasonable for 10 items"
+        );
+
         // Should be much less than the old calculation (100 * 24 + 100 * 8 = 3200 bytes minimum)
         // The new calculation should be more accurate
         println!("Memory usage for 10 items: {memory_usage} bytes");
@@ -558,15 +585,15 @@ mod tests {
     #[tokio::test]
     async fn test_slot_finding_for_key() {
         let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        
+
         // Insert some items
         let test_key = "test_key".to_string();
         maplet.insert(test_key.clone(), 42).await.unwrap();
-        
+
         // Find the slot for the key
         let slot = maplet.find_slot_for_key(&test_key).await;
         assert!(slot.is_some(), "Should find a slot for existing key");
-        
+
         // Try to find slot for non-existing key
         // Note: Due to false positives, the quotient filter might return a slot
         // even for non-existing keys. This is expected behavior.

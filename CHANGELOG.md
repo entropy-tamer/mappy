@@ -16,6 +16,98 @@ All notable changes to the Mappy project will be documented in this file.
 
 ### Security
 
+## [0.3.1] - 2025-11-15 - Core Improvements and Stilts ML Benchmarking
+
+### Added
+
+#### Stilts ML Benchmarking System
+
+- **ML Performance Benchmarks**: Comprehensive machine learning performance benchmarking suite
+- **ML Accuracy Tests**: Validation tests for ML embedding compression and accuracy
+- **ML Benchmark Reports**: HTML and markdown reports for ML performance analysis
+- **Optimization Reports**: Complete optimization documentation and analysis reports
+- **ML Tasks Integration**: Support for various ML tasks including embeddings and numerical computing
+
+#### Documentation
+
+- **Optimization Reports**: Added COMPLETE_OPTIMIZATION_REPORT.md, FINAL_OPTIMIZED_RESULTS.md, OPTIMIZATION_COMPLETE.md, OPTIMIZATION_RESULTS.md, OPTIMIZATION_SUMMARY.md
+- **ML Benchmarks Documentation**: Added ML_BENCHMARKS.md with comprehensive ML performance analysis
+- **Benchmark Reports**: Enhanced reporting system with HTML and markdown formats
+
+### Changed
+
+#### Core Implementation Improvements
+
+- **Deletion Operations**: Enhanced deletion logic in mappy-core
+- **Engine Improvements**: Updated engine implementation for better performance
+- **Error Handling**: Improved error handling and error types
+- **Hash Functions**: Enhanced hash function implementations
+- **Maplet Operations**: Improved maplet core operations
+- **Operators**: Updated operator implementations
+- **Quotient Filter**: Enhanced quotient filter implementation
+- **Storage Backends**: Improved AOF, disk, and hybrid storage implementations
+
+#### Stilts Compression Library
+
+- **Compression Algorithms**: Enhanced Huffman, Arithmetic, and Dictionary compression algorithms
+- **Format Serialization**: Improved format serialization and parsing
+- **Benchmark Infrastructure**: Enhanced benchmark comparison and metrics systems
+- **Plotting System**: Improved chart generation and storage visualization
+- **Mappy Integration**: Better integration with mappy-core for ML benchmarks
+
+#### Build System
+
+- **Binary Targets**: Added explicit `[[bin]]` targets for mappy-server to fix build configuration
+- **Python Bindings**: Updated Python package configuration and dependencies
+
+### Fixed
+
+- **Build Configuration**: Fixed missing explicit binary targets for mappy-server
+- **Python Cache**: Added Python cache patterns to .gitignore for Rust packages with Python bindings
+- **Test Infrastructure**: Enhanced test suite with improved pytest configuration
+
+### Technical Details
+
+#### Files Modified
+
+- `mappy-core/src/deletion.rs` - Enhanced deletion operations
+- `mappy-core/src/engine.rs` - Engine improvements
+- `mappy-core/src/error.rs` - Error handling improvements
+- `mappy-core/src/hash.rs` - Hash function enhancements
+- `mappy-core/src/maplet.rs` - Maplet operation improvements
+- `mappy-core/src/operators.rs` - Operator updates
+- `mappy-core/src/quotient_filter.rs` - Quotient filter enhancements
+- `mappy-core/src/storage/aof.rs` - AOF storage improvements
+- `mappy-core/src/storage/disk.rs` - Disk storage enhancements
+- `mappy-core/src/storage/hybrid.rs` - Hybrid storage improvements
+- `mappy-server/Cargo.toml` - Added explicit binary target configuration
+- `stilts/src/compression/*.rs` - Compression algorithm improvements
+- `stilts/src/benchmark/*.rs` - Benchmark infrastructure enhancements
+- `stilts/src/plotting/*.rs` - Plotting system improvements
+
+#### Files Added
+
+- `stilts/COMPLETE_OPTIMIZATION_REPORT.md` - Complete optimization analysis
+- `stilts/FINAL_OPTIMIZED_RESULTS.md` - Final optimization results
+- `stilts/OPTIMIZATION_COMPLETE.md` - Optimization completion documentation
+- `stilts/OPTIMIZATION_RESULTS.md` - Optimization results analysis
+- `stilts/OPTIMIZATION_SUMMARY.md` - Optimization summary
+- `stilts/ML_BENCHMARKS.md` - ML benchmarks documentation
+- `stilts/FINAL_BENCHMARK_RESULTS.md` - Final benchmark results
+- `stilts/OPTIMIZATION_PLAN.md` - Optimization planning documentation
+- `stilts/benches/ml_performance_benchmarks.rs` - ML performance benchmarks
+- `stilts/src/benchmark/ml_accuracy_tests.rs` - ML accuracy test suite
+- `stilts/src/benchmark/ml_benchmarks.rs` - ML benchmarking infrastructure
+- `stilts/src/benchmark/ml_tasks.rs` - ML task implementations
+- `stilts/src/plotting/ml_reports.rs` - ML report generation
+- `stilts/examples/ml_benchmark_demo.rs` - ML benchmark demonstration
+
+### Migration Notes
+
+- **No breaking changes**: All changes are backward compatible
+- **Build improvements**: Explicit binary targets ensure proper mappy-server builds
+- **Enhanced benchmarking**: New ML benchmarking capabilities available in stilts
+
 ## [0.2.1] - 2025-11-01 - Version Bump and Testing Improvements
 
 ### Changed

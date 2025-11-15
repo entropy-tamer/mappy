@@ -1,22 +1,18 @@
-"""
-Real-world use case tests for mappy-python bindings
-"""
+"""Real-world use case tests for mappy-python bindings."""
 
 import random
 import time
-from typing import List, Tuple
 
 import mappy_python as mappy
-import numpy as np
-import pytest
+
 from . import Stats
 
 
 class TestKmerCounting:
-    """Test k-mer counting use case (bioinformatics)"""
+    """Test k-mer counting use case (bioinformatics)."""
 
-    def test_kmer_counting_basic(self, dna_sequences: List[str]):
-        """Test basic k-mer counting functionality"""
+    def test_kmer_counting_basic(self, dna_sequences: list[str]):
+        """Test basic k-mer counting functionality."""
         kmer_counter = mappy.Maplet(10000, 0.001, mappy.CounterOperator())
         k = 3  # 3-mer counting
 
@@ -39,8 +35,8 @@ class TestKmerCounting:
         stats = Stats(kmer_counter.stats())
         assert stats.item_count >= len(expected_kmers)
 
-    def test_kmer_counting_multiple_sequences(self, dna_sequences: List[str]):
-        """Test k-mer counting across multiple sequences"""
+    def test_kmer_counting_multiple_sequences(self, dna_sequences: list[str]):
+        """Test k-mer counting across multiple sequences."""
         kmer_counter = mappy.Maplet(50000, 0.001, mappy.CounterOperator())
         k = 4  # 4-mer counting
 
@@ -69,7 +65,7 @@ class TestKmerCounting:
             assert result >= 1
 
     def test_kmer_counting_performance(self):
-        """Test k-mer counting performance"""
+        """Test k-mer counting performance."""
         kmer_counter = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         # Generate large DNA sequence
@@ -93,10 +89,10 @@ class TestKmerCounting:
 
 
 class TestNetworkTrafficAnalysis:
-    """Test network traffic analysis use case"""
+    """Test network traffic analysis use case."""
 
-    def test_traffic_counting(self, network_traffic_data: List[Tuple[str, int]]):
-        """Test network traffic counting"""
+    def test_traffic_counting(self, network_traffic_data: list[tuple[str, int]]):
+        """Test network traffic counting."""
         traffic_counter = mappy.Maplet(10000, 0.01, mappy.CounterOperator())
 
         # Insert traffic data
@@ -104,7 +100,7 @@ class TestNetworkTrafficAnalysis:
             traffic_counter.insert(ip_address, bytes_transferred)
 
         # Verify traffic counts
-        unique_ips = set(ip for ip, _ in network_traffic_data)
+        unique_ips = {ip for ip, _ in network_traffic_data}
         for ip in list(unique_ips)[:5]:  # Test first 5 IPs
             result = traffic_counter.query(ip)
             assert result is not None
@@ -115,9 +111,9 @@ class TestNetworkTrafficAnalysis:
         assert stats.item_count > 0
 
     def test_traffic_analysis_with_max_operator(
-        self, network_traffic_data: List[Tuple[str, int]]
+        self, network_traffic_data: list[tuple[str, int]],
     ):
-        """Test traffic analysis using max operator for peak detection"""
+        """Test traffic analysis using max operator for peak detection."""
         peak_traffic = mappy.Maplet(10000, 0.01, mappy.MaxOperator())
 
         # Insert traffic data
@@ -125,7 +121,7 @@ class TestNetworkTrafficAnalysis:
             peak_traffic.insert(ip_address, bytes_transferred)
 
         # Verify peak traffic detection
-        unique_ips = set(ip for ip, _ in network_traffic_data)
+        unique_ips = {ip for ip, _ in network_traffic_data}
         for ip in list(unique_ips)[:5]:
             result = peak_traffic.query(ip)
             assert result is not None
@@ -140,7 +136,7 @@ class TestNetworkTrafficAnalysis:
             assert result >= max_for_ip
 
     def test_traffic_analysis_performance(self):
-        """Test network traffic analysis performance"""
+        """Test network traffic analysis performance."""
         traffic_counter = mappy.Maplet(100000, 0.001, mappy.CounterOperator())
 
         # Generate large traffic dataset
@@ -165,10 +161,10 @@ class TestNetworkTrafficAnalysis:
 
 
 class TestDistributedCaching:
-    """Test distributed caching use case"""
+    """Test distributed caching use case."""
 
     def test_cache_operations(self):
-        """Test basic cache operations"""
+        """Test basic cache operations."""
         cache = mappy.Maplet(10000, 0.01, mappy.MaxOperator())
 
         # Cache some data (using numeric values for MaxOperator)
@@ -188,7 +184,7 @@ class TestDistributedCaching:
             assert result >= expected_value
 
     def test_cache_performance(self):
-        """Test cache performance"""
+        """Test cache performance."""
         cache = mappy.Maplet(100000, 0.001, mappy.MaxOperator())
 
         # Generate cache data
@@ -211,7 +207,7 @@ class TestDistributedCaching:
             if result is not None:
                 success_count += 1
         query_time = time.time() - start_time
-        
+
         # At least 90% should succeed
         assert success_count >= 900, f"Only {success_count}/1000 queries succeeded"
 
@@ -221,10 +217,10 @@ class TestDistributedCaching:
 
 
 class TestLSMStorageIndex:
-    """Test LSM storage engine index use case"""
+    """Test LSM storage engine index use case."""
 
     def test_sstable_index(self):
-        """Test SSTable index functionality"""
+        """Test SSTable index functionality."""
         sstable_index = mappy.Maplet(100000, 0.001, mappy.MaxOperator())
 
         # Simulate SSTable entries
@@ -254,7 +250,7 @@ class TestLSMStorageIndex:
         assert result3 >= 2  # Should be SSTable 2
 
     def test_sstable_index_performance(self):
-        """Test SSTable index performance"""
+        """Test SSTable index performance."""
         sstable_index = mappy.Maplet(1000000, 0.0001, mappy.MaxOperator())
 
         # Generate large SSTable index
@@ -274,7 +270,7 @@ class TestLSMStorageIndex:
             if result is not None:
                 success_count += 1
         query_time = time.time() - start_time
-        
+
         # At least 90% should succeed
         assert success_count >= 9000, f"Only {success_count}/10000 queries succeeded"
 
@@ -284,10 +280,10 @@ class TestLSMStorageIndex:
 
 
 class TestRealWorldScenarios:
-    """Test real-world scenarios combining multiple use cases"""
+    """Test real-world scenarios combining multiple use cases."""
 
     def test_multi_use_case_workload(self):
-        """Test combined workload from multiple use cases"""
+        """Test combined workload from multiple use cases."""
         # Create multiple maplets for different purposes
         kmer_counter = mappy.Maplet(50000, 0.001, mappy.CounterOperator())
         traffic_analyzer = mappy.Maplet(10000, 0.01, mappy.MaxOperator())
@@ -325,7 +321,7 @@ class TestRealWorldScenarios:
         assert total_time < 20.0  # All workloads should complete in under 20 seconds
 
     def test_memory_efficiency_comparison(self):
-        """Test memory efficiency compared to naive approaches"""
+        """Test memory efficiency compared to naive approaches."""
         # Create maplet
         maplet = mappy.Maplet(10000, 0.01, mappy.CounterOperator())
 
