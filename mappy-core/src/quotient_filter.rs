@@ -51,6 +51,9 @@ pub struct QuotientFilter {
 
 impl QuotientFilter {
     /// Create a new quotient filter
+    ///
+    /// # Errors
+    /// Returns an error if capacity is zero or `fingerprint_bits` is invalid (0 or > 64).
     pub fn new(
         capacity: usize,
         fingerprint_bits: u32,
@@ -65,7 +68,7 @@ impl QuotientFilter {
         }
 
         // Calculate quotient and remainder bits
-        #[allow(clippy::cast_precision_loss)] // Acceptable for bit calculation
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
         let quotient_bits = (capacity as f64).log2().ceil() as u32;
         let remainder_bits = fingerprint_bits.saturating_sub(quotient_bits).max(1);
 
@@ -96,6 +99,9 @@ impl QuotientFilter {
     }
 
     /// Insert a fingerprint into the filter
+    ///
+    /// # Errors
+    /// Returns an error if capacity is exceeded or insertion fails.
     pub fn insert(&mut self, fingerprint: u64) -> MapletResult<()> {
         if self.len >= self.capacity {
             return Err(MapletError::CapacityExceeded);
@@ -152,6 +158,9 @@ impl QuotientFilter {
     }
 
     /// Delete one instance of a fingerprint from the filter
+    ///
+    /// # Errors
+    /// Returns an error if deletion fails.
     pub fn delete(&mut self, fingerprint: u64) -> MapletResult<bool> {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
@@ -200,6 +209,12 @@ impl QuotientFilter {
     #[must_use]
     pub const fn len(&self) -> usize {
         self.len
+    }
+
+    /// Check if the filter is empty
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// Get the capacity of the filter

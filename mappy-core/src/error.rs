@@ -24,6 +24,9 @@ pub struct ErrorRateController {
 
 impl ErrorRateController {
     /// Create a new error rate controller
+    ///
+    /// # Errors
+    /// Returns an error if the target error rate is not in the range (0.0, 1.0).
     pub fn new(target_error_rate: f64) -> MapletResult<Self> {
         if target_error_rate <= 0.0 || target_error_rate >= 1.0 {
             return Err(MapletError::InvalidErrorRate(target_error_rate));
@@ -192,6 +195,9 @@ impl StrongMapletValidator {
     /// The strong maplet property states that:
     /// m[k] = M[k] ⊕ (⊕ᵢ₌₁ˡ M[kᵢ])
     /// where Pr[ℓ ≥ L] ≤ ε^L
+    ///
+    /// # Errors
+    /// Returns an error if validation fails.
     pub fn validate_strong_property<V, Op>(
         &self,
         collision_tracker: &CollisionTracker,
@@ -212,7 +218,9 @@ impl StrongMapletValidator {
 
         // Calculate probability of exceeding chain length
         let prob_exceed_chain = if max_chain > 0 {
-            error_rate.powi(max_chain as i32)
+            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            let chain_i32 = max_chain as i32;
+            error_rate.powi(chain_i32)
         } else {
             0.0
         };

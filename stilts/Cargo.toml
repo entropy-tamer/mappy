@@ -30,7 +30,7 @@ lz4 = "1.28.1"
 rayon = "1.11.0"
 
 # Plotting
-plotters = "0.3.7"
+plotters.workspace = true
 
 # Hashing
 ahash = "0.8.12"

@@ -1,7 +1,5 @@
 # Mappy: Space-Efficient Maplet Data Structures
 
-![A friendly red fox standing in a forest, holding and examining a map with rectangular sections. The fox wears a green backpack, suggesting an expedition. The word "MAPPY" appears in large bold orange-red letters with black outline. The scene conveys exploration, navigation, and the journey of understanding complex data structures through local mappings and spatial organization.](docs/mappy_header_text.webp)
-
 A Rust implementation of maplets - space-efficient data structures for approximate key-value mappings, based on the research paper "Time To Replace Your Filter: How Maplets Simplify System Design".
 
 ## Overview
@@ -62,7 +60,7 @@ Enable the `quotient-filter` feature for enhanced slot finding capabilities with
 
 ```toml
 [dependencies]
-mappy-core = { version = "0.1.0", features = ["quotient-filter"] }
+mappy-core = { version = "0.3.1", features = ["quotient-filter"] }
 ```
 
 ```rust
@@ -246,21 +244,21 @@ The critical optimization was **moving mappy operations out of the hot path**:
 - **Memory usage:** 8.74% of original size
 - **Compression ratio:** 0.0977 (9.77% of original)
 
-For detailed ML benchmark results and optimization techniques, see the [Stilts ML Benchmarks documentation](stilts/README.md#ml-benchmarks).
+For detailed ML benchmark results and optimization techniques, see the [Stilts ML Benchmarks documentation](https://github.com/entropy-tamer/mappy/tree/main/stilts#ml-benchmarks).
 
 ### Running Benchmarks
 
 ```bash
 # Run Redis comparison benchmarks
-cd services/mappy/mappy-core
+cd mappy-core
 cargo bench --bench redis_comparison
 
 # Run ML benchmarks (requires stilts package)
-cd services/mappy/stilts
+cd ../stilts
 cargo run --example ml_benchmark_demo --features mappy-integration
 
 # Run all benchmarks
-cd services/mappy
+cd ..
 ./benchmark_runner.sh --all
 
 # Run specific benchmark categories
@@ -279,12 +277,12 @@ Where `Pr[ℓ ≥ L] ≤ ε^L`, meaning even when wrong, the result is close to 
 
 ## Documentation
 
-- **[Technical Documentation](docs/TECHNICAL_README.md)** - Comprehensive technical guide with architecture diagrams, API reference, and implementation details
-- **[Quotient Filter](docs/QUOTIENT_FILTER.md)** - Complete guide to quotient filter features, testing, and Python integration
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
-- **[API Reference](docs/API.md)** - Complete API reference and usage examples
-- **[Testing Guide](docs/TESTING.md)** - Comprehensive testing guide for Python bindings
-- **[Benchmark Documentation](mappy-core/benches/QUOTIENT_FILTER_BENCHMARKS.md)** - Detailed benchmark results and performance analysis
+- **[Technical Documentation](https://github.com/entropy-tamer/mappy/blob/main/docs/TECHNICAL_README.md)** - Comprehensive technical guide with architecture diagrams, API reference, and implementation details
+- **[Quotient Filter](https://github.com/entropy-tamer/mappy/blob/main/docs/QUOTIENT_FILTER.md)** - Complete guide to quotient filter features, testing, and Python integration
+- **[Documentation Index](https://github.com/entropy-tamer/mappy/blob/main/docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
+- **[API Reference](https://github.com/entropy-tamer/mappy/blob/main/docs/API.md)** - Complete API reference and usage examples
+- **[Testing Guide](https://github.com/entropy-tamer/mappy/blob/main/docs/TESTING.md)** - Comprehensive testing guide for Python bindings
+- **[Benchmark Documentation](https://github.com/entropy-tamer/mappy/blob/main/mappy-core/benches/QUOTIENT_FILTER_BENCHMARKS.md)** - Detailed benchmark results and performance analysis
 - **[API Documentation](https://docs.rs/mappy-core)** - Auto-generated API documentation
 
 ## License
@@ -296,51 +294,3 @@ MIT License - see LICENSE file for details.
 Based on the research paper:
 
 > Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint [arXiv:2510.05518](https://arxiv.org/abs/2510.05518).
-
----
-
-## Visual Guide: Maplets and Transformers
-
-![A four-panel comic strip showing a fox navigating a forest, illustrating the parallel between maplets (local key-value mappings) and transformer attention mechanisms (local context views). The comic demonstrates how both systems process local information incrementally to build global understanding—one clearing, one maplet, one attention head at a time.](docs/mappy_comic.webp)
-
-This comic strip illustrates a fascinating parallel between **maplets** and **transformer attention mechanisms**. While they serve different purposes, both systems share a fundamental pattern of aggregating local information to build global understanding.
-
-### The Core Parallel: Aggregation Mechanisms
-
-**Maplets** use associative/commutative operators (⊕) to merge values when hash collisions occur:
-
-```math
-m[k] = M[k] ⊕ (⊕ᵢ₌₁ˡ M[kᵢ])
-```
-
-**Transformer Attention** uses weighted sums to aggregate values based on query-key similarity:
-
-```math
-Attention(Q, K, V) = softmax(QK^T / √d_k) V
-```
-
-Both combine multiple pieces of information into a single representation, though through different mechanisms.
-
-### Key Similarities
-
-1. **Key-Value Structure**: Both operate on key-value semantics—maplets explicitly, attention via QKV (query-key-value)
-2. **Local-to-Global**: Both build global structures from local pieces—individual key-value pairs in maplets, token representations in attention
-3. **Aggregation**: Both merge information using associative operations (addition, weighted sums, set union, etc.)
-
-### Important Differences
-
-1. **Merging Mechanism**:
-   - **Maplets**: Values merge due to hash collisions (unintended but bounded with exponentially decreasing error probability)
-   - **Attention**: Values merge by design through learned attention weights
-
-2. **Purpose**:
-   - **Maplets**: Space-efficient approximate storage with probabilistic guarantees
-   - **Attention**: Contextual understanding and representation learning
-
-3. **"Local Views"**:
-   - **Maplets**: "Local" refers to individual key-value pairs in the key space
-   - **Attention**: "Local" refers to positional/contextual views across sequence positions
-
-### The Metaphor
-
-The fox's journey through the forest represents the iterative process of building understanding from discrete pieces. Whether navigating a literal forest (the key space in maplets) or an abstract manifold (the sequence space in transformers), both systems demonstrate that **"understand the local, and the global reveals itself"**—one clearing, one key-value pair, one attention head at a time.

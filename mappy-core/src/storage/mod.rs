@@ -62,7 +62,10 @@ pub struct StorageFactory;
 
 impl StorageFactory {
     /// Create a storage backend based on persistence mode
-    pub async fn create_storage(
+    ///
+    /// # Errors
+    /// Returns an error if storage creation fails for the specified mode.
+    pub fn create_storage(
         mode: PersistenceMode,
         config: StorageConfig,
     ) -> MapletResult<Box<dyn Storage>> {

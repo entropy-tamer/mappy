@@ -111,6 +111,9 @@ impl TTLManager {
     }
 
     /// Set TTL for a key
+    ///
+    /// # Errors
+    /// Returns an error if removing the old TTL or setting the new TTL fails.
     pub async fn set_ttl(&self, key: String, db_id: u8, ttl_seconds: u64) -> MapletResult<()> {
         let entry = TTLEntry::new(key.clone(), db_id, ttl_seconds);
         let expires_at = entry.expires_at;
@@ -137,6 +140,9 @@ impl TTLManager {
     }
 
     /// Get TTL for a key in seconds
+    ///
+    /// # Errors
+    /// Returns an error if retrieving TTL fails.
     pub async fn get_ttl(&self, key: &str) -> MapletResult<Option<i64>> {
         let key_map = self.key_to_expiration.read().await;
         if let Some(&expires_at) = key_map.get(key) {
@@ -153,6 +159,9 @@ impl TTLManager {
     }
 
     /// Remove TTL for a key
+    ///
+    /// # Errors
+    /// Returns an error if removing TTL fails.
     pub async fn remove_ttl(&self, key: &str) -> MapletResult<()> {
         let mut key_map = self.key_to_expiration.write().await;
         if let Some(expires_at) = key_map.remove(key) {
@@ -171,6 +180,9 @@ impl TTLManager {
     }
 
     /// Check if a key has expired
+    ///
+    /// # Errors
+    /// Returns an error if checking expiration fails.
     pub async fn is_expired(&self, key: &str) -> MapletResult<bool> {
         let key_map = self.key_to_expiration.read().await;
         if let Some(&expires_at) = key_map.get(key) {
@@ -185,6 +197,9 @@ impl TTLManager {
     }
 
     /// Get all expired keys
+    ///
+    /// # Errors
+    /// Returns an error if retrieving expired keys fails.
     pub async fn get_expired_keys(&self) -> MapletResult<Vec<TTLEntry>> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -192,30 +207,38 @@ impl TTLManager {
             .as_secs();
 
         let mut expired_entries = Vec::new();
-        let mut expiration_map = self.expiration_map.write().await;
+        let expired_times: Vec<u64> = {
+            let expiration_map = self.expiration_map.read().await;
+            expiration_map
+                .range(..=now)
+                .map(|(&time, _)| time)
+                .collect()
+        };
 
-        // Get all entries that have expired
-        let expired_times: Vec<u64> = expiration_map
-            .range(..=now)
-            .map(|(&time, _)| time)
-            .collect();
-
-        for time in expired_times {
-            if let Some(entries) = expiration_map.remove(&time) {
-                expired_entries.extend(entries);
+        {
+            let mut expiration_map = self.expiration_map.write().await;
+            for time in expired_times {
+                if let Some(entries) = expiration_map.remove(&time) {
+                    expired_entries.extend(entries);
+                }
             }
         }
 
         // Update key lookup map
-        let mut key_map = self.key_to_expiration.write().await;
-        for entry in &expired_entries {
-            key_map.remove(&entry.key);
+        if !expired_entries.is_empty() {
+            let mut key_map = self.key_to_expiration.write().await;
+            for entry in &expired_entries {
+                key_map.remove(&entry.key);
+            }
         }
 
         Ok(expired_entries)
     }
 
     /// Start background cleanup task
+    ///
+    /// # Errors
+    /// Returns an error if starting the cleanup task fails.
     pub async fn start_cleanup<F>(&self, mut cleanup_callback: F) -> MapletResult<()>
     where
         F: FnMut(Vec<TTLEntry>) -> MapletResult<()> + Send + Sync + 'static,
@@ -293,6 +316,9 @@ impl TTLManager {
     }
 
     /// Stop background cleanup task
+    ///
+    /// # Errors
+    /// Returns an error if stopping the cleanup task fails.
     pub async fn stop_cleanup(&self) -> MapletResult<()> {
         // Send shutdown signal
         {
@@ -314,31 +340,41 @@ impl TTLManager {
     }
 
     /// Get TTL statistics
+    ///
+    /// # Errors
+    /// Returns an error if retrieving statistics fails.
+    #[allow(clippy::significant_drop_tightening)] // Both guards needed for entire calculation
     pub async fn get_stats(&self) -> MapletResult<TTLStats> {
-        #[allow(clippy::significant_drop_in_scrutinee)] // Guards needed for entire operation
-        let expiration_map = self.expiration_map.read().await;
-        #[allow(clippy::significant_drop_in_scrutinee)] // Guards needed for entire operation
-        let key_map = self.key_to_expiration.read().await;
-
-        let total_keys = key_map.len();
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        let expired_count: usize = expiration_map
-            .range(..=now)
-            .map(|(_, entries)| entries.len())
-            .sum();
+        let (total_keys, expired_count, next_expiration) = {
+            let expiration_map = self.expiration_map.read().await;
+            let key_map = self.key_to_expiration.read().await;
+
+            let total_keys = key_map.len();
+            let expired_count: usize = expiration_map
+                .range(..=now)
+                .map(|(_, entries)| entries.len())
+                .sum();
+            let next_expiration = expiration_map.range(now..).next().map(|(&time, _)| time);
+
+            (total_keys, expired_count, next_expiration)
+        };
 
         Ok(TTLStats {
             total_keys_with_ttl: total_keys as u64,
             expired_keys: expired_count as u64,
-            next_expiration: expiration_map.range(now..).next().map(|(&time, _)| time),
+            next_expiration,
         })
     }
 
     /// Clear all TTL entries
+    ///
+    /// # Errors
+    /// Returns an error if clearing fails.
     pub async fn clear_all(&self) -> MapletResult<()> {
         {
             let mut expiration_map = self.expiration_map.write().await;

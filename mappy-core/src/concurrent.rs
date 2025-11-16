@@ -26,6 +26,9 @@ where
     Op: crate::operators::MergeOperator<V> + Default + Send + Sync,
 {
     /// Create a new concurrent maplet
+    ///
+    /// # Errors
+    /// Returns an error if the maplet cannot be created with the given parameters.
     pub fn new(capacity: usize, false_positive_rate: f64) -> MapletResult<Self> {
         let maplet = crate::maplet::Maplet::<K, V, Op>::new(capacity, false_positive_rate)?;
         Ok(Self {
@@ -34,6 +37,9 @@ where
     }
 
     /// Insert a key-value pair (write lock)
+    ///
+    /// # Errors
+    /// Returns an error if the insertion fails.
     pub async fn insert(&self, key: K, value: V) -> MapletResult<()> {
         let maplet = self.inner.read().await;
         maplet.insert(key, value).await
@@ -52,6 +58,9 @@ where
     }
 
     /// Delete a key-value pair (write lock)
+    ///
+    /// # Errors
+    /// Returns an error if the deletion fails.
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
         let maplet = self.inner.read().await;
         maplet.delete(key, value).await

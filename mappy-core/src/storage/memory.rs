@@ -25,6 +25,9 @@ pub struct MemoryStorage {
 
 impl MemoryStorage {
     /// Create a new memory storage
+    ///
+    /// # Errors
+    /// Returns an error if creation fails.
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         Ok(Self {
             data: Arc::new(DashMap::new()),

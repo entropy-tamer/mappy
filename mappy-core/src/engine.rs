@@ -89,6 +89,9 @@ pub struct Engine {
 
 impl Engine {
     /// Create a new engine with the given configuration
+    ///
+    /// # Errors
+    /// Returns an error if the engine cannot be created with the given configuration.
     pub async fn new(config: EngineConfig) -> MapletResult<Self> {
         let maplet = Arc::new(RwLock::new(
             Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(config.maplet.clone())?,
@@ -133,6 +136,9 @@ impl Engine {
     }
 
     /// Get a value by key
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         // Check if key has expired
         if self.ttl_manager.is_expired(key).await? {
@@ -163,6 +169,9 @@ impl Engine {
     }
 
     /// Set a key-value pair
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()> {
         // Store in the maplet for approximate membership
         self.maplet.write().await.insert(key.clone(), value.clone()).await?;
@@ -180,6 +189,9 @@ impl Engine {
     }
 
     /// Delete a key
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub async fn delete(&self, key: &str) -> MapletResult<bool> {
         // Remove from storage
         let result = self.storage.delete(key).await?;
@@ -198,6 +210,9 @@ impl Engine {
     }
 
     /// Check if a key exists
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub async fn exists(&self, key: &str) -> MapletResult<bool> {
         // Check maplet first for fast approximate membership
         let maplet_guard = self.maplet.read().await;
@@ -220,6 +235,9 @@ impl Engine {
     }
 
     /// Get all keys
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub async fn keys(&self) -> MapletResult<Vec<String>> {
         let result = self.storage.keys().await?;
 
@@ -233,6 +251,9 @@ impl Engine {
     }
 
     /// Clear all data
+    ///
+    /// # Errors
+    /// Returns an error if clearing the maplet or storage fails.
     pub async fn clear(&self) -> MapletResult<()> {
         // Clear maplet
         {
@@ -256,12 +277,18 @@ impl Engine {
     }
 
     /// Flush data to persistent storage
+    ///
+    /// # Errors
+    /// Returns an error if flushing to storage fails.
     pub async fn flush(&self) -> MapletResult<()> {
         self.storage.flush().await?;
         Ok(())
     }
 
     /// Close the engine and cleanup resources
+    ///
+    /// # Errors
+    /// Returns an error if stopping TTL cleanup or closing storage fails.
     pub async fn close(&self) -> MapletResult<()> {
         // Stop TTL cleanup task
         self.ttl_manager.stop_cleanup().await?;
@@ -272,6 +299,9 @@ impl Engine {
     }
 
     /// Get engine statistics
+    ///
+    /// # Errors
+    /// Returns an error if retrieving storage or TTL statistics fails.
     pub async fn stats(&self) -> MapletResult<EngineStats> {
         let maplet_guard = self.maplet.read().await;
         let maplet_stats = maplet_guard.stats().await;
@@ -293,6 +323,9 @@ impl Engine {
     }
 
     /// Get memory usage in bytes
+    ///
+    /// # Errors
+    /// Returns an error if retrieving storage statistics fails.
     pub async fn memory_usage(&self) -> MapletResult<u64> {
         let storage_stats = self.storage.stats().await?;
         Ok(storage_stats.memory_usage)
@@ -311,6 +344,9 @@ impl Engine {
     }
 
     /// Set TTL for a key
+    ///
+    /// # Errors
+    /// Returns an error if checking key existence or setting TTL fails.
     pub async fn expire(&self, key: &str, ttl_seconds: u64) -> MapletResult<bool> {
         // Check if key exists
         if !self.exists(key).await? {
@@ -332,6 +368,9 @@ impl Engine {
     }
 
     /// Get TTL for a key in seconds
+    ///
+    /// # Errors
+    /// Returns an error if retrieving TTL fails.
     pub async fn ttl(&self, key: &str) -> MapletResult<Option<i64>> {
         let result = self.ttl_manager.get_ttl(key).await?;
 
@@ -345,6 +384,9 @@ impl Engine {
     }
 
     /// Remove TTL for a key
+    ///
+    /// # Errors
+    /// Returns an error if retrieving or removing TTL fails.
     pub async fn persist(&self, key: &str) -> MapletResult<bool> {
         let had_ttl = self.ttl_manager.get_ttl(key).await?.is_some();
         self.ttl_manager.remove_ttl(key).await?;
@@ -359,6 +401,9 @@ impl Engine {
     }
 
     /// Find the slot for a key (advanced quotient filter feature)
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     #[cfg(feature = "quotient-filter")]
     pub async fn find_slot_for_key(&self, key: &str) -> MapletResult<Option<usize>> {
         let maplet_guard = self.maplet.read().await;

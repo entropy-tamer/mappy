@@ -29,6 +29,9 @@ pub struct DiskStorage {
 
 impl DiskStorage {
     /// Create a new disk storage
+    ///
+    /// # Errors
+    /// Returns an error if the data directory cannot be created, if opening the database fails, or if opening the tree fails.
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)

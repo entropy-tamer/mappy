@@ -59,7 +59,7 @@ impl FingerprintHasher {
     /// Calculate full hash for a key
     pub fn hash_key<T: Hash>(&self, key: &T) -> u64 {
         match self.hash_fn {
-            HashFunction::AHash => self.random_state.hash_one(&key),
+            HashFunction::AHash => self.random_state.hash_one(key),
             HashFunction::TwoX => {
                 use twox_hash::XxHash64;
                 let mut hasher = XxHash64::default();
@@ -95,8 +95,9 @@ impl FingerprintHasher {
         }
 
         // From the paper: fingerprint size = ⌈log₂(1/ε)⌉ + 3
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
         let bits = (-false_positive_rate.log2()).ceil() as u32 + 3;
-        bits.min(64).max(4) // Clamp between 4 and 64 bits
+        bits.clamp(4, 64) // Clamp between 4 and 64 bits
     }
 }
 
@@ -130,7 +131,9 @@ impl PerfectHash {
     #[must_use]
     pub fn slot_index(&self, fingerprint: u64) -> usize {
         let hash = self.slot_hasher.hash_key(&fingerprint);
-        (hash as usize) % self.num_slots
+        #[allow(clippy::cast_possible_truncation)] // Acceptable for slot calculation
+        let hash_usize = hash as usize;
+        hash_usize % self.num_slots
     }
 
     /// Get the number of slots
@@ -163,6 +166,9 @@ impl CollisionDetector {
     }
 
     /// Record a collision
+    ///
+    /// # Errors
+    /// Returns an error if the collision limit is exceeded.
     pub fn record_collision(&mut self) -> MapletResult<()> {
         self.collision_count += 1;
 

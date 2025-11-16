@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-client"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "mappy-core",
@@ -1611,7 +1611,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1641,7 +1641,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-python"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "mappy-core",
  "pyo3",
@@ -1652,7 +1652,7 @@ dependencies = [
 
 [[package]]
 name = "mappy-server"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",

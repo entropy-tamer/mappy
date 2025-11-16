@@ -162,6 +162,9 @@ impl MapletConfig {
     }
 
     /// Validate the configuration
+    ///
+    /// # Errors
+    /// Returns an error if capacity is zero, `false_positive_rate` is invalid, or `max_load_factor` is invalid.
     pub fn validate(&self) -> MapletResult<()> {
         if self.capacity == 0 {
             return Err(MapletError::InvalidCapacity(self.capacity));

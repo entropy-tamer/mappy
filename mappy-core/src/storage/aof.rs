@@ -40,6 +40,9 @@ enum AOFEntry {
 
 impl AOFStorage {
     /// Create a new AOF storage
+    ///
+    /// # Errors
+    /// Returns an error if the data directory cannot be created or if loading from AOF fails.
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)
@@ -100,7 +103,7 @@ impl AOFStorage {
     }
 
     /// Append entry to AOF file
-    fn append_to_aof(&self, entry: AOFEntry) -> MapletResult<()> {
+    fn append_to_aof(&self, entry: &AOFEntry) -> MapletResult<()> {
         let line = serde_json::to_string(&entry)
             .map_err(|e| MapletError::Internal(format!("Failed to serialize AOF entry: {e}")))?;
 
@@ -175,6 +178,7 @@ impl Storage for AOFStorage {
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         let start = Instant::now();
         let result = self.cache.get(key).map(|entry| entry.value().clone());
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -194,8 +198,9 @@ impl Storage for AOFStorage {
 
         // Append to AOF
         let entry = AOFEntry::Set { key, value };
-        self.append_to_aof(entry)?;
+        self.append_to_aof(&entry)?;
 
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -219,9 +224,10 @@ impl Storage for AOFStorage {
             let entry = AOFEntry::Delete {
                 key: key.to_string(),
             };
-            self.append_to_aof(entry)?;
+            self.append_to_aof(&entry)?;
         }
 
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -239,6 +245,7 @@ impl Storage for AOFStorage {
     async fn exists(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
         let exists = self.cache.contains_key(key);
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -253,6 +260,7 @@ impl Storage for AOFStorage {
     async fn keys(&self) -> MapletResult<Vec<String>> {
         let start = Instant::now();
         let keys: Vec<String> = self.cache.iter().map(|entry| entry.key().clone()).collect();
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -272,6 +280,7 @@ impl Storage for AOFStorage {
         std::fs::write(&self.aof_path, "")
             .map_err(|e| MapletError::Internal(format!("Failed to clear AOF file: {e}")))?;
 
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {
@@ -294,6 +303,7 @@ impl Storage for AOFStorage {
             .and_then(|f| f.sync_all())
             .map_err(|e| MapletError::Internal(format!("Failed to sync AOF file: {e}")))?;
 
+        #[allow(clippy::cast_possible_truncation)] // Microseconds won't exceed u64
         let latency = start.elapsed().as_micros() as u64;
 
         self.update_stats(|stats| {

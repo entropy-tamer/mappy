@@ -42,6 +42,9 @@ enum AOFEntry {
 
 impl HybridStorage {
     /// Create a new hybrid storage
+    ///
+    /// # Errors
+    /// Returns an error if the data directory cannot be created or if loading from AOF fails.
     pub fn new(config: StorageConfig) -> MapletResult<Self> {
         // Ensure data directory exists
         std::fs::create_dir_all(&config.data_dir)

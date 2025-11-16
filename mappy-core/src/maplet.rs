@@ -56,12 +56,18 @@ where
     Op: MergeOperator<V> + Default + Send + Sync,
 {
     /// Create a new maplet with default configuration
+    ///
+    /// # Errors
+    /// Returns an error if the configuration is invalid or creation fails.
     pub fn new(capacity: usize, false_positive_rate: f64) -> MapletResult<Self> {
         let config = MapletConfig::new(capacity, false_positive_rate);
         Self::with_config(config)
     }
 
     /// Create a new maplet with custom operator
+    ///
+    /// # Errors
+    /// Returns an error if the configuration is invalid or creation fails.
     pub fn with_operator(
         capacity: usize,
         false_positive_rate: f64,
@@ -72,12 +78,18 @@ where
     }
 
     /// Create a new maplet with custom configuration
+    ///
+    /// # Errors
+    /// Returns an error if the configuration is invalid or creation fails.
     pub fn with_config(config: MapletConfig) -> MapletResult<Self> {
         let operator = Op::default();
         Self::with_config_and_operator(config, operator)
     }
 
     /// Create a new maplet with custom configuration and operator
+    ///
+    /// # Errors
+    /// Returns an error if the configuration is invalid or creation fails.
     pub fn with_config_and_operator(config: MapletConfig, operator: Op) -> MapletResult<Self> {
         config.validate()?;
 
@@ -102,6 +114,9 @@ where
     }
 
     /// Insert a key-value pair into the maplet
+    ///
+    /// # Errors
+    /// Returns an error if capacity is exceeded and auto-resize is disabled, or if insertion fails.
     pub async fn insert(&self, key: K, value: V) -> MapletResult<()> {
         let current_len = *self.len.read().await;
         if current_len >= self.config.capacity {
@@ -161,6 +176,9 @@ where
     }
 
     /// Delete a key-value pair from the maplet
+    ///
+    /// # Errors
+    /// Returns an error if deletion from the filter fails.
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
         if !self.config.enable_deletion {
             return Err(MapletError::Internal("Deletion not enabled".to_string()));
@@ -174,24 +192,26 @@ where
         }
         drop(filter_guard);
 
-        {
-            let mut values_guard = self.values.write().await;
-            if let Some(existing_value) = values_guard.get(&fingerprint) {
-                // Check if the values match (for exact deletion)
-                if existing_value == value {
-                    // Remove from filter and clear value
-                    {
-                        let mut filter_guard = self.filter.write().await;
-                        filter_guard.delete(fingerprint)?;
-                    }
-                    values_guard.remove(&fingerprint);
-                    {
-                        let mut len_guard = self.len.write().await;
-                        *len_guard -= 1;
-                    }
-                    return Ok(true);
-                }
+        let should_delete = {
+            let values_guard = self.values.read().await;
+            values_guard.get(&fingerprint).is_some_and(|v| v == value)
+        };
+
+        if should_delete {
+            // Remove from filter and clear value
+            {
+                let mut filter_guard = self.filter.write().await;
+                filter_guard.delete(fingerprint)?;
             }
+            {
+                let mut values_guard = self.values.write().await;
+                values_guard.remove(&fingerprint);
+            }
+            {
+                let mut len_guard = self.len.write().await;
+                *len_guard -= 1;
+            }
+            return Ok(true);
         }
 
         Ok(false)
@@ -247,6 +267,9 @@ where
     }
 
     /// Resize the maplet to a new capacity
+    ///
+    /// # Errors
+    /// Returns an error if the new capacity is not larger than the current capacity, or if resizing fails.
     pub async fn resize(&self, new_capacity: usize) -> MapletResult<()> {
         if new_capacity <= self.config.capacity {
             return Err(MapletError::ResizeFailed(
@@ -275,6 +298,9 @@ where
     }
 
     /// Merge another maplet into this one
+    ///
+    /// # Errors
+    /// Returns an error if merging is not enabled or if the merge operation fails.
     pub fn merge(&self, _other: &Self) -> MapletResult<()> {
         if !self.config.enable_merging {
             return Err(MapletError::MergeFailed("Merging not enabled".to_string()));
@@ -289,6 +315,7 @@ where
     }
 
     /// Hash a key to get its fingerprint
+    #[allow(clippy::unused_self)] // Method signature required for trait consistency
     fn hash_key(&self, key: &K) -> u64 {
         // Use the same hasher as the quotient filter
         // We need to use the same hasher instance to ensure consistency
@@ -298,7 +325,7 @@ where
         // For now, use a fixed seed to ensure consistency
         let random_state = RandomState::with_seed(42);
 
-        random_state.hash_one(&key)
+        random_state.hash_one(key)
     }
 
     /// Find the slot index for a fingerprint
@@ -312,7 +339,7 @@ where
     }
 
     /// Extract quotient from fingerprint (same as quotient filter)
-    #[allow(dead_code, clippy::cast_precision_loss)] // Acceptable for bit calculation
+    #[allow(dead_code, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
     fn extract_quotient(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let quotient_mask = if quotient_bits >= 64 {
@@ -324,7 +351,7 @@ where
     }
 
     /// Extract remainder from fingerprint (same as quotient filter)
-    #[allow(dead_code, clippy::cast_precision_loss)] // Acceptable for bit calculation
+    #[allow(dead_code, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
     fn extract_remainder(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let remainder_bits = 64 - quotient_bits;

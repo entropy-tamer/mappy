@@ -31,6 +31,7 @@ use tokio::runtime::Runtime;
 #[pyclass]
 #[derive(Clone, Copy)]
 pub struct PyCounterOperator {
+    #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: CounterOperator,
 }
 
@@ -48,6 +49,7 @@ impl PyCounterOperator {
 #[pyclass]
 #[derive(Clone, Copy)]
 pub struct PyMaxOperator {
+    #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: MaxOperator,
 }
 
@@ -63,6 +65,7 @@ impl PyMaxOperator {
 #[pyclass]
 #[derive(Clone, Copy)]
 pub struct PyMinOperator {
+    #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: MinOperator,
 }
 
@@ -78,6 +81,7 @@ impl PyMinOperator {
 #[pyclass]
 #[derive(Clone, Copy)]
 pub struct PyVectorOperator {
+    #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: VectorOperator,
 }
 
@@ -96,7 +100,7 @@ impl PyVectorOperator {
 // ============================================================================
 
 /// Helper function to convert Rust values to Python objects  
-fn to_py_any_u64(py: Python<'_>, value: u64) -> Bound<PyAny> {
+fn to_py_any_u64(py: Python<'_>, value: u64) -> Bound<'_, PyAny> {
     // Convert u64 to Python int - PyO3 0.27 requires explicit conversion
     // Use PyObject which implements From<u64> via IntoPy trait (in prelude)
     // Since into_py is not available, use a workaround: convert to string then eval
@@ -104,7 +108,7 @@ fn to_py_any_u64(py: Python<'_>, value: u64) -> Bound<PyAny> {
     py.eval(s.as_c_str(), None, None).unwrap()
 }
 
-fn to_py_any_f64(py: Python<'_>, value: f64) -> Bound<PyAny> {
+fn to_py_any_f64(py: Python<'_>, value: f64) -> Bound<'_, PyAny> {
     // Convert f64 to Python float - use eval as workaround
     let s = CString::new(value.to_string()).unwrap();
     py.eval(s.as_c_str(), None, None).unwrap()
@@ -143,7 +147,7 @@ impl PyMapletGeneric {
         })?);
 
         let inner = if let Some(op) = operator {
-            Python::with_gil(|py| -> PyResult<PyMapletGenericInner> {
+            Python::attach(|_py| -> PyResult<PyMapletGenericInner> {
                 // Check operator type
                 if op.is_instance_of::<PyCounterOperator>() {
                     let maplet =
@@ -192,7 +196,7 @@ impl PyMapletGeneric {
     }
 
     fn insert(&mut self, key: String, value: Bound<PyAny>) -> PyResult<()> {
-        Python::with_gil(|py| {
+        Python::attach(|_py| {
             match &self.inner {
                 PyMapletGenericInner::Counter(maplet) => {
                     let val: u64 = value.extract()?;
@@ -292,38 +296,38 @@ impl PyMapletGeneric {
         })
     }
 
-    fn query(&self, key: &str) -> PyResult<Option<PyObject>> {
-        Python::with_gil(|py| -> PyResult<Option<PyObject>> {
+    fn query(&self, key: &str) -> PyResult<Option<Py<PyAny>>> {
+        Python::attach(|py| -> PyResult<Option<Py<PyAny>>> {
             match &self.inner {
                 PyMapletGenericInner::Counter(maplet) => {
                     let result = self
                         .runtime
                         .block_on(async { maplet.query(&key.to_string()).await });
-                    Ok(result.map(|v| to_py_any_u64(py, v).into()))
+                    Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MaxU64(maplet) => {
                     let result = self
                         .runtime
                         .block_on(async { maplet.query(&key.to_string()).await });
-                    Ok(result.map(|v| to_py_any_u64(py, v).into()))
+                    Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MaxF64(maplet) => {
                     let result = self
                         .runtime
                         .block_on(async { maplet.query(&key.to_string()).await });
-                    Ok(result.map(|v| to_py_any_f64(py, v).into()))
+                    Ok(result.map(|v| to_py_any_f64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MinU64(maplet) => {
                     let result = self
                         .runtime
                         .block_on(async { maplet.query(&key.to_string()).await });
-                    Ok(result.map(|v| to_py_any_u64(py, v).into()))
+                    Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MinF64(maplet) => {
                     let result = self
                         .runtime
                         .block_on(async { maplet.query(&key.to_string()).await });
-                    Ok(result.map(|v| to_py_any_f64(py, v).into()))
+                    Ok(result.map(|v| to_py_any_f64(py, v).unbind()))
                 }
                 PyMapletGenericInner::Vector(maplet) => {
                     let result = self
@@ -332,7 +336,7 @@ impl PyMapletGeneric {
                     if let Some(vec) = result {
                         // Convert Vec<f64> to Python list (can be converted to numpy array in Python)
                         let list = PyList::new(py, vec)?;
-                        Ok(Some(list.into()))
+                        Ok(Some(list.unbind().into()))
                     } else {
                         Ok(None)
                     }
@@ -531,8 +535,8 @@ impl PyMapletGeneric {
         ))
     }
 
-    fn stats(&self) -> PyResult<PyObject> {
-        Python::with_gil(|py| -> PyResult<PyObject> {
+    fn stats(&self) -> PyResult<Py<PyAny>> {
+        Python::attach(|py| -> PyResult<Py<PyAny>> {
             let stats = PyDict::new(py);
             stats.set_item("item_count", self.len())?;
             stats.set_item("error_rate", self.error_rate())?;
@@ -541,7 +545,7 @@ impl PyMapletGeneric {
             // Estimate memory usage
             let memory_usage = self.len() * 12; // ~12 bytes per item
             stats.set_item("memory_usage", memory_usage)?;
-            Ok(stats.into())
+            Ok(stats.unbind().into())
         })
     }
 }
@@ -945,7 +949,7 @@ impl PyEngine {
 
 /// Python module definition
 #[pymodule]
-fn mappy_python(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn mappy_python(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     // Operator classes
     m.add_class::<PyCounterOperator>()?;
     m.add_class::<PyMaxOperator>()?;
@@ -962,7 +966,7 @@ fn mappy_python(py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyEngineStats>()?;
 
     // Add type aliases for backward compatibility
-    // Use Python::with_gil to get the classes after they're added
+    // Use Python::attach to get the classes after they're added
     let py_maplet_generic = m.getattr("PyMapletGeneric")?;
     m.add("Maplet", py_maplet_generic)?;
     let py_counter_op = m.getattr("PyCounterOperator")?;

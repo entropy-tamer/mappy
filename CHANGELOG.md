@@ -16,6 +16,12 @@ All notable changes to the Mappy project will be documented in this file.
 
 ### Security
 
+## [0.3.2] - 2025-11-15 - Crates.io README Update
+
+### Changed
+
+- **Crates.io README**: Created separate README for crates.io without images and captions for better compatibility
+
 ## [0.3.1] - 2025-11-15 - Core Improvements and Stilts ML Benchmarking
 
 ### Added

@@ -74,6 +74,9 @@ impl<T: Clone> InterleavedStorage<T> {
     }
 
     /// Set element at index
+    ///
+    /// # Errors
+    /// Returns an error if the operation fails.
     pub fn set(&mut self, index: usize, value: T) -> MapletResult<()> {
         if index >= self.data.len() {
             self.data.resize(index + 1, unsafe { std::mem::zeroed() });
