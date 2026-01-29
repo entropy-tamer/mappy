@@ -1,0 +1,25 @@
+[package]
+name = "mappy-python"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Python bindings for mappy maplet data structures"
+keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets", "python"]
+categories = ["data-structures", "algorithms", "python"]
+
+[lib]
+name = "mappy_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Workspace dependencies (maturin project)
+mappy-core = { path = "../mappy-core" }
+pyo3 = { workspace = true, features = ["extension-module"] }
+# numpy = "0.21"  # Temporarily disabled - version conflict with pyo3 0.27
+serde.workspace = true
+serde_json.workspace = true
+
+# Async runtime for Python bindings
+tokio.workspace = true

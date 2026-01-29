@@ -1,0 +1,24 @@
+[package]
+name = "mappy-client"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Client library for mappy maplet data structures"
+readme = "../README.md"
+keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets"]
+categories = ["data-structures", "algorithms"]
+
+[dependencies]
+# Workspace dependencies
+mappy-core = { path = "../mappy-core", version = "0.3.2" }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+# HTTP client
+reqwest.workspace = true
+urlencoding.workspace = true

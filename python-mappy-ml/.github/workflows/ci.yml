@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      
+      - name: Install dependencies
+        run: |
+          pip install maturin pytest
+          pip install torch numpy
+      
+      - name: Build package
+        run: |
+          cd services/mappy/python-mappy-ml
+          maturin develop
+      
+      - name: Run tests
+        run: |
+          cd services/mappy/python-mappy-ml
+          pytest tests/ -v
+
+
+
