@@ -86,8 +86,7 @@ impl ArithmeticCompressor {
         result.extend_from_slice(&encoded.to_le_bytes());
 
         // Store probabilities for decoding
-        let prob_data =
-            bincode::encode_to_vec(&compressor.probabilities, bincode::config::standard())?;
+        let prob_data = bitcode::encode(&compressor.probabilities);
         result.extend_from_slice(&(prob_data.len() as u32).to_le_bytes());
         result.extend_from_slice(&prob_data);
 
@@ -111,8 +110,8 @@ impl ArithmeticCompressor {
         if data.len() < 12 + prob_len {
             anyhow::bail!("Insufficient data for probabilities");
         }
-        let (probabilities, _): (HashMap<String, f64>, _) =
-            bincode::decode_from_slice(&data[12..12 + prob_len], bincode::config::standard())?;
+        let probabilities: HashMap<String, f64> =
+            bitcode::decode(&data[12..12 + prob_len])?;
 
         // Decode tags (simplified - in practice, need proper arithmetic decoding)
         // For now, return empty as this is a simplified implementation

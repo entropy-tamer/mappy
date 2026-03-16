@@ -33,9 +33,9 @@ dotenvy.workspace = true
 mappy-core = { path = "../mappy-core" }
 
 # Additional dependencies
-bytes = "1.11.0"
-tokio-util = { version = "0.7.17", features = ["codec"] }
-futures = "0.3.31"
+bytes = "1.11.1"
+tokio-util = { version = "0.7.18", features = ["codec"] }
+futures = "0.3.32"
 
 # Binary target
 [[bin]]

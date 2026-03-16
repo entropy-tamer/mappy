@@ -21,7 +21,7 @@ bitvec.workspace = true
 twox-hash.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-bincode.workspace = true
+bitcode.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 parking_lot.workspace = true
@@ -31,7 +31,7 @@ tracing.workspace = true
 # Additional dependencies
 num-traits = "0.2.19"
 smallvec = "1.15.1"
-bytemuck = "1.24.0"
+bytemuck = "1.25.0"
 
 # Async runtime
 tokio.workspace = true
@@ -40,17 +40,17 @@ async-trait.workspace = true
 # Storage backends
 dashmap.workspace = true
 sled.workspace = true
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
 quickcheck.workspace = true
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-redis = { version = "0.32.7", features = ["tokio-comp", "aio"] }
+redis = { version = "1.0.5", features = ["tokio-comp", "aio"] }
 
 [[bench]]
 name = "comparison"
