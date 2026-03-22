@@ -3,7 +3,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use mappy_core::hash::HashFunction;
 use mappy_core::quotient_filter::QuotientFilter;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::collections::HashSet;
 use std::hint::black_box;
 
@@ -23,7 +23,7 @@ fn bench_quotient_filter_insert(c: &mut Criterion) {
                     let mut rng = StdRng::seed_from_u64(42);
 
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
@@ -49,7 +49,7 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
         let mut test_values = Vec::new();
 
         for _ in 0..size {
-            let value = rng.r#gen::<u64>();
+            let value = rng.random::<u64>();
             filter.insert(value).unwrap();
             test_values.push(value);
         }
@@ -88,7 +88,7 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         values.push(value);
                     }
@@ -124,12 +124,12 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
                     let mut rng = StdRng::seed_from_u64(42);
 
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         black_box(filter.query(value));
                     }
 
@@ -145,12 +145,12 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
                 let mut rng = StdRng::seed_from_u64(42);
 
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     set.insert(value);
                 }
 
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     black_box(set.contains(&value));
                 }
 
@@ -179,12 +179,12 @@ fn bench_hash_functions(c: &mut Criterion) {
                 let mut rng = StdRng::seed_from_u64(42);
 
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                 }
 
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     black_box(filter.query(value));
                 }
 
@@ -209,7 +209,7 @@ fn bench_slot_finding(c: &mut Criterion) {
         let mut test_values = Vec::new();
 
         for _ in 0..size {
-            let value = rng.r#gen::<u64>();
+            let value = rng.random::<u64>();
             filter.insert(value).unwrap();
             test_values.push(value);
         }
@@ -244,7 +244,7 @@ fn bench_multiset_operations(c: &mut Criterion) {
 
                 // Insert values multiple times
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>() % (*size / 10) as u64; // Create some duplicates
+                    let value = rng.random::<u64>() % (*size / 10) as u64; // Create some duplicates
                     filter.insert(value).unwrap();
                 }
 
@@ -335,7 +335,7 @@ fn bench_false_positive_rate(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         inserted.insert(value);
                     }
@@ -345,7 +345,7 @@ fn bench_false_positive_rate(c: &mut Criterion) {
                     let mut total_tested = 0;
 
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         if !inserted.contains(&value) {
                             total_tested += 1;
                             if filter.query(value) {
@@ -389,13 +389,13 @@ fn bench_load_factor_impact(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
                     // Query values
                     for _ in 0..*size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         black_box(filter.query(value));
                     }
 
@@ -422,7 +422,7 @@ fn bench_run_detection(c: &mut Criterion) {
 
                 // Insert values that might create runs
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                 }
 

@@ -3,7 +3,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use mappy_core::hash::HashFunction;
 use mappy_core::quotient_filter::QuotientFilter;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::hint::black_box;
 
 /// Benchmark quotient filter insertion performance
@@ -188,7 +188,7 @@ fn bench_multiset_operations(c: &mut Criterion) {
 
                 // Insert values multiple times
                 for _ in 0..*size {
-                    let value = rng.r#gen::<u64>() % (size / 10) as u64; // Create some duplicates
+                    let value = rng.random::<u64>() % (size / 10) as u64; // Create some duplicates
                     filter.insert(value).unwrap();
                 }
 

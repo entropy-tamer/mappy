@@ -4,7 +4,7 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mappy_core::{CounterOperator, Maplet, SetOperator};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::collections::{BTreeMap, HashMap};
 use std::hint::black_box;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use tokio::runtime::Runtime;
 fn generate_test_data(size: usize) -> Vec<(String, u64)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
-        .map(|i| (format!("key_{i}"), rng.gen_range(1..=1000)))
+        .map(|i| (format!("key_{i}"), rng.random_range(1..=1000)))
         .collect()
 }
 

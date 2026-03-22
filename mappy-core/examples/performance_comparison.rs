@@ -6,7 +6,7 @@
 
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::collections::{BTreeMap, HashMap};
 use std::time::Instant;
 
@@ -56,7 +56,7 @@ fn generate_test_data(size: usize) -> Vec<(String, String)> {
     (0..size)
         .map(|i| {
             let key = format!("key_{:08x}", i);
-            let value = format!("value_{}", rng.gen_range(1..=1000));
+            let value = format!("value_{}", rng.random_range(1..=1000));
             (key, value)
         })
         .collect()

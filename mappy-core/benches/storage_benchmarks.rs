@@ -4,7 +4,7 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
@@ -14,8 +14,8 @@ fn generate_test_data(size: usize) -> Vec<(String, Vec<u8>)> {
     (0..size)
         .map(|i| {
             let key = format!("key_{:08x}", i);
-            let value_size = rng.gen_range(10..=1000);
-            let value = (0..value_size).map(|_| rng.r#gen::<u64>()).collect();
+            let value_size = rng.random_range(10..=1000);
+            let value = (0..value_size).map(|_| rng.random::<u64>()).collect();
             (key, value)
         })
         .collect()

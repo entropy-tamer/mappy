@@ -6,7 +6,7 @@
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::hint::black_box;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -89,7 +89,7 @@ fn generate_test_data(size: usize) -> Vec<(String, String)> {
     (0..size)
         .map(|i| {
             let key = format!("key_{i}");
-            let value = format!("value_{}", rng.gen_range(1..=1000));
+            let value = format!("value_{}", rng.random_range(1..=1000));
             (key, value)
         })
         .collect()
@@ -101,7 +101,7 @@ fn generate_counter_data(size: usize) -> Vec<(String, u64)> {
     (0..size)
         .map(|i| {
             let key = format!("counter_{i}");
-            let value = rng.gen_range(1..=1000);
+            let value = rng.random_range(1..=1000);
             (key, value)
         })
         .collect()

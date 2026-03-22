@@ -3,7 +3,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, 
 use mappy_core::maplet::{CounterOperator, Maplet};
 use mappy_core::quotient_filter::{HashFunction, QuotientFilter};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use tokio::runtime::Runtime;
 
 /// Benchmark advanced slot finding performance
@@ -25,7 +25,7 @@ fn bench_advanced_slot_finding(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         test_values.push(value);
                     }
@@ -64,9 +64,9 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
 
                     // Insert keys
                     for _ in 0..size {
-                        let key = format!("key_{}", rng.r#gen::<u64>());
+                        let key = format!("key_{}", rng.random::<u64>());
                         maplet
-                            .insert(key.clone(), rng.r#gen::<u64>())
+                            .insert(key.clone(), rng.random::<u64>())
                             .await
                             .unwrap();
                         test_keys.push(key);
@@ -100,7 +100,7 @@ fn bench_run_detection(c: &mut Criterion) {
 
                 // Insert values that might create runs
                 for _ in 0..size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                 }
 
@@ -133,7 +133,7 @@ fn bench_slot_finding_hash_functions(c: &mut Criterion) {
 
                 // Insert values
                 for _ in 0..size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                     test_values.push(value);
                 }
@@ -169,7 +169,7 @@ fn bench_slot_finding_remainder_bits(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..5000 {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         test_values.push(value);
                     }
@@ -207,7 +207,7 @@ fn bench_slot_finding_collisions(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         test_values.push(value);
                     }
@@ -241,7 +241,7 @@ fn bench_slot_finding_multiset(c: &mut Criterion) {
 
                 // Insert values multiple times
                 for _ in 0..size {
-                    let value = rng.r#gen::<u64>() % (size / 10); // Create some duplicates
+                    let value = rng.random::<u64>() % (size / 10); // Create some duplicates
                     filter.insert(value).unwrap();
                     test_values.push(value);
                 }
@@ -319,7 +319,7 @@ fn bench_slot_finding_accuracy(c: &mut Criterion) {
 
                 // Insert values and track their slots
                 for _ in 0..size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                     if let Some(slot) = filter.get_actual_slot_for_fingerprint(value) {
                         value_to_slot.insert(value, slot);
@@ -359,7 +359,7 @@ fn bench_slot_finding_stress(c: &mut Criterion) {
 
                 // Insert random values
                 for _ in 0..size {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                     test_values.push(value);
                 }
@@ -371,7 +371,7 @@ fn bench_slot_finding_stress(c: &mut Criterion) {
 
                 // Test slot finding for random values (some might not exist)
                 for _ in 0..(size / 10) {
-                    let value = rng.r#gen::<u64>();
+                    let value = rng.random::<u64>();
                     black_box(filter.get_actual_slot_for_fingerprint(value));
                 }
 
@@ -404,7 +404,7 @@ fn bench_slot_finding_load_factor(c: &mut Criterion) {
 
                     // Insert values
                     for _ in 0..size {
-                        let value = rng.r#gen::<u64>();
+                        let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         test_values.push(value);
                     }

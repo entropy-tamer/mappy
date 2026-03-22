@@ -3,7 +3,7 @@ mod quotient_filter_tests {
     use super::*;
     use crate::quotient_filter::{QuotientFilter, HashFunction};
     use std::collections::HashSet;
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
     use rand::rngs::StdRng;
 
     /// Test basic quotient filter operations
@@ -42,7 +42,7 @@ mod quotient_filter_tests {
         // Insert 5000 random values
         let mut inserted = HashSet::new();
         for _ in 0..5000 {
-            let value = rng.r#gen::<u64>();
+            let value = rng.random::<u64>();
             filter.insert(value).unwrap();
             inserted.insert(value);
         }
@@ -52,7 +52,7 @@ mod quotient_filter_tests {
         let mut total_tested = 0;
         
         for _ in 0..10000 {
-            let value = rng.r#gen::<u64>();
+            let value = rng.random::<u64>();
             if !inserted.contains(&value) {
                 total_tested += 1;
                 if filter.contains(value) {
