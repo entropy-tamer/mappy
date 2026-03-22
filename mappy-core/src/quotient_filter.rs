@@ -68,7 +68,11 @@ impl QuotientFilter {
         }
 
         // Calculate quotient and remainder bits
-        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss
+        )] // Acceptable for bit calculation
         let quotient_bits = (capacity as f64).log2().ceil() as u32;
         let remainder_bits = fingerprint_bits.saturating_sub(quotient_bits).max(1);
 

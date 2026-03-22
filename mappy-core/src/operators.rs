@@ -406,7 +406,10 @@ mod tests {
             op.merge("left".to_string(), "right".to_string()).unwrap(),
             "right"
         );
-        assert_eq!(op.merge("".to_string(), "value".to_string()).unwrap(), "value");
+        assert_eq!(
+            op.merge("".to_string(), "value".to_string()).unwrap(),
+            "value"
+        );
         assert_eq!(op.merge("value".to_string(), "".to_string()).unwrap(), "");
         assert_eq!(op.identity(), "");
     }
@@ -419,7 +422,10 @@ mod tests {
         assert_eq!(op.merge(3.0, 5.0).unwrap(), 5.0);
         assert_eq!(op.merge(-5.0, -3.0).unwrap(), -3.0);
         assert_eq!(op.merge(f64::NEG_INFINITY, 5.0).unwrap(), 5.0);
-        assert_eq!(<MaxOperator as MergeOperator<f64>>::identity(&op), f64::NEG_INFINITY);
+        assert_eq!(
+            <MaxOperator as MergeOperator<f64>>::identity(&op),
+            f64::NEG_INFINITY
+        );
     }
 
     #[test]
@@ -430,7 +436,10 @@ mod tests {
         assert_eq!(op.merge(3.0, 5.0).unwrap(), 3.0);
         assert_eq!(op.merge(-5.0, -3.0).unwrap(), -5.0);
         assert_eq!(op.merge(f64::INFINITY, 5.0).unwrap(), 5.0);
-        assert_eq!(<MinOperator as MergeOperator<f64>>::identity(&op), f64::INFINITY);
+        assert_eq!(
+            <MinOperator as MergeOperator<f64>>::identity(&op),
+            f64::INFINITY
+        );
     }
 
     #[test]
@@ -453,7 +462,10 @@ mod tests {
         let vec2 = vec![4.0, 5.0, 6.0];
         let result = op.merge(vec1, vec2).unwrap();
         assert_eq!(result, vec![5.0, 7.0, 9.0]);
-        assert_eq!(<VectorOperator as MergeOperator<Vec<f64>>>::identity(&op), Vec::<f64>::new());
+        assert_eq!(
+            <VectorOperator as MergeOperator<Vec<f64>>>::identity(&op),
+            Vec::<f64>::new()
+        );
     }
 
     #[test]
@@ -464,7 +476,10 @@ mod tests {
         let vec2 = vec![4.0f32, 5.0f32, 6.0f32];
         let result = op.merge(vec1, vec2).unwrap();
         assert_eq!(result, vec![5.0f32, 7.0f32, 9.0f32]);
-        assert_eq!(<VectorOperator as MergeOperator<Vec<f32>>>::identity(&op), Vec::<f32>::new());
+        assert_eq!(
+            <VectorOperator as MergeOperator<Vec<f32>>>::identity(&op),
+            Vec::<f32>::new()
+        );
     }
 
     #[test]
@@ -512,8 +527,12 @@ mod tests {
         // Test that operators report correct associativity and commutativity
         // Most operators use default implementation which returns true
         let counter: CounterOperator = CounterOperator;
-        assert!(<CounterOperator as MergeOperator<u64>>::is_associative(&counter));
-        assert!(<CounterOperator as MergeOperator<u64>>::is_commutative(&counter));
+        assert!(<CounterOperator as MergeOperator<u64>>::is_associative(
+            &counter
+        ));
+        assert!(<CounterOperator as MergeOperator<u64>>::is_commutative(
+            &counter
+        ));
 
         let max_op: MaxOperator = MaxOperator;
         assert!(<MaxOperator as MergeOperator<u64>>::is_associative(&max_op));

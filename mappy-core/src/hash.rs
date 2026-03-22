@@ -95,7 +95,8 @@ impl FingerprintHasher {
         }
 
         // From the paper: fingerprint size = ⌈log₂(1/ε)⌉ + 3
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        // Acceptable for bit calculation
         let bits = (-false_positive_rate.log2()).ceil() as u32 + 3;
         bits.clamp(4, 64) // Clamp between 4 and 64 bits
     }

@@ -317,7 +317,7 @@ mod advanced_quotient_filter_tests {
         // Insert random values
         let mut values = Vec::new();
         for _ in 0..5000 {
-            let value = rng.gen::<u64>();
+            let value = rng.r#gen::<u64>();
             filter.insert(value).unwrap();
             values.push(value);
         }
@@ -330,7 +330,7 @@ mod advanced_quotient_filter_tests {
         
         // Test slot finding for random values (some might not exist)
         for _ in 0..1000 {
-            let value = rng.gen::<u64>();
+            let value = rng.r#gen::<u64>();
             let slot = filter.get_actual_slot_for_fingerprint(value);
             // Slot might or might not be found depending on whether value exists
             if slot.is_some() {

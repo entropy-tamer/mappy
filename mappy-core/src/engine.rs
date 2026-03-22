@@ -180,7 +180,11 @@ impl Engine {
     /// Returns an error if the operation fails.
     pub async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()> {
         // Store in the maplet for approximate membership
-        self.maplet.write().await.insert(key.clone(), value.clone()).await?;
+        self.maplet
+            .write()
+            .await
+            .insert(key.clone(), value.clone())
+            .await?;
 
         // Store in the actual storage backend
         self.storage.set(key, value).await?;

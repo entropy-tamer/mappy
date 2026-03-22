@@ -339,7 +339,12 @@ where
     }
 
     /// Extract quotient from fingerprint (same as quotient filter)
-    #[allow(dead_code, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
+    #[allow(
+        dead_code,
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // Acceptable for bit calculation
     fn extract_quotient(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let quotient_mask = if quotient_bits >= 64 {
@@ -351,7 +356,12 @@ where
     }
 
     /// Extract remainder from fingerprint (same as quotient filter)
-    #[allow(dead_code, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)] // Acceptable for bit calculation
+    #[allow(
+        dead_code,
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // Acceptable for bit calculation
     fn extract_remainder(&self, fingerprint: u64) -> u64 {
         let quotient_bits = (self.config.capacity as f64).log2().ceil() as u32;
         let remainder_bits = 64 - quotient_bits;
@@ -645,11 +655,17 @@ mod tests {
 
         // Delete the key-value pair
         let deleted = maplet.delete(&key, &value).await.unwrap();
-        assert!(deleted, "Should successfully delete existing key-value pair");
+        assert!(
+            deleted,
+            "Should successfully delete existing key-value pair"
+        );
         assert_eq!(maplet.len().await, 0);
         // Note: contains() might still return true due to false positives in the filter,
         // but query() should return None since the value is removed from the values map
-        assert!(maplet.query(&key).await.is_none(), "Query should return None after deletion");
+        assert!(
+            maplet.query(&key).await.is_none(),
+            "Query should return None after deletion"
+        );
 
         // Try to delete non-existing key
         let deleted = maplet.delete(&key, &value).await.unwrap();
@@ -688,7 +704,10 @@ mod tests {
 
         // Try to delete when deletion is disabled
         let result = maplet.delete(&key, &42u64).await;
-        assert!(result.is_err(), "Should return error when deletion is disabled");
+        assert!(
+            result.is_err(),
+            "Should return error when deletion is disabled"
+        );
         if let Err(e) = result {
             assert!(e.to_string().contains("Deletion not enabled"));
         }
@@ -708,7 +727,10 @@ mod tests {
 
         // Resize to larger capacity
         let result = maplet.resize(200).await;
-        assert!(result.is_ok(), "Should successfully resize to larger capacity");
+        assert!(
+            result.is_ok(),
+            "Should successfully resize to larger capacity"
+        );
 
         // Verify items are still accessible after resize
         assert_eq!(maplet.len().await, 50);
@@ -726,14 +748,20 @@ mod tests {
 
         // Try to resize to smaller capacity
         let result = maplet.resize(50).await;
-        assert!(result.is_err(), "Should fail when new capacity is not larger");
+        assert!(
+            result.is_err(),
+            "Should fail when new capacity is not larger"
+        );
         if let Err(e) = result {
             assert!(e.to_string().contains("New capacity must be larger"));
         }
 
         // Try to resize to same capacity
         let result = maplet.resize(100).await;
-        assert!(result.is_err(), "Should fail when new capacity equals current");
+        assert!(
+            result.is_err(),
+            "Should fail when new capacity equals current"
+        );
     }
 
     #[tokio::test]
@@ -834,7 +862,10 @@ mod tests {
         }
 
         let load_factor = maplet.load_factor().await;
-        assert!((load_factor - 0.5).abs() < 0.1, "Load factor should be around 0.5");
+        assert!(
+            (load_factor - 0.5).abs() < 0.1,
+            "Load factor should be around 0.5"
+        );
     }
 
     #[tokio::test]
@@ -855,7 +886,10 @@ mod tests {
 
         // Try to merge when merging is disabled
         let result = maplet1.merge(&maplet2);
-        assert!(result.is_err(), "Should return error when merging is disabled");
+        assert!(
+            result.is_err(),
+            "Should return error when merging is disabled"
+        );
         if let Err(e) = result {
             assert!(e.to_string().contains("Merging not enabled"));
         }
@@ -879,7 +913,10 @@ mod tests {
 
         // Try to merge (currently not fully implemented)
         let result = maplet1.merge(&maplet2);
-        assert!(result.is_err(), "Should return error as merge is not fully implemented");
+        assert!(
+            result.is_err(),
+            "Should return error as merge is not fully implemented"
+        );
         if let Err(e) = result {
             assert!(e.to_string().contains("Merge not fully implemented"));
         }
@@ -907,7 +944,8 @@ mod tests {
     async fn test_maplet_with_operator() {
         use crate::operators::MaxOperator;
 
-        let maplet = Maplet::<String, u64, MaxOperator>::with_operator(100, 0.01, MaxOperator).unwrap();
+        let maplet =
+            Maplet::<String, u64, MaxOperator>::with_operator(100, 0.01, MaxOperator).unwrap();
         assert_eq!(maplet.error_rate(), 0.01);
         assert_eq!(maplet.len().await, 0);
 

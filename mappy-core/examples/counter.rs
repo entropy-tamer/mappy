@@ -64,9 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for kmer in &test_kmers {
         let maplet_count = kmer_counter.query(&(*kmer).to_string()).await;
         let hashmap_count = hashmap_counter.get(&(*kmer).to_string());
-        println!(
-            "  {kmer}: Maplet={maplet_count:?}, HashMap={hashmap_count:?}"
-        );
+        println!("  {kmer}: Maplet={maplet_count:?}, HashMap={hashmap_count:?}");
     }
 
     // Show statistics
