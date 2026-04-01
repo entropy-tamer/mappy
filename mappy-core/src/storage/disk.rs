@@ -7,16 +7,16 @@ use crate::{MapletError, MapletResult};
 use async_trait::async_trait;
 use sled::{Db, Tree};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::RwLock;
 
 /// Disk-based storage using Sled
 pub struct DiskStorage {
-    /// The Sled database
-    db: Arc<Db>,
-    /// Main data tree
-    tree: Tree,
+    /// The Sled database wrapped in Arc<Mutex> for thread safety
+    db: Arc<Mutex<Db>>,
+    /// Main data tree wrapped in Arc<Mutex> for thread safety
+    tree: Arc<Mutex<Tree>>,
     /// Configuration
     #[allow(dead_code)]
     config: StorageConfig,
@@ -46,8 +46,8 @@ impl DiskStorage {
             .map_err(|e| MapletError::Internal(format!("Failed to open tree: {e}")))?;
 
         Ok(Self {
-            db: Arc::new(db),
-            tree,
+            db: Arc::new(Mutex::new(db)),
+            tree: Arc::new(Mutex::new(tree)),
             config,
             stats: Arc::new(RwLock::new(StorageStats::default())),
             start_time: Instant::now(),
@@ -64,9 +64,9 @@ impl DiskStorage {
     }
 
     /// Calculate disk usage
-    fn calculate_disk_usage(&self) -> u64 {
-        self.db
-            .size_on_disk()
+    async fn calculate_disk_usage(&self) -> u64 {
+        let db = self.db.lock().unwrap();
+        db.size_on_disk()
             .map_err(|_| MapletError::Internal("Failed to get disk usage".to_string()))
             .unwrap_or(0)
     }
@@ -76,11 +76,12 @@ impl DiskStorage {
 impl Storage for DiskStorage {
     async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>> {
         let start = Instant::now();
-        let result = self
-            .tree
-            .get(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to get key: {e}")))?
-            .map(|ivec| ivec.to_vec());
+        let result = {
+            let tree = self.tree.lock().unwrap();
+            tree.get(key)
+                .map_err(|e| MapletError::Internal(format!("Failed to get key: {e}")))?
+                .map(|ivec| ivec.to_vec())
+        };
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
 
         self.update_stats(|stats| {
@@ -94,18 +95,26 @@ impl Storage for DiskStorage {
 
     async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()> {
         let start = Instant::now();
-
-        self.tree
-            .insert(&key, value)
-            .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
-
+        let tree_len = {
+            let tree = self.tree.lock().unwrap();
+            tree.insert(&key, value)
+                .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
+            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+        };
+        
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
-
+        
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = self.tree.len() as u64;
-            stats.disk_usage = self.calculate_disk_usage();
+            stats.total_keys = tree_len as u64;
+        })
+        .await;
+
+        // Update disk usage separately
+        let disk_usage = self.calculate_disk_usage().await;
+        self.update_stats(|stats| {
+            stats.disk_usage = disk_usage;
         })
         .await;
 
@@ -114,18 +123,29 @@ impl Storage for DiskStorage {
 
     async fn delete(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
-        let existed = self
-            .tree
-            .remove(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to delete key: {e}")))?
-            .is_some();
+        let (existed, tree_len) = {
+            let tree = self.tree.lock().unwrap();
+            let existed = tree
+                .remove(key)
+                .map_err(|e| MapletError::Internal(format!("Failed to delete key: {e}")))?
+                .is_some();
+            let tree_len = tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?;
+            (existed, tree_len)
+        };
+        
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
-
+        
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = self.tree.len() as u64;
-            stats.disk_usage = self.calculate_disk_usage();
+            stats.total_keys = tree_len as u64;
+        })
+        .await;
+
+        // Update disk usage separately
+        let disk_usage = self.calculate_disk_usage().await;
+        self.update_stats(|stats| {
+            stats.disk_usage = disk_usage;
         })
         .await;
 
@@ -134,10 +154,11 @@ impl Storage for DiskStorage {
 
     async fn exists(&self, key: &str) -> MapletResult<bool> {
         let start = Instant::now();
-        let exists = self
-            .tree
-            .contains_key(key)
-            .map_err(|e| MapletError::Internal(format!("Failed to check key existence: {e}")))?;
+        let exists = {
+            let tree = self.tree.lock().unwrap();
+            tree.contains_key(key)
+                .map_err(|e| MapletError::Internal(format!("Failed to check key existence: {e}")))?
+        };
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
 
         self.update_stats(|stats| {
@@ -151,17 +172,20 @@ impl Storage for DiskStorage {
 
     async fn keys(&self) -> MapletResult<Vec<String>> {
         let start = Instant::now();
-        let keys: Result<Vec<String>, _> = self
-            .tree
-            .iter()
-            .map(|result| {
-                let (key, _) =
-                    result.map_err(|e| MapletError::Internal(format!("Failed to iterate: {e}")))?;
-                String::from_utf8(key.to_vec())
-                    .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {e}")))
-            })
-            .collect();
-        let keys = keys?;
+        let keys = {
+            let tree = self.tree.lock().unwrap();
+            let keys: Result<Vec<String>, _> = tree
+                .iter()
+                .map(|result| {
+                    let (key, _) =
+                        result.map_err(|e| MapletError::Internal(format!("Failed to iterate: {e}")))?;
+                    String::from_utf8(key.to_vec())
+                        .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {e}")))
+                })
+                .collect();
+            keys?
+        };
+        
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
 
         self.update_stats(|stats| {
@@ -175,16 +199,25 @@ impl Storage for DiskStorage {
 
     async fn clear_database(&self) -> MapletResult<()> {
         let start = Instant::now();
-        self.tree
-            .clear()
-            .map_err(|e| MapletError::Internal(format!("Failed to clear database: {e}")))?;
+        {
+            let tree = self.tree.lock().unwrap();
+            tree.clear()
+                .map_err(|e| MapletError::Internal(format!("Failed to clear database: {e}")))?;
+        }
+        
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
-
+        
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
             stats.total_keys = 0;
-            stats.disk_usage = self.calculate_disk_usage();
+        })
+        .await;
+
+        // Update disk usage separately
+        let disk_usage = self.calculate_disk_usage().await;
+        self.update_stats(|stats| {
+            stats.disk_usage = disk_usage;
         })
         .await;
 
@@ -193,9 +226,12 @@ impl Storage for DiskStorage {
 
     async fn flush(&self) -> MapletResult<()> {
         let start = Instant::now();
-        self.db
-            .flush()
-            .map_err(|e| MapletError::Internal(format!("Failed to flush: {e}")))?;
+        {
+            let db = self.db.lock().unwrap();
+            db.flush()
+                .map_err(|e| MapletError::Internal(format!("Failed to flush: {e}")))?;
+        }
+        
         let latency = u64::try_from(start.elapsed().as_micros()).unwrap_or(u64::MAX);
 
         self.update_stats(|stats| {
@@ -208,19 +244,34 @@ impl Storage for DiskStorage {
     }
 
     async fn close(&self) -> MapletResult<()> {
-        self.db
-            .flush()
+        let db = self.db.lock().unwrap();
+        db.flush()
             .map_err(|e| MapletError::Internal(format!("Failed to flush on close: {e}")))?;
         Ok(())
     }
 
     async fn stats(&self) -> MapletResult<StorageStats> {
         let mut stats = self.stats.read().await.clone();
-        stats.total_keys = self.tree.len() as u64;
-        stats.disk_usage = self.calculate_disk_usage();
+        let tree_len = {
+            let tree = self.tree.lock().unwrap();
+            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+        };
+        let disk_usage = self.calculate_disk_usage().await;
+        
+        stats.total_keys = tree_len as u64;
+        stats.disk_usage = disk_usage;
         Ok(stats)
     }
 }
+
+// SAFETY: DiskStorage is Send and Sync because all fields are either:
+// - Arc<Mutex<T>> which provides thread-safe access to inner types
+// - Arc<RwLock<T>> which provides thread-safe access to inner types
+// - Plain data types that are Send + Sync
+// The sled Db and Tree types contain RefCell which is not Sync, but wrapping them in Arc<Mutex<>>
+// provides the necessary synchronization for safe multi-threaded access.
+unsafe impl Send for DiskStorage {}
+unsafe impl Sync for DiskStorage {}
 
 #[cfg(test)]
 mod tests {

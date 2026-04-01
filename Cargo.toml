@@ -18,21 +18,21 @@ description = "Space-efficient maplet data structures for approximate key-value 
 
 [workspace.dependencies]
 # Async runtime
-tokio = { version = "1.50.0", features = ["full"] }
-async-trait = "0.1.89"
+tokio = { path = "../../vendor/tokio/tokio", features = ["full"] }
+async-trait = { path = "../../vendor/async-trait" }
 
 # Serialization
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-bitcode = "0.6.9"
+serde = { path = "../../vendor/serde/serde", features = ["derive"] }
+serde_json = { path = "../../vendor/serde_json" }
+bitcode = { path = "../../vendor/bitcode" }
 
 # Hashing and bit operations
-ahash = "0.8.12"
+ahash = { path = "../../vendor/ahash" }
 bitvec = "1.0.1"
 twox-hash = "2.1.2"
 
 # Error handling
-anyhow = "1.0.102"
+anyhow = { path = "../../vendor/anyhow" }
 thiserror = "2.0.18"
 
 # Concurrency
@@ -40,11 +40,11 @@ parking_lot = "0.12.5"
 rayon = "1.11.0"
 
 # Logging
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing = { path = "../../vendor/tracing/tracing" }
+tracing-subscriber = { path = "../../vendor/tracing/tracing-subscriber", features = ["env-filter"] }
 
 # Testing
-criterion = { version = "0.8.2", features = ["html_reports"] }
+criterion = { path = "../../vendor/criterion", features = ["html_reports"] }
 proptest = "1.10.0"
 quickcheck = "1.1.0"
 
@@ -52,35 +52,27 @@ quickcheck = "1.1.0"
 pyo3 = { version = "0.28.2", features = ["extension-module"] }
 
 # Additional dependencies
-getrandom = "0.4.2"
-rand = "0.10.0"
-rand_core = "0.10.0"
+getrandom = { path = "../../vendor/getrandom" }
+rand = { path = "../../vendor/rand" }
+rand_core = { path = "../../vendor/rand_core" }
 
 # Web server dependencies
-axum = { version = "0.8.8", features = ["macros"] }
-tower = "0.5.3"
-tower-http = { version = "0.6.8", features = ["cors", "trace", "fs"] }
-hyper = { version = "1.8.1", features = ["full"] }
-hyper-util = { version = "0.1.20", features = ["full"] }
-tls = { package = "tokio-rustls", version = "0.26.4" }
-config = "0.15.22"
+axum = { path = "../../vendor/axum/axum", features = ["macros"] }
+tower = { path = "../../vendor/tower/tower", features = ["util"] }
+tower-http = { path = "../../vendor/tower-http/tower-http", features = ["cors", "trace", "fs"] }
+hyper = { path = "../../vendor/hyper", features = ["full"] }
+hyper-util = { path = "../../vendor/hyper-util", features = ["full"] }
+tokio-rustls = { path = "../../vendor/tokio-rustls" }
+config = { path = "../../vendor/config" }
 dotenvy = "0.15.7"
 
 # HTTP client dependencies
-reqwest = { version = "0.13.2", features = ["json"] }
+reqwest = { path = "../../vendor/reqwest", features = ["json"] }
 urlencoding = "2.1.3"
 
 # Storage dependencies
-sled = "0.34.7"
+sled = { path = "../../vendor/sled" }
 dashmap = "6.1.0"
 
 # Plotting dependencies
 plotters = "0.3.7"
-
-# Workspace lint configuration
-[workspace.lints.clippy]
-# Allow multiple crate versions for transitive dependencies we cannot control
-# - sled 0.34.7 requires parking_lot 0.11.2 (we use 0.12.5)
-# - png 0.17.16 (via plotters) requires bitflags 1.3.2 (we use 2.9.4)
-# - Other conflicts are from transitive dependencies of third-party crates
-multiple-crate-versions = "allow"

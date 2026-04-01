@@ -11,12 +11,12 @@ categories = ["compression", "algorithms"]
 
 [dependencies]
 # Error handling
-anyhow = "1.0.102"
+anyhow = { path = "../../../vendor/anyhow" }
 thiserror = "2.0.18"
 
 # Serialization
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
+serde_json = { path = "../../../vendor/serde_json" }
 bitcode.workspace = true
 
 # Bit manipulation
@@ -33,7 +33,7 @@ rayon = "1.11.0"
 plotters.workspace = true
 
 # Hashing
-ahash = "0.8.12"
+ahash = { path = "../../../vendor/ahash" }
 
 # Collections
 indexmap = "2.13.0"
@@ -42,7 +42,7 @@ indexmap = "2.13.0"
 chrono = "0.4.44"
 
 # Async runtime (for ML benchmarks with mappy)
-tokio = { version = "1.50.0", features = ["rt", "rt-multi-thread", "macros"], optional = true }
+tokio = { path = "../../../vendor/tokio/tokio", features = ["rt", "rt-multi-thread", "macros"], optional = true }
 
 # Mappy integration (optional, for benchmarks)
 mappy-core = { path = "../mappy-core", optional = true }
@@ -52,7 +52,7 @@ default = []
 mappy-integration = ["mappy-core", "tokio"]
 
 [dev-dependencies]
-criterion = { version = "0.8.2", features = ["html_reports"] }
+criterion = { path = "../../../vendor/criterion", features = ["html_reports"] }
 proptest = "1.10.0"
 mappy-core = { path = "../mappy-core" }
 

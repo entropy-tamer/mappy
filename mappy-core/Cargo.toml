@@ -19,36 +19,36 @@ quotient-filter = []
 ahash = "0.8.12"
 bitvec = "1.0.1"
 twox-hash = "2.1.2"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-anyhow = "1.0.102"
+serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
+serde_json = { path = "../../../vendor/serde_json" }
+anyhow = { path = "../../../vendor/anyhow" }
 thiserror = "2.0.18"
 parking_lot = "0.12.5"
 rayon = "1.11.0"
-tracing = "0.1.44"
+tracing = { path = "../../../vendor/tracing/tracing" }
 
 # Additional dependencies
 num-traits = "0.2.19"
 smallvec = "1.15.1"
-bytemuck = "1.25.0"
+bytemuck = { path = "../../../vendor/bytemuck" }
 
 # Async runtime
-tokio = { version = "1.50.0", features = ["full"] }
-async-trait = "0.1.89"
+tokio = { path = "../../../vendor/tokio/tokio", features = ["full"] }
+async-trait = { path = "../../../vendor/async-trait" }
 
 # Storage backends
 dashmap = "6.1.0"
-sled = "0.34.7"
+sled = {path = "../../../vendor/sled" }
 tempfile = "3.27.0"
 
 [dev-dependencies]
-criterion = "0.8.2"
+criterion = { path = "../../../vendor/criterion"}
 proptest = "1.10.0"
 quickcheck = "1.1.0"
 tempfile = "3.27.0"
-rand = "0.10.0"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+rand = { path = "../../../vendor/rand" }
+serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
+serde_json = { path = "../../../vendor/serde_json" }
 redis = { version = "1.1.0", features = ["tokio-comp", "aio"] }
 
 [[bench]]

@@ -17,6 +17,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::RwLock;
 use tower::Service;
+use tower::util::ServiceExt;
 use tracing::info;
 
 #[derive(Clone)]
@@ -195,6 +196,36 @@ async fn serve_unix_socket(listener: UnixListener, app: Router) -> anyhow::Resul
     }
 }
 
+// Use hyper_util for HTTP socket support
+async fn serve_http_socket(listener: TcpListener, app: Router) -> anyhow::Result<()> {
+    use hyper::service::service_fn;
+    use hyper_util::rt::TokioIo;
+    use hyper_util::server::conn::auto::Builder;
+
+    loop {
+        let (stream, _) = listener.accept().await?;
+        let app = app.clone();
+
+        tokio::spawn(async move {
+            let io = TokioIo::new(stream);
+            let svc = service_fn(move |req| {
+                let mut app = app.clone();
+                async move {
+                    app.call(req).await.map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                    })
+                }
+            });
+
+            let builder = Builder::new(hyper_util::rt::TokioExecutor::new());
+
+            if let Err(e) = builder.serve_connection(io, svc).await {
+                tracing::error!("Error serving HTTP connection: {}", e);
+            }
+        });
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize tracing
@@ -302,7 +333,9 @@ async fn main() -> anyhow::Result<()> {
         let socket_handle =
             tokio::spawn(async move { serve_unix_socket(unix_listener, app_clone).await });
 
-        let http_handle = tokio::spawn(async move { axum::serve(http_listener, app).await });
+        let http_handle = tokio::spawn(async move {
+            serve_http_socket(http_listener, app).await
+        });
 
         tokio::select! {
             result = socket_handle => {
