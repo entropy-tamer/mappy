@@ -17,14 +17,14 @@ quotient-filter = []
 [dependencies]
 # Core dependencies with explicit versions
 ahash = "0.8.12"
-bitvec = "1.0.1"
+bitvec = { path = "../../../vendor/bitvec" }
 twox-hash = "2.1.2"
 serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
 serde_json = { path = "../../../vendor/serde_json" }
 anyhow = { path = "../../../vendor/anyhow" }
 thiserror = "2.0.18"
 parking_lot = "0.12.5"
-rayon = "1.11.0"
+rayon = { path = "../../../vendor/rayon" }
 tracing = { path = "../../../vendor/tracing/tracing" }
 
 # Additional dependencies

@@ -28,7 +28,7 @@ bitcode = { path = "../../vendor/bitcode" }
 
 # Hashing and bit operations
 ahash = { path = "../../vendor/ahash" }
-bitvec = "1.0.1"
+bitvec = { path = "../../vendor/bitvec" }
 twox-hash = "2.1.2"
 
 # Error handling
@@ -61,7 +61,7 @@ axum = { path = "../../vendor/axum/axum", features = ["macros"] }
 tower = { path = "../../vendor/tower/tower", features = ["util"] }
 tower-http = { path = "../../vendor/tower-http/tower-http", features = ["cors", "trace", "fs"] }
 hyper = { path = "../../vendor/hyper", features = ["full"] }
-hyper-util = { path = "../../vendor/hyper-util", features = ["full"] }
+hyper-util = { version = "0.1.20", features = ["full"] }
 tokio-rustls = { path = "../../vendor/tokio-rustls" }
 config = { path = "../../vendor/config" }
 dotenvy = "0.15.7"

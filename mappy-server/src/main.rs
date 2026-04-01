@@ -353,7 +353,7 @@ async fn main() -> anyhow::Result<()> {
         // HTTP only
         let http_listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
         info!("Mappy Server HTTP listening on {}:{}", host, port);
-        axum::serve(http_listener, app).await?;
+        serve_http_socket(http_listener, app).await?;
     } else if enable_socket {
         // Socket only
         let socket_path_std = StdPath::new(&socket_path);

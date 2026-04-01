@@ -20,14 +20,14 @@ serde_json = { path = "../../../vendor/serde_json" }
 bitcode.workspace = true
 
 # Bit manipulation
-bitvec = "1.0.1"
+bitvec = { path = "../../../vendor/bitvec" }
 
 # Compression comparison
 flate2 = "1.1.9"
 lz4 = "1.28.1"
 
 # Parallel processing
-rayon = "1.11.0"
+rayon = { path = "../../../vendor/rayon" }
 
 # Plotting
 plotters.workspace = true
