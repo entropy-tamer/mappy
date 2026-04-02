@@ -21,7 +21,7 @@ serde.workspace = true
 rayon.workspace = true
 
 # Image processing
-image = "0.25.9"
+image = { path = "../../../vendor/image" }
 imageproc = "0.25.0"
 memmap2 = "0.9.9"
 
