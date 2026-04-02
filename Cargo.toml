@@ -76,3 +76,6 @@ dashmap = "6.1.0"
 
 # Plotting dependencies
 plotters = "0.3.7"
+
+[patch.crates-io]
+bytes = { path = "../../vendor/bytes" }
