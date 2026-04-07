@@ -33,11 +33,11 @@ twox-hash = "2.1.2"
 
 # Error handling
 anyhow = { path = "../../vendor/anyhow" }
-thiserror = "2.0.18"
+thiserror = { path = "../../vendor/thiserror" }
 
 # Concurrency
-parking_lot = "0.12.5"
-rayon = "1.11.0"
+parking_lot = { path = "../../vendor/parking_lot" }
+rayon = { path = "../../vendor/rayon" }
 
 # Logging
 tracing = { path = "../../vendor/tracing/tracing" }
@@ -46,10 +46,10 @@ tracing-subscriber = { path = "../../vendor/tracing/tracing-subscriber", feature
 # Testing
 criterion = { path = "../../vendor/criterion", features = ["html_reports"] }
 proptest = "1.10.0"
-quickcheck = "1.1.0"
+quickcheck = { path = "../../vendor/quickcheck"}
 
 # Python bindings
-pyo3 = { version = "0.28.2", features = ["extension-module"] }
+pyo3 = { version = "0.28.3", features = ["extension-module"] }
 
 # Additional dependencies
 getrandom = { path = "../../vendor/getrandom" }
@@ -64,7 +64,7 @@ hyper = { path = "../../vendor/hyper", features = ["full"] }
 hyper-util = { version = "0.1.20", features = ["full"] }
 tokio-rustls = { path = "../../vendor/tokio-rustls" }
 config = { path = "../../vendor/config" }
-dotenvy = "0.15.7"
+dotenvy = { path = "../../vendor/dotenvy" }
 
 # HTTP client dependencies
 reqwest = { path = "../../vendor/reqwest", features = ["json"] }
@@ -75,7 +75,7 @@ sled = { path = "../../vendor/sled" }
 dashmap = "6.1.0"
 
 # Plotting dependencies
-plotters = "0.3.7"
+plotters = { path = "../../vendor/plotters/plotters" }
 
 [patch.crates-io]
 bytes = { path = "../../vendor/bytes" }

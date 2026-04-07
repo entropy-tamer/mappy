@@ -16,20 +16,20 @@ quotient-filter = []
 
 [dependencies]
 # Core dependencies with explicit versions
-ahash = "0.8.12"
+ahash = { path = "../../../vendor/ahash" }
 bitvec = { path = "../../../vendor/bitvec" }
 twox-hash = "2.1.2"
 serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
 serde_json = { path = "../../../vendor/serde_json" }
 anyhow = { path = "../../../vendor/anyhow" }
-thiserror = "2.0.18"
-parking_lot = "0.12.5"
+thiserror = { path = "../../../vendor/thiserror" }
+parking_lot = { path = "../../../vendor/parking_lot" }
 rayon = { path = "../../../vendor/rayon" }
 tracing = { path = "../../../vendor/tracing/tracing" }
 
 # Additional dependencies
-num-traits = "0.2.19"
-smallvec = "1.15.1"
+num-traits = { path = "../../../vendor/num-traits" }
+smallvec = { path = "../../../vendor/smallvec" }
 bytemuck = { path = "../../../vendor/bytemuck" }
 
 # Async runtime
@@ -38,14 +38,14 @@ async-trait = { path = "../../../vendor/async-trait" }
 
 # Storage backends
 dashmap = "6.1.0"
-sled = {path = "../../../vendor/sled" }
-tempfile = "3.27.0"
+sled = { path = "../../../vendor/sled" }
+tempfile = { path = "../../../vendor/tempfile" }
 
 [dev-dependencies]
 criterion = { path = "../../../vendor/criterion"}
 proptest = "1.10.0"
-quickcheck = "1.1.0"
-tempfile = "3.27.0"
+quickcheck = { path = "../../../vendor/quickcheck" }
+tempfile = { path = "../../../vendor/tempfile" }
 rand = { path = "../../../vendor/rand" }
 serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
 serde_json = { path = "../../../vendor/serde_json" }
