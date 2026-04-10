@@ -1,12 +1,15 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Comprehensive benchmark with multiple tag sets and formats
 
+#[cfg(feature = "mappy-integration")]
 use stilts::benchmark::mappy_comparison::MappyComparisonRunner;
+#[cfg(feature = "mappy-integration")]
 use stilts::compression::{
     ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor,
 };
 #[cfg(feature = "mappy-integration")]
 use stilts::formats::{CommaSeparatedParser, JsonParser, SpaceSeparatedParser, TagParser};
+#[cfg(feature = "mappy-integration")]
 use stilts::plotting::ReportGenerator;
 
 #[cfg(feature = "mappy-integration")]

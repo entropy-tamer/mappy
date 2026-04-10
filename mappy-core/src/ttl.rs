@@ -408,18 +408,14 @@ mod tests {
         let config = TTLConfig::default();
         let manager = TTLManager::new(config);
 
-        // Set TTL for a key
         manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
 
-        // Check TTL
         let ttl = manager.get_ttl("key1").await.unwrap();
         assert!(ttl.is_some());
         assert!(ttl.unwrap() <= 60);
 
-        // Check if not expired
         assert!(!manager.is_expired("key1").await.unwrap());
 
-        // Remove TTL
         manager.remove_ttl("key1").await.unwrap();
         assert!(manager.get_ttl("key1").await.unwrap().is_none());
     }
@@ -429,16 +425,12 @@ mod tests {
         let config = TTLConfig::default();
         let manager = TTLManager::new(config);
 
-        // Set very short TTL
         manager.set_ttl("key1".to_string(), 0, 1).await.unwrap();
 
-        // Wait for expiration
         tokio::time::sleep(Duration::from_millis(1100)).await;
 
-        // Check if expired
         assert!(manager.is_expired("key1").await.unwrap());
 
-        // Get expired keys
         let expired = manager.get_expired_keys().await.unwrap();
         assert!(!expired.is_empty());
         assert_eq!(expired[0].key, "key1");
@@ -449,7 +441,6 @@ mod tests {
         let config = TTLConfig::default();
         let manager = TTLManager::new(config);
 
-        // Set some TTLs
         manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
         manager.set_ttl("key2".to_string(), 0, 120).await.unwrap();
 
@@ -464,14 +455,155 @@ mod tests {
         let config = TTLConfig::default();
         let manager = TTLManager::new(config);
 
-        // Set some TTLs
         manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
         manager.set_ttl("key2".to_string(), 0, 120).await.unwrap();
 
-        // Clear all
         manager.clear_all().await.unwrap();
 
         let stats = manager.get_stats().await.unwrap();
         assert_eq!(stats.total_keys_with_ttl, 0);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_config_default() {
+        let config = TTLConfig::default();
+        assert_eq!(config.cleanup_interval_secs, 60);
+        assert_eq!(config.max_cleanup_batch_size, 1000);
+        assert!(config.enable_background_cleanup);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_config_clone() {
+        let config = TTLConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.cleanup_interval_secs, 60);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_entry_new() {
+        let entry = TTLEntry::new("key".to_string(), 0, 60);
+        assert_eq!(entry.key, "key");
+        assert_eq!(entry.db_id, 0);
+        assert!(!entry.is_expired());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_entry_remaining_ttl() {
+        let entry = TTLEntry::new("key".to_string(), 0, 60);
+        let remaining = entry.remaining_ttl();
+        assert!(remaining > 0);
+        assert!(remaining <= 60);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_entry_expired() {
+        let entry = TTLEntry::new("key".to_string(), 0, 0);
+        assert!(entry.is_expired());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_entry_serialization() {
+        let entry = TTLEntry::new("key".to_string(), 0, 60);
+        let serialized = serde_json::to_string(&entry).expect("Failed to serialize");
+        let deserialized: TTLEntry =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        assert_eq!(deserialized.key, "key");
+    }
+
+    #[tokio::test]
+    async fn test_ttl_stats_default() {
+        let stats = TTLStats::default();
+        assert_eq!(stats.total_keys_with_ttl, 0);
+        assert_eq!(stats.expired_keys, 0);
+        assert!(stats.next_expiration.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_stats_serialization() {
+        let stats = TTLStats {
+            total_keys_with_ttl: 100,
+            expired_keys: 10,
+            next_expiration: Some(12345),
+        };
+
+        let serialized = serde_json::to_string(&stats).expect("Failed to serialize");
+        let deserialized: TTLStats =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized.total_keys_with_ttl, 100);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_get_ttl_nonexistent() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        let ttl = manager.get_ttl("nonexistent").await.unwrap();
+        assert!(ttl.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_is_expired_nonexistent() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        let expired = manager.is_expired("nonexistent").await.unwrap();
+        assert!(!expired);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_remove_ttl_nonexistent() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        assert!(manager.remove_ttl("nonexistent").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_update_ttl() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        manager.set_ttl("key1".to_string(), 0, 120).await.unwrap();
+
+        let ttl = manager.get_ttl("key1").await.unwrap();
+        assert!(ttl.is_some());
+        assert!(ttl.unwrap() <= 120);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_multiple_keys() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        for i in 0..10 {
+            manager.set_ttl(format!("key{}", i), 0, 60).await.unwrap();
+        }
+
+        let stats = manager.get_stats().await.unwrap();
+        assert_eq!(stats.total_keys_with_ttl, 10);
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_get_expired_keys_empty() {
+        let config = TTLConfig::default();
+        let manager = TTLManager::new(config);
+
+        let expired = manager.get_expired_keys().await.unwrap();
+        assert!(expired.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_config_custom() {
+        let config = TTLConfig {
+            cleanup_interval_secs: 30,
+            max_cleanup_batch_size: 500,
+            enable_background_cleanup: false,
+        };
+
+        assert_eq!(config.cleanup_interval_secs, 30);
+        assert_eq!(config.max_cleanup_batch_size, 500);
+        assert!(!config.enable_background_cleanup);
     }
 }

@@ -1,7 +1,9 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Debug timing to see what's slow
 
+#[cfg(feature = "mappy-integration")]
 use std::time::Instant;
+#[cfg(feature = "mappy-integration")]
 use stilts::formats::{SpaceSeparatedParser, TagParser};
 #[cfg(feature = "mappy-integration")]
 use stilts::mappy_integration::MappyTagStorage;

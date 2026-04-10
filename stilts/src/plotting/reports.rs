@@ -208,3 +208,59 @@ impl ReportGenerator {
         Ok(output_path.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::benchmark::metrics::CompressionStats;
+
+    #[test]
+    fn test_generate_html_report() {
+        let metrics = vec![BenchmarkMetrics {
+            algorithm: "test".to_string(),
+            stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+            memory_usage_bytes: 500,
+        }];
+
+        let result = ReportGenerator::generate_html_report(&metrics, "/tmp/test_report.html");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_html_report_empty_metrics() {
+        let metrics: Vec<BenchmarkMetrics> = vec![];
+        let result = ReportGenerator::generate_html_report(&metrics, "/tmp/test_empty_report.html");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_html_report_multiple_metrics() {
+        let metrics = vec![
+            BenchmarkMetrics {
+                algorithm: "algo1".to_string(),
+                stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+                memory_usage_bytes: 500,
+            },
+            BenchmarkMetrics {
+                algorithm: "algo2".to_string(),
+                stats: CompressionStats::new(1000, 600, 120.0, 60.0, 128),
+                memory_usage_bytes: 600,
+            },
+        ];
+
+        let result = ReportGenerator::generate_html_report(&metrics, "/tmp/test_multi_report.html");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_html_report_with_reports_dir() {
+        let metrics = vec![BenchmarkMetrics {
+            algorithm: "test".to_string(),
+            stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+            memory_usage_bytes: 500,
+        }];
+
+        let result = ReportGenerator::generate_html_report(&metrics, "reports/test_report.html");
+        assert!(result.is_ok());
+    }
+}

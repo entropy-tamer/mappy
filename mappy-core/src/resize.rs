@@ -117,6 +117,45 @@ mod tests {
     }
 
     #[test]
+    fn test_resize_manager_clone() {
+        let manager = ResizeManager::new(100);
+        let cloned = manager.clone();
+        assert_eq!(cloned.capacity, 100);
+    }
+
+    #[test]
+    fn test_resize_manager_zero_capacity() {
+        let manager = ResizeManager::new(0);
+        assert_eq!(manager.capacity, 0);
+    }
+
+    #[test]
+    fn test_resize_manager_large_capacity() {
+        let manager = ResizeManager::new(10000);
+        assert_eq!(manager.capacity, 10000);
+    }
+
+    #[test]
+    fn test_resize_manager_calculate_new_capacity_max() {
+        let manager = ResizeManager::new(usize::MAX / 2);
+        let new_capacity = manager.calculate_new_capacity(0);
+        assert_eq!(new_capacity, usize::MAX);
+    }
+
+    #[test]
+    fn test_resize_manager_should_resize_edge() {
+        let manager = ResizeManager::new(100);
+        assert!(!manager.should_resize(80, 0.8));
+        assert!(manager.should_resize(81, 0.8));
+    }
+
+    #[test]
+    fn test_resize_manager_should_resize_zero_load() {
+        let manager = ResizeManager::new(100);
+        assert!(!manager.should_resize(0, 0.8));
+    }
+
+    #[test]
     fn test_merge_manager() {
         let mut manager = MergeManager::new(5);
 
@@ -128,5 +167,38 @@ mod tests {
 
         assert!(!manager.can_merge());
         assert!(manager.record_merge().is_err());
+    }
+
+    #[test]
+    fn test_merge_manager_clone() {
+        let mut manager = MergeManager::new(5);
+        manager.record_merge().ok();
+
+        let cloned = manager.clone();
+        assert_eq!(cloned.merge_count, 1);
+    }
+
+    #[test]
+    fn test_merge_manager_zero_max() {
+        let manager = MergeManager::new(0);
+        assert!(!manager.can_merge());
+    }
+
+    #[test]
+    fn test_merge_manager_large_max() {
+        let manager = MergeManager::new(1000);
+        assert!(manager.can_merge());
+    }
+
+    #[test]
+    fn test_merge_manager_partial_merges() {
+        let mut manager = MergeManager::new(10);
+
+        for _ in 0..5 {
+            assert!(manager.record_merge().is_ok());
+        }
+
+        assert_eq!(manager.merge_count, 5);
+        assert!(manager.can_merge());
     }
 }

@@ -636,14 +636,18 @@ let handles: Vec<_> = (0..10).map(|i| {
     let maplet = concurrent_maplet.clone();
     tokio::spawn(async move {
         for j in 0..100 {
-            maplet.insert(format!("key_{}_{}", i, j), j as u64).await.unwrap();
+            if let Err(e) = maplet.insert(format!("key_{}_{}", i, j), j as u64).await {
+                eprintln!("Failed to insert key_{}_{}: {}", i, j, e);
+            }
         }
     })
 }).collect();
 
 // Wait for all threads to complete
 for handle in handles {
-    handle.await.unwrap();
+    if let Err(e) = handle.await {
+        eprintln!("Thread failed: {}", e);
+    }
 }
 ```
 

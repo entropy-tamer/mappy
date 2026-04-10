@@ -196,6 +196,32 @@ mod tests {
     }
 
     #[test]
+    fn test_maplet_stats_zero_capacity() {
+        let stats = MapletStats::new(0, 0, 0.01);
+        assert_eq!(stats.capacity, 0);
+        assert_eq!(stats.load_factor, 0.0);
+    }
+
+    #[test]
+    fn test_maplet_stats_update() {
+        let mut stats = MapletStats::new(1000, 500, 0.01);
+        stats.update(600, 10000, 50, 400);
+        assert_eq!(stats.len, 600);
+        assert_eq!(stats.memory_usage, 10000);
+        assert_eq!(stats.num_collisions, 50);
+        assert_eq!(stats.slots_used, 400);
+        assert!((stats.load_factor - 0.6).abs() < 0.01);
+        assert!((stats.avg_chain_length - 0.125).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_maplet_stats_update_zero_slots() {
+        let mut stats = MapletStats::new(1000, 500, 0.01);
+        stats.update(600, 10000, 50, 0);
+        assert_eq!(stats.avg_chain_length, 0.0);
+    }
+
+    #[test]
     fn test_maplet_config_validation() {
         let config = MapletConfig::new(1000, 0.01);
         assert!(config.validate().is_ok());
@@ -205,5 +231,102 @@ mod tests {
 
         let invalid_error_rate = MapletConfig::new(1000, 1.5);
         assert!(invalid_error_rate.validate().is_err());
+    }
+
+    #[test]
+    fn test_maplet_config_validation_negative_rate() {
+        let config = MapletConfig::new(1000, -0.5);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_maplet_config_validation_zero_rate() {
+        let config = MapletConfig::new(1000, 0.0);
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_maplet_config_validation_invalid_max_load() {
+        let mut config = MapletConfig::new(1000, 0.01);
+        config.max_load_factor = 1.5;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_maplet_config_validation_zero_max_load() {
+        let mut config = MapletConfig::new(1000, 0.01);
+        config.max_load_factor = 0.0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_maplet_config_default() {
+        let config = MapletConfig::default();
+        assert_eq!(config.capacity, 1000);
+        assert_eq!(config.false_positive_rate, 0.01);
+        assert_eq!(config.max_load_factor, 0.95);
+        assert!(config.auto_resize);
+        assert!(config.enable_deletion);
+        assert!(config.enable_merging);
+    }
+
+    #[test]
+    fn test_maplet_config_new() {
+        let config = MapletConfig::new(500, 0.05);
+        assert_eq!(config.capacity, 500);
+        assert_eq!(config.false_positive_rate, 0.05);
+        assert_eq!(config.max_load_factor, 0.95);
+        assert!(config.auto_resize);
+    }
+
+    #[test]
+    fn test_maplet_error_display() {
+        let err = MapletError::CapacityExceeded;
+        assert_eq!(format!("{}", err), "Maplet is at capacity");
+
+        let err = MapletError::InvalidErrorRate(0.5);
+        assert_eq!(
+            format!("{}", err),
+            "Invalid false-positive rate: 0.5 (must be between 0 and 1)"
+        );
+
+        let err = MapletError::InvalidCapacity(100);
+        assert_eq!(format!("{}", err), "Invalid capacity: 100 (must be > 0)");
+    }
+
+    #[test]
+    fn test_maplet_stats_serialization() {
+        let stats = MapletStats::new(1000, 500, 0.01);
+        let serialized = serde_json::to_string(&stats).expect("Failed to serialize");
+        let deserialized: MapletStats =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        assert_eq!(deserialized.capacity, 1000);
+        assert_eq!(deserialized.len, 500);
+    }
+
+    #[test]
+    fn test_maplet_config_serialization() {
+        let config = MapletConfig::new(1000, 0.01);
+        let serialized = serde_json::to_string(&config).expect("Failed to serialize");
+        let deserialized: MapletConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        assert_eq!(deserialized.capacity, 1000);
+        assert_eq!(deserialized.false_positive_rate, 0.01);
+    }
+
+    #[test]
+    fn test_maplet_config_clone() {
+        let config = MapletConfig::new(1000, 0.01);
+        let cloned = config.clone();
+        assert_eq!(cloned.capacity, config.capacity);
+        assert_eq!(cloned.false_positive_rate, config.false_positive_rate);
+    }
+
+    #[test]
+    fn test_maplet_stats_clone() {
+        let stats = MapletStats::new(1000, 500, 0.01);
+        let cloned = stats.clone();
+        assert_eq!(cloned.capacity, stats.capacity);
+        assert_eq!(cloned.len, stats.len);
     }
 }

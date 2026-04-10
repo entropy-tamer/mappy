@@ -600,8 +600,161 @@ mod tests {
         // Wait for expiration
         tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
 
-        // Key should be expired
         let value = engine.get("key1").await.unwrap();
         assert!(value.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_engine_clear() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        engine
+            .set("key2".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        assert!(engine.exists("key1").await.unwrap());
+        assert!(engine.exists("key2").await.unwrap());
+
+        engine.clear().await.unwrap();
+
+        assert!(!engine.exists("key1").await.unwrap());
+        assert!(!engine.exists("key2").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_engine_flush() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+
+        assert!(engine.flush().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_engine_memory_usage() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        let usage = engine.memory_usage().await.unwrap();
+        assert!(usage >= 0);
+    }
+
+    #[tokio::test]
+    async fn test_engine_config() {
+        let config = EngineConfig {
+            persistence_mode: PersistenceMode::Memory,
+            ..Default::default()
+        };
+        let engine = Engine::new(config).await.unwrap();
+
+        assert_eq!(engine.persistence_mode(), PersistenceMode::Memory);
+        assert_eq!(engine.config().persistence_mode, PersistenceMode::Memory);
+    }
+
+    #[tokio::test]
+    async fn test_engine_keys() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        engine
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        engine
+            .set("key2".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        let keys = engine.keys().await.unwrap();
+        assert_eq!(keys.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_engine_expire_nonexistent() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        let result = engine.expire("nonexistent", 60).await.unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn test_engine_persist_nonexistent() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        let result = engine.persist("nonexistent").await.unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn test_engine_config_default() {
+        let config = EngineConfig::default();
+        assert_eq!(config.persistence_mode, PersistenceMode::Memory);
+        assert!(config.data_dir.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_engine_config_serialization() {
+        let config = EngineConfig::default();
+        let serialized = serde_json::to_string(&config).expect("Failed to serialize");
+        let deserialized: EngineConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized.persistence_mode, PersistenceMode::Memory);
+    }
+
+    #[tokio::test]
+    async fn test_engine_stats_serialization() {
+        let stats = EngineStats {
+            maplet_stats: crate::MapletStats::new(1000, 500, 0.01),
+            storage_stats: StorageStats::default(),
+            ttl_stats: TTLStats::default(),
+            uptime_seconds: 100,
+            total_operations: 50,
+        };
+
+        let serialized = serde_json::to_string(&stats).expect("Failed to serialize");
+        let deserialized: EngineStats =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized.uptime_seconds, 100);
+    }
+
+    #[test]
+    fn test_replace_operator_default() {
+        let op = ReplaceOperator::default();
+        assert_eq!(op.merge(vec![1, 2], vec![3, 4]).unwrap(), vec![3, 4]);
+    }
+
+    #[test]
+    fn test_replace_operator_clone() {
+        let op = ReplaceOperator::default();
+        let cloned = op.clone();
+        assert_eq!(cloned.merge(vec![1, 2], vec![3, 4]).unwrap(), vec![3, 4]);
+    }
+
+    #[test]
+    fn test_replace_operator_identity() {
+        let op = ReplaceOperator::default();
+        assert_eq!(op.identity(), Vec::<u8>::new());
+    }
+
+    #[tokio::test]
+    async fn test_engine_close() {
+        let config = EngineConfig::default();
+        let engine = Engine::new(config).await.unwrap();
+
+        assert!(engine.close().await.is_ok());
     }
 }

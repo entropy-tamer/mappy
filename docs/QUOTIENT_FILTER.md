@@ -64,12 +64,12 @@ maturin develop --features quotient-filter
 use mappy_core::{Maplet, CounterOperator};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a maplet with quotient filter support
-    let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap();
+    let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01)?;
 
     // Insert some data
-    maplet.insert("test_key".to_string(), 42).await.unwrap();
+    maplet.insert("test_key".to_string(), 42).await?;
 
     // Find the actual slot where a key's fingerprint is stored
     let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
@@ -77,6 +77,7 @@ async fn main() {
         Some(slot_index) => println!("Key found at slot {}", slot_index),
         None => println!("Key not found"),
     }
+    Ok(())
 }
 ```
 
@@ -86,11 +87,10 @@ async fn main() {
 use mappy_core::{Engine, EngineConfig, MapletConfig, StorageConfig, TTLConfig, PersistenceMode};
 
 #[tokio::main]
-async fn main() {
-    // Create engine configuration
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = EngineConfig {
         maplet: MapletConfig {
-            capacity: 1000,
+            capacity: 10000,
             false_positive_rate: 0.01,
             max_load_factor: 0.95,
             auto_resize: true,
@@ -99,9 +99,6 @@ async fn main() {
         },
         storage: StorageConfig {
             data_dir: "./data".to_string(),
-            max_memory: Some(1024 * 1024 * 1024), // 1GB
-            enable_compression: true,
-            sync_interval: 1,
             write_buffer_size: 1024 * 1024,
         },
         ttl: TTLConfig {
@@ -114,14 +111,15 @@ async fn main() {
     };
 
     // Create engine
-    let engine = Engine::new(config).await.unwrap();
+    let engine = Engine::new(config).await?;
 
     // Insert data
-    engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+    engine.set("key1".to_string(), b"value1".to_vec()).await?;
 
     // Find slot for key
-    let slot = engine.find_slot_for_key("key1").await.unwrap();
+    let slot = engine.find_slot_for_key("key1").await?;
     println!("Key 'key1' found at slot: {:?}", slot);
+    Ok(())
 }
 ```
 

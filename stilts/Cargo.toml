@@ -36,7 +36,7 @@ plotters.workspace = true
 ahash = { path = "../../../vendor/ahash" }
 
 # Collections
-indexmap = "2.13.0"
+indexmap = { path = "../../../vendor/indexmap" }
 
 # Date/time for reports
 chrono = "0.4.44"

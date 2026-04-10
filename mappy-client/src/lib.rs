@@ -177,7 +177,7 @@ impl Client {
     }
 
     /// Send a request (auto-detects socket vs HTTP)
-    async fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
+    pub async fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
         if self.config.socket_path.is_some() {
             self.request_unix(method, path, body).await
         } else if self.config.http_url.is_some() {
@@ -224,12 +224,138 @@ impl Default for Client {
 #[cfg(test)]
 mod tests {
     use super::prelude::*;
+    use super::{Client, ClientConfig, SetRequest, GetResponse, HealthResponse};
 
     #[tokio::test]
     async fn test_client_basic_usage() {
-        let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).expect("Failed to create maplet");
 
-        maplet.insert("test".to_string(), 42).await.unwrap();
+        maplet.insert("test".to_string(), 42).await.expect("Failed to insert test key");
         assert_eq!(maplet.query(&"test".to_string()).await, Some(42));
+    }
+
+    #[test]
+    fn test_client_config_default() {
+        let config = ClientConfig::default();
+        assert_eq!(config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(config.http_url, None);
+    }
+
+    #[test]
+    fn test_client_config_from_env_empty() {
+        unsafe { std::env::set_var("MAPPY_SOCKET_PATH", "") };
+        unsafe { std::env::set_var("MAPPY_HTTP_URL", "") };
+        let config = ClientConfig::from_env();
+        assert_eq!(config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(config.http_url, None);
+        unsafe { std::env::remove_var("MAPPY_SOCKET_PATH") };
+        unsafe { std::env::remove_var("MAPPY_HTTP_URL") };
+    }
+
+    #[test]
+    fn test_client_config_with_socket() {
+        let config = ClientConfig::with_socket("/tmp/custom.sock");
+        assert_eq!(config.socket_path, Some("/tmp/custom.sock".to_string()));
+        assert_eq!(config.http_url, None);
+    }
+
+    #[test]
+    fn test_client_config_with_http() {
+        let config = ClientConfig::with_http("http://example.com:8080");
+        assert_eq!(config.socket_path, None);
+        assert_eq!(config.http_url, Some("http://example.com:8080".to_string()));
+    }
+
+    #[test]
+    fn test_client_new() {
+        let client = Client::new();
+        assert_eq!(client.config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(client.config.http_url, None);
+    }
+
+    #[test]
+    fn test_client_with_config() {
+        let config = ClientConfig::with_socket("/tmp/test.sock");
+        let client = Client::with_config(config);
+        assert_eq!(client.config.socket_path, Some("/tmp/test.sock".to_string()));
+    }
+
+    #[test]
+    fn test_client_default() {
+        let client = Client::default();
+        assert_eq!(client.config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+    }
+
+    #[test]
+    fn test_set_request_serialization() {
+        let request = SetRequest {
+            key: "test_key".to_string(),
+            value: "test_value".to_string(),
+        };
+        let serialized = serde_json::to_string(&request).expect("Failed to serialize");
+        assert!(serialized.contains("test_key"));
+        assert!(serialized.contains("test_value"));
+    }
+
+    #[test]
+    fn test_get_response_deserialization() {
+        let json = r#"{"value": "test_value"}"#;
+        let response: GetResponse = serde_json::from_str(json).expect("Failed to deserialize");
+        assert_eq!(response.value, Some("test_value".to_string()));
+    }
+
+    #[test]
+    fn test_get_response_none() {
+        let json = r#"{"value": null}"#;
+        let response: GetResponse = serde_json::from_str(json).expect("Failed to deserialize");
+        assert_eq!(response.value, None);
+    }
+
+    #[tokio::test]
+    async fn test_request_unix_no_socket() {
+        let config = ClientConfig {
+            socket_path: None,
+            http_url: None,
+        };
+        let client = Client::with_config(config);
+        let result = client.request_unix("GET", "/health", None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unix socket path not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_request_http_no_url() {
+        let config = ClientConfig {
+            socket_path: None,
+            http_url: None,
+        };
+        let client = Client::with_config(config);
+        let result = client.request_http("GET", "/health", None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("HTTP URL not configured"));
+    }
+
+    #[tokio::test]
+    async fn test_request_no_config() {
+        let config = ClientConfig {
+            socket_path: None,
+            http_url: None,
+        };
+        let client = Client::with_config(config);
+        let result = client.request("GET", "/health", None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No connection method configured"));
+    }
+
+    #[tokio::test]
+    async fn test_request_http_unsupported_method() {
+        let config = ClientConfig {
+            socket_path: None,
+            http_url: Some("http://localhost:8003".to_string()),
+        };
+        let client = Client::with_config(config);
+        let result = client.request_http("DELETE", "/health", None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unsupported method"));
     }
 }

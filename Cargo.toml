@@ -4,6 +4,7 @@ members = [
     "mappy-client",
     "mappy-python",
     "mappy-server",
+    "mappy-proxy",
     "stilts"
 ]
 resolver = "3"
@@ -58,15 +59,17 @@ rand_core = { path = "../../vendor/rand_core" }
 futures = { path = "../../vendor/futures-rs/futures", features = ["executor"] }
 futures-core = { path = "../../vendor/futures-rs/futures-core", default-features = false }
 futures-util = { path = "../../vendor/futures-rs/futures-util", default-features = false, features = ["alloc"] }
+futures-sink = { path = "../../vendor/futures-rs/futures-sink" }
 
 # Web server dependencies
 axum = { path = "../../vendor/axum/axum", features = ["macros"] }
+tokio-tungstenite = { path = "../../vendor/tokio-tungstenite" }
 tower = { path = "../../vendor/tower/tower", features = ["util"] }
 tower-http = { path = "../../vendor/tower-http/tower-http", features = ["cors", "trace", "fs"] }
-hyper = { path = "../../vendor/hyper", features = ["full"] }
+hyper = { path = "../../vendor/hyper", features = ["full", "http1", "http2"] }
 hyper-util = { path = "../../vendor/hyper-util", features = ["full"] }
+http-body-util = { path = "../../vendor/http-body/http-body-util" }
 tokio-rustls = { path = "../../vendor/tokio-rustls" }
-rustls = { path = "../../vendor/rustls/rustls" }
 rustls-ring = { path = "../../vendor/rustls/rustls-ring" }
 config = { path = "../../vendor/config" }
 dotenvy = { path = "../../vendor/dotenvy/dotenvy" }
@@ -109,4 +112,3 @@ memchr = { path = "../../vendor/memchr" }
 log = { path = "../../vendor/log" }
 smallvec = { path = "../../vendor/smallvec" }
 cfg-if = { path = "../../vendor/cfg-if" }
-libc = { path = "../../vendor/libc" }

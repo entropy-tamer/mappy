@@ -8,12 +8,13 @@
 //! # Example
 //!
 //! ```rust
-//! use stilts::{HuffmanCompressor, SpaceSeparatedParser};
+//! use stilts::{Compressor, HuffmanCompressor, SpaceSeparatedParser, TagParser};
 //!
 //! let parser = SpaceSeparatedParser::new();
 //! let tags = parser.parse("tag1 tag2 tag3").unwrap();
 //!
-//! let compressor = HuffmanCompressor::new();
+//! let mut compressor = HuffmanCompressor::new();
+//! compressor.build_from_corpus(&tags).unwrap();
 //! let compressed = compressor.compress(&tags).unwrap();
 //! let decompressed = compressor.decompress(&compressed).unwrap();
 //! ```

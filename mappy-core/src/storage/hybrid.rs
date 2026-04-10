@@ -494,4 +494,253 @@ mod tests {
         assert!(stats.disk_usage > 0);
         assert!(stats.operations_count > 0);
     }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_clear() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+
+        storage.clear_database().await.unwrap();
+
+        assert_eq!(storage.get("key1").await.unwrap(), None);
+        assert_eq!(storage.keys().await.unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_keys() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        storage
+            .set("key2".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        let keys = storage.keys().await.unwrap();
+        assert_eq!(keys.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_flush() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+
+        assert!(storage.flush().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_close() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+
+        assert!(storage.close().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_delete_nonexistent() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        let deleted = storage.delete("nonexistent").await.unwrap();
+        assert!(!deleted);
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_empty_keys() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        let keys = storage.keys().await.unwrap();
+        assert_eq!(keys.len(), 0);
+    }
+
+    #[test]
+    fn test_aof_entry_serialization() {
+        let entry = AOFEntry::Set {
+            key: "test".to_string(),
+            value: vec![1, 2, 3],
+        };
+
+        let serialized = serde_json::to_string(&entry).expect("Failed to serialize");
+        let deserialized: AOFEntry =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        match deserialized {
+            AOFEntry::Set { key, value } => {
+                assert_eq!(key, "test");
+                assert_eq!(value, vec![1, 2, 3]);
+            }
+            _ => panic!("Expected Set entry"),
+        }
+    }
+
+    #[test]
+    fn test_aof_entry_delete_serialization() {
+        let entry = AOFEntry::Delete {
+            key: "test".to_string(),
+        };
+
+        let serialized = serde_json::to_string(&entry).expect("Failed to serialize");
+        let deserialized: AOFEntry =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        match deserialized {
+            AOFEntry::Delete { key } => {
+                assert_eq!(key, "test");
+            }
+            _ => panic!("Expected Delete entry"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_buffer_flush() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 2,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        storage
+            .set("key2".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        storage.flush().await.unwrap();
+
+        let value = storage.get("key1").await.unwrap();
+        assert_eq!(value, Some(b"value1".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_large_value() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        let large_value = vec![0u8; 10000];
+        storage
+            .set("key1".to_string(), large_value.clone())
+            .await
+            .unwrap();
+
+        let value = storage.get("key1").await.unwrap();
+        assert_eq!(value, Some(large_value));
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_overwrite() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        storage
+            .set("key1".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        let value = storage.get("key1").await.unwrap();
+        assert_eq!(value, Some(b"value2".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn test_hybrid_storage_multiple_deletes() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            write_buffer_size: 10,
+            ..Default::default()
+        };
+        let storage = HybridStorage::new(config).unwrap();
+
+        storage
+            .set("key1".to_string(), b"value1".to_vec())
+            .await
+            .unwrap();
+        storage
+            .set("key2".to_string(), b"value2".to_vec())
+            .await
+            .unwrap();
+
+        storage.delete("key1").await.unwrap();
+        storage.delete("key2").await.unwrap();
+
+        assert_eq!(storage.keys().await.unwrap().len(), 0);
+    }
 }

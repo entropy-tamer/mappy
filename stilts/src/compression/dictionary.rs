@@ -261,4 +261,180 @@ mod tests {
 
         assert_eq!(tags, decompressed);
     }
+
+    #[test]
+    fn test_dictionary_new() {
+        let compressor = DictionaryCompressor::new();
+        assert!(compressor.dictionary.is_empty());
+        assert!(compressor.reverse_dictionary.is_empty());
+        assert_eq!(compressor.next_code, 0);
+    }
+
+    #[test]
+    fn test_dictionary_default() {
+        let compressor = DictionaryCompressor::default();
+        assert!(compressor.dictionary.is_empty());
+        assert_eq!(compressor.next_code, 0);
+    }
+
+    #[test]
+    fn test_dictionary_clone() {
+        let mut compressor = DictionaryCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string(), "tag2".to_string()])
+            .unwrap();
+
+        let cloned = compressor.clone();
+        assert_eq!(cloned.dictionary.len(), compressor.dictionary.len());
+        assert_eq!(cloned.next_code, compressor.next_code);
+    }
+
+    #[test]
+    fn test_build_from_corpus_empty() {
+        let mut compressor = DictionaryCompressor::new();
+        let result = compressor.build_from_corpus(&[]);
+        assert!(result.is_ok());
+        assert!(compressor.dictionary.is_empty());
+    }
+
+    #[test]
+    fn test_build_from_corpus_single_tag() {
+        let mut compressor = DictionaryCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string()])
+            .unwrap();
+        assert_eq!(compressor.dictionary.len(), 1);
+        assert_eq!(compressor.next_code, 1);
+    }
+
+    #[test]
+    fn test_build_from_corpus_multiple_tags() {
+        let mut compressor = DictionaryCompressor::new();
+        compressor
+            .build_from_corpus(&[
+                "tag1".to_string(),
+                "tag2".to_string(),
+                "tag3".to_string(),
+            ])
+            .unwrap();
+        assert_eq!(compressor.dictionary.len(), 3);
+        assert_eq!(compressor.next_code, 3);
+    }
+
+    #[test]
+    fn test_build_from_corpus_with_duplicates() {
+        let mut compressor = DictionaryCompressor::new();
+        compressor
+            .build_from_corpus(&[
+                "tag1".to_string(),
+                "tag1".to_string(),
+                "tag2".to_string(),
+            ])
+            .unwrap();
+        assert_eq!(compressor.dictionary.len(), 2);
+    }
+
+    #[test]
+    fn test_code_to_bits_one_byte() {
+        let compressor = DictionaryCompressor::new();
+        let code = 42;
+        let bits = compressor.code_to_bits(code);
+        assert!(!bits.is_empty());
+    }
+
+    #[test]
+    fn test_code_to_bits_two_bytes() {
+        let compressor = DictionaryCompressor::new();
+        let code = 200;
+        let bits = compressor.code_to_bits(code);
+        assert!(!bits.is_empty());
+    }
+
+    #[test]
+    fn test_code_to_bits_four_bytes() {
+        let compressor = DictionaryCompressor::new();
+        let code = 20000;
+        let bits = compressor.code_to_bits(code);
+        assert!(!bits.is_empty());
+    }
+
+    #[test]
+    fn test_bits_to_code_empty() {
+        let compressor = DictionaryCompressor::new();
+        let empty_data: [u8; 0] = [];
+        let bits = empty_data.view_bits::<Lsb0>();
+        let mut bits_ref = bits;
+        let result = compressor.bits_to_code(&mut bits_ref);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compress_empty_tags() {
+        let mut compressor = DictionaryCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string()])
+            .unwrap();
+        let result = compressor.compress(&[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compress_without_corpus() {
+        let compressor = DictionaryCompressor::new();
+        let tags = vec!["tag1".to_string(), "tag2".to_string()];
+        let result = compressor.compress(&tags);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_decompress_empty_data() {
+        let compressor = DictionaryCompressor::new();
+        let result = compressor.decompress(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decompress_insufficient_data() {
+        let compressor = DictionaryCompressor::new();
+        let result = compressor.decompress(&[1, 2, 3]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_algorithm_name() {
+        let compressor = DictionaryCompressor::new();
+        assert_eq!(compressor.algorithm_name(), "dictionary");
+    }
+
+    #[test]
+    fn test_dictionary_roundtrip_with_special_chars() {
+        let tags = vec![
+            "tag-with-dash".to_string(),
+            "tag_with_underscore".to_string(),
+            "tag.with.dots".to_string(),
+        ];
+
+        let mut compressor = DictionaryCompressor::new();
+        compressor.build_from_corpus(&tags).unwrap();
+
+        let compressed = compressor.compress(&tags).unwrap();
+        let decompressed = compressor.decompress(&compressed).unwrap();
+
+        assert_eq!(tags, decompressed);
+    }
+
+    #[test]
+    fn test_dictionary_frequency_ordering() {
+        let tags = vec![
+            "tag1".to_string(),
+            "tag1".to_string(),
+            "tag1".to_string(),
+            "tag2".to_string(),
+        ];
+
+        let mut compressor = DictionaryCompressor::new();
+        compressor.build_from_corpus(&tags).unwrap();
+
+        assert_eq!(compressor.dictionary.len(), 2);
+    }
 }

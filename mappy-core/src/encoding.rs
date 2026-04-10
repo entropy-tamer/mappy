@@ -175,15 +175,12 @@ mod tests {
 
     #[test]
     fn test_varint_encoding() {
-        // Test small values
         assert_eq!(VarIntEncoder::encode_u64(0), vec![0]);
         assert_eq!(VarIntEncoder::encode_u64(127), vec![127]);
 
-        // Test medium values
         assert_eq!(VarIntEncoder::encode_u64(128), vec![0x80, 0x01]);
         assert_eq!(VarIntEncoder::encode_u64(16383), vec![0xFF, 0x7F]);
 
-        // Test round-trip encoding
         for value in [0, 1, 127, 128, 16383, 16384, 1_000_000, u64::MAX] {
             let encoded = VarIntEncoder::encode_u64(value);
             let (decoded, bytes_read) = VarIntEncoder::decode_u64(&encoded).unwrap();
@@ -193,10 +190,37 @@ mod tests {
     }
 
     #[test]
+    fn test_varint_decode_empty() {
+        let result = VarIntEncoder::decode_u64(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_varint_decode_incomplete() {
+        let incomplete = vec![0x80];
+        let result = VarIntEncoder::decode_u64(&incomplete);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_varint_encode_u32() {
+        let encoded = VarIntEncoder::encode_u32(1000);
+        let (decoded, bytes_read) = VarIntEncoder::decode_u32(&encoded).unwrap();
+        assert_eq!(decoded, 1000);
+        assert_eq!(bytes_read, encoded.len());
+    }
+
+    #[test]
+    fn test_varint_decode_u32_overflow() {
+        let large_value = VarIntEncoder::encode_u64(u64::MAX);
+        let result = VarIntEncoder::decode_u32(&large_value);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_exponential_encoding() {
         let encoder = ExponentialEncoder::new(2.0, 16);
 
-        // Test round-trip encoding
         for value in [0, 1, 2, 4, 8, 16, 100, 1000, 10000] {
             let encoded_data = encoder.encode_counter(value);
             let (decoded, bytes_read) = encoder.decode_counter(&encoded_data).unwrap();
@@ -206,17 +230,68 @@ mod tests {
     }
 
     #[test]
+    fn test_exponential_decode_empty() {
+        let encoder = ExponentialEncoder::new(2.0, 16);
+        let result = encoder.decode_counter(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_exponential_encode_zero() {
+        let encoder = ExponentialEncoder::new(2.0, 16);
+        let encoded = encoder.encode_counter(0);
+        assert_eq!(encoded, vec![0]);
+    }
+
+    #[test]
     fn test_compact_encoding() {
-        // Test inline encoding for small values
         let value: u32 = 0x1234_5678;
         let encoded = CompactEncoder::encode_inline(&value);
         let decoded: u32 = CompactEncoder::decode_inline(&encoded).unwrap();
         assert_eq!(decoded, value);
 
-        // Test inline encoding for u64
         let value: u64 = 0x1234_5678_9ABC_DEF0;
         let encoded = CompactEncoder::encode_inline(&value);
         let decoded: u64 = CompactEncoder::decode_inline(&encoded).unwrap();
         assert_eq!(decoded, value);
+    }
+
+    #[test]
+    fn test_compact_encode_u8() {
+        let value: u8 = 42;
+        let encoded = CompactEncoder::encode_inline(&value);
+        let decoded: u8 = CompactEncoder::decode_inline(&encoded).unwrap();
+        assert_eq!(decoded, 42);
+    }
+
+    #[test]
+    fn test_compact_encode_i32() {
+        let value: i32 = -12345;
+        let encoded = CompactEncoder::encode_inline(&value);
+        let decoded: i32 = CompactEncoder::decode_inline(&encoded).unwrap();
+        assert_eq!(decoded, -12345);
+    }
+
+    #[test]
+    fn test_compact_can_encode_inline() {
+        assert!(CompactEncoder::can_encode_inline(&0u8));
+        assert!(CompactEncoder::can_encode_inline(&0u64));
+        assert!(CompactEncoder::can_encode_inline(&[0u8; 8]));
+    }
+
+    #[test]
+    fn test_compact_encode_u16() {
+        let value: u16 = 0xABCD;
+        let encoded = CompactEncoder::encode_inline(&value);
+        let decoded: u16 = CompactEncoder::decode_inline(&encoded).unwrap();
+        assert_eq!(decoded, 0xABCD);
+    }
+
+    #[test]
+    fn test_exponential_encoder_clone() {
+        let encoder = ExponentialEncoder::new(2.0, 16);
+        let cloned = encoder;
+        assert_eq!(cloned.base, 2.0);
+        assert_eq!(cloned.precision, 16);
     }
 }

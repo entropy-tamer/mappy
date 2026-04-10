@@ -29,6 +29,32 @@ The implementation follows a multi-crate workspace structure:
 - **mappy-python**: Python bindings via PyO3
 - **mappy-server**: HTTP server for network access to Mappy service
 
+## Deployment and Integration
+
+### Reynard Integration
+
+Mappy is integrated into the Reynard ecosystem for telemetry and metrics collection:
+
+- **Service Deployment**: Mappy server runs as a systemd service (`reynard-mappy.service`)
+- **Unix Socket Communication**: Primary communication via `/var/run/reynard/mappy.sock` for low-latency metrics
+- **HTTP API**: Fallback HTTP API on port 8003 for broader compatibility
+- **Telemetry Client**: TypeScript client in `packages/core/connection/src/telemetry/` for frontend integration
+- **Metrics Recording**: Automatic metric recording in `useAsyncOperation` composable
+- **Configuration**: Environment-based configuration with graceful degradation
+
+### Connection Package Telemetry
+
+The Reynard connection package uses Mappy for efficient metrics storage:
+
+- **Request Metrics**: Track request counts, success/failure rates, and duration
+- **Cache Metrics**: Monitor cache hits/misses and performance
+- **Deduplication Metrics**: Track deduplication effectiveness
+- **Error Metrics**: Categorize and track errors by type and endpoint
+- **Throughput Metrics**: Monitor requests per second
+- **Latency Percentiles**: Track P50, P95, P99 latency metrics
+
+For detailed telemetry documentation, see the [Connection Package Telemetry README](../../packages/core/connection/src/telemetry/README.md).
+
 ## Quick Start
 
 ```rust
@@ -38,8 +64,8 @@ use mappy_core::{Maplet, CounterOperator};
 let mut maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01);
 
 // Insert key-value pairs
-maplet.insert("key1".to_string(), 5).unwrap();
-maplet.insert("key2".to_string(), 3).unwrap();
+maplet.insert("key1".to_string(), 5).expect("Failed to insert key1");
+maplet.insert("key2".to_string(), 3).expect("Failed to insert key2");
 
 // Query values (may return approximate results)
 let count1 = maplet.query(&"key1".to_string()); // Some(5) or Some(5 + other_values)
@@ -62,24 +88,28 @@ Enable the `quotient-filter` feature for enhanced slot finding capabilities with
 
 ```toml
 [dependencies]
-mappy-core = { version = "0.1.0", features = ["quotient-filter"] }
+mappy-core = { version = "0.3.2", features = ["quotient-filter"] }
 ```
 
 ```rust
 use mappy_core::{Maplet, CounterOperator};
 
-// Create a maplet with quotient filter support
-let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a maplet with quotient filter support
+    let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01)?;
 
-// Insert some data
-maplet.insert("test_key".to_string(), 42).await.unwrap();
+    // Insert some data
+    maplet.insert("test_key".to_string(), 42).await?;
 
-// Find the actual slot where a key's fingerprint is stored
-// This handles runs, shifting, and all complex quotient filter logic
-let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
-match slot {
-    Some(slot_index) => println!("Key found at slot {}", slot_index),
-    None => println!("Key not found"),
+    // Find the actual slot where a key's fingerprint is stored
+    // This handles runs, shifting, and all complex quotient filter logic
+    let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
+    match slot {
+        Some(slot_index) => println!("Key found at slot {}", slot_index),
+        None => println!("Key not found"),
+    }
+    Ok(())
 }
 ```
 

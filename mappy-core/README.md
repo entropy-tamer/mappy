@@ -60,24 +60,28 @@ Enable the `quotient-filter` feature for enhanced slot finding capabilities with
 
 ```toml
 [dependencies]
-mappy-core = { version = "0.3.1", features = ["quotient-filter"] }
+mappy-core = { version = "0.3.2", features = ["quotient-filter"] }
 ```
 
 ```rust
 use mappy_core::{Maplet, CounterOperator};
 
-// Create a maplet with quotient filter support
-let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a maplet with quotient filter support
+    let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01)?;
 
-// Insert some data
-maplet.insert("test_key".to_string(), 42).await.unwrap();
+    // Insert some data
+    maplet.insert("test_key".to_string(), 42).await?;
 
-// Find the actual slot where a key's fingerprint is stored
-// This handles runs, shifting, and all complex quotient filter logic
-let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
-match slot {
-    Some(slot_index) => println!("Key found at slot {}", slot_index),
-    None => println!("Key not found"),
+    // Find the actual slot where a key's fingerprint is stored
+    // This handles runs, shifting, and all complex quotient filter logic
+    let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
+    match slot {
+        Some(slot_index) => println!("Key found at slot {}", slot_index),
+        None => println!("Key not found"),
+    }
+    Ok(())
 }
 ```
 

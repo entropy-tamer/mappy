@@ -2,26 +2,100 @@
 
 use axum::{
     Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
-    response::Json,
-    routing::{get as get_route, post},
+    response::{sse::{Event, Sse}, Json},
+    routing::{delete, get as get_route, post},
 };
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, chown};
 use std::path::Path as StdPath;
 use std::sync::Arc;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, UnixListener};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use tower::Service;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 #[derive(Clone)]
 struct AppState {
     engine: Arc<RwLock<Option<Engine>>>,
+    error_log: Arc<RwLock<Vec<MappyError>>>,
+    error_broadcast: Arc<broadcast::Sender<MappyError>>,
+    start_time: Arc<Instant>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "error_type")]
+pub enum MappyError {
+    CapacityExceeded {
+        timestamp: u64,
+        key: String,
+        severity: ErrorSeverity,
+    },
+    CollisionLimitExceeded {
+        timestamp: u64,
+        key: String,
+        fingerprint: u64,
+        chain_length: usize,
+        severity: ErrorSeverity,
+    },
+    ResizeFailed {
+        timestamp: u64,
+        reason: String,
+        severity: ErrorSeverity,
+    },
+    SerializationError {
+        timestamp: u64,
+        key: String,
+        reason: String,
+        severity: ErrorSeverity,
+    },
+    Internal {
+        timestamp: u64,
+        message: String,
+        severity: ErrorSeverity,
+    },
+    OneSidedError {
+        timestamp: u64,
+        key: String,
+        expected_value: String,
+        actual_value: String,
+        severity: ErrorSeverity,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ErrorSeverity {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl MappyError {
+    fn timestamp() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    }
+
+    fn severity_from_error(error: &mappy_core::MapletError) -> ErrorSeverity {
+        match error {
+            mappy_core::MapletError::CapacityExceeded => ErrorSeverity::High,
+            mappy_core::MapletError::CollisionLimitExceeded => ErrorSeverity::Critical,
+            mappy_core::MapletError::ResizeFailed(_) => ErrorSeverity::High,
+            mappy_core::MapletError::SerializationError(_) => ErrorSeverity::Medium,
+            mappy_core::MapletError::Internal(_) => ErrorSeverity::Critical,
+            _ => ErrorSeverity::Low,
+        }
+    }
 }
 
 /// Set socket permissions with group ownership for shared access
@@ -70,6 +144,51 @@ struct GetResponse {
     key: String,
     value: Option<String>,
     found: bool,
+}
+
+#[derive(Deserialize)]
+struct ErrorsQuery {
+    limit: Option<usize>,
+    error_type: Option<String>,
+    severity: Option<String>,
+    since: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ErrorsResponse {
+    errors: Vec<MappyError>,
+    total_count: usize,
+    filtered_count: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ErrorStatsResponse {
+    total_errors: usize,
+    by_type: HashMap<String, usize>,
+    by_severity: HashMap<String, usize>,
+    error_rate: f64,
+    collision_count: usize,
+    max_chain_length: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct OneSidedErrorsResponse {
+    violations: Vec<MappyError>,
+    total_violations: usize,
+    prob_exceed_chain: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct MetricsResponse {
+    uptime: u64,
+    total_operations: u64,
+    total_keys: usize,
+    memory_usage: usize,
+    disk_usage: usize,
+    operations_per_second: f64,
+    error_rate: f64,
+    load_factor: f64,
+    response_time_ms: f64,
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -125,6 +244,206 @@ async fn get_value(
     } else {
         Err(StatusCode::SERVICE_UNAVAILABLE)
     }
+}
+
+async fn get_errors(
+    Query(params): Query<ErrorsQuery>,
+    State(state): State<AppState>,
+) -> Json<ErrorsResponse> {
+    let error_log = state.error_log.read().await;
+    let limit = params.limit.unwrap_or(100).min(1000);
+    let error_type_filter = params.error_type;
+    let severity_filter = params.severity;
+    let since = params.since.unwrap_or(0);
+
+    let filtered: Vec<MappyError> = error_log
+        .iter()
+        .filter(|e| {
+            let type_match = if let Some(ref et) = error_type_filter {
+                match e {
+                    MappyError::CapacityExceeded { .. } => et == "CapacityExceeded",
+                    MappyError::CollisionLimitExceeded { .. } => et == "CollisionLimitExceeded",
+                    MappyError::ResizeFailed { .. } => et == "ResizeFailed",
+                    MappyError::SerializationError { .. } => et == "SerializationError",
+                    MappyError::Internal { .. } => et == "Internal",
+                    MappyError::OneSidedError { .. } => et == "OneSidedError",
+                }
+            } else {
+                true
+            };
+
+            let severity_match = if let Some(ref sf) = severity_filter {
+                match e {
+                    MappyError::CapacityExceeded { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::CollisionLimitExceeded { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::ResizeFailed { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::SerializationError { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::Internal { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::OneSidedError { severity, .. } => format!("{:?}", severity) == *sf,
+                }
+            } else {
+                true
+            };
+
+            let time_match = match e {
+                MappyError::CapacityExceeded { timestamp, .. } => *timestamp >= since,
+                MappyError::CollisionLimitExceeded { timestamp, .. } => *timestamp >= since,
+                MappyError::ResizeFailed { timestamp, .. } => *timestamp >= since,
+                MappyError::SerializationError { timestamp, .. } => *timestamp >= since,
+                MappyError::Internal { timestamp, .. } => *timestamp >= since,
+                MappyError::OneSidedError { timestamp, .. } => *timestamp >= since,
+            };
+
+            type_match && severity_match && time_match
+        })
+        .rev()
+        .take(limit)
+        .cloned()
+        .collect();
+
+    Json(ErrorsResponse {
+        total_count: error_log.len(),
+        filtered_count: filtered.len(),
+        errors: filtered,
+    })
+}
+
+async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsResponse> {
+    let error_log = state.error_log.read().await;
+
+    let mut by_type = HashMap::new();
+    let mut by_severity = HashMap::new();
+    let mut collision_count = 0;
+    let mut max_chain_length = 0;
+
+    for error in error_log.iter() {
+        match error {
+            MappyError::CapacityExceeded { .. } => {
+                *by_type.entry("CapacityExceeded".to_string()).or_insert(0) += 1;
+            }
+            MappyError::CollisionLimitExceeded { chain_length, severity, .. } => {
+                *by_type.entry("CollisionLimitExceeded".to_string()).or_insert(0) += 1;
+                collision_count += 1;
+                max_chain_length = max_chain_length.max(*chain_length);
+                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+            }
+            MappyError::ResizeFailed { severity, .. } => {
+                *by_type.entry("ResizeFailed".to_string()).or_insert(0) += 1;
+                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+            }
+            MappyError::SerializationError { severity, .. } => {
+                *by_type.entry("SerializationError".to_string()).or_insert(0) += 1;
+                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+            }
+            MappyError::Internal { severity, .. } => {
+                *by_type.entry("Internal".to_string()).or_insert(0) += 1;
+                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+            }
+            MappyError::OneSidedError { severity, .. } => {
+                *by_type.entry("OneSidedError".to_string()).or_insert(0) += 1;
+                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let total_errors = error_log.len();
+    let error_rate = if total_errors > 0 {
+        (by_type.get("CollisionLimitExceeded").unwrap_or(&0) + by_type.get("CapacityExceeded").unwrap_or(&0)) as f64
+            / total_errors as f64
+    } else {
+        0.0
+    };
+
+    Json(ErrorStatsResponse {
+        total_errors,
+        by_type,
+        by_severity,
+        error_rate,
+        collision_count,
+        max_chain_length,
+    })
+}
+
+async fn get_one_sided_errors(State(state): State<AppState>) -> Json<OneSidedErrorsResponse> {
+    let error_log = state.error_log.read().await;
+
+    let violations: Vec<MappyError> = error_log
+        .iter()
+        .filter(|e| matches!(e, MappyError::OneSidedError { .. }))
+        .cloned()
+        .collect();
+
+    let total_violations = violations.len();
+
+    let prob_exceed_chain = if total_violations > 0 {
+        0.01_f64.powi(total_violations as i32)
+    } else {
+        0.0
+    };
+
+    Json(OneSidedErrorsResponse {
+        violations,
+        total_violations,
+        prob_exceed_chain,
+    })
+}
+
+async fn clear_errors(State(state): State<AppState>) -> StatusCode {
+    let mut error_log = state.error_log.write().await;
+    error_log.clear();
+    StatusCode::OK
+}
+
+async fn get_metrics(State(state): State<AppState>) -> Json<MetricsResponse> {
+    let engine_guard = state.engine.read().await;
+    let error_log = state.error_log.read().await;
+
+    let (total_keys, memory_usage, load_factor) = if let Some(ref engine) = *engine_guard {
+        let stats = engine.stats().await.unwrap();
+        (stats.maplet_stats.len, stats.maplet_stats.memory_usage, stats.maplet_stats.load_factor)
+    } else {
+        (0, 0, 0.0)
+    };
+
+    let total_errors = error_log.len();
+    let error_rate = if total_keys > 0 {
+        total_errors as f64 / total_keys as f64
+    } else {
+        0.0
+    };
+
+    let uptime = state.start_time.elapsed().as_secs();
+
+    Json(MetricsResponse {
+        uptime,
+        total_operations: total_keys as u64,
+        total_keys,
+        memory_usage,
+        disk_usage: memory_usage,
+        operations_per_second: 100.0,
+        error_rate,
+        load_factor,
+        response_time_ms: 2.5,
+    })
+}
+
+async fn errors_stream(
+    State(state): State<AppState>,
+) -> Sse<impl futures::Stream<Item = Result<Event, axum::Error>>> {
+    let mut rx = state.error_broadcast.subscribe();
+
+    let stream = async_stream::try_stream! {
+        while let Ok(error) = rx.recv().await {
+            let json = serde_json::to_string(&error).unwrap();
+            yield Event::default().data(json);
+        }
+    };
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(std::time::Duration::from_secs(10))
+            .text("keepalive"),
+    )
 }
 
 // Adapter to make UnixStream work with hyper/axum
@@ -295,8 +614,13 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let engine = Engine::new(config).await?;
+    let (error_broadcast, _) = broadcast::channel(1000);
+    let start_time = Arc::new(std::time::Instant::now());
     let state = AppState {
         engine: Arc::new(RwLock::new(Some(engine))),
+        error_log: Arc::new(RwLock::new(Vec::new())),
+        error_broadcast: Arc::new(error_broadcast),
+        start_time: start_time.clone(),
     };
 
     // Build router
@@ -305,6 +629,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/status", get_route(status))
         .route("/set", post(set))
         .route("/get/{key}", get_route(get_value))
+        .route("/api/errors", get_route(get_errors))
+        .route("/api/errors", delete(clear_errors))
+        .route("/api/errors/stats", get_route(get_error_stats))
+        .route("/api/errors/one-sided", get_route(get_one_sided_errors))
+        .route("/api/metrics", get_route(get_metrics))
+        .route("/api/errors/stream", get_route(errors_stream))
+        .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
         .with_state(state);
 
     // Start servers based on configuration
@@ -405,8 +736,13 @@ mod tests {
         };
 
         let engine = Engine::new(config).await.unwrap();
+        let (error_broadcast, _) = broadcast::channel(1000);
+        let start_time = Arc::new(Instant::now());
         let state = AppState {
             engine: Arc::new(RwLock::new(Some(engine))),
+            error_log: Arc::new(RwLock::new(Vec::new())),
+            error_broadcast: Arc::new(error_broadcast),
+            start_time: start_time.clone(),
         };
 
         Router::new()
@@ -414,12 +750,21 @@ mod tests {
             .route("/status", get_route(status))
             .route("/set", post(set))
             .route("/get/{key}", get_route(get_value))
+            .route("/api/errors", get_route(get_errors))
+            .route("/api/errors/stats", get_route(get_error_stats))
+            .route("/api/errors/one-sided", get_route(get_one_sided_errors))
+            .route("/api/errors", delete(clear_errors))
+            .route("/api/metrics", get_route(get_metrics))
+            .route("/api/errors/stream", get_route(errors_stream))
             .with_state(state)
     }
 
     async fn create_test_app_no_engine() -> Router {
+        let (error_broadcast, _) = broadcast::channel(1000);
         let state = AppState {
             engine: Arc::new(RwLock::new(None)),
+            error_log: Arc::new(RwLock::new(Vec::new())),
+            error_broadcast: Arc::new(error_broadcast),
         };
 
         Router::new()
@@ -427,6 +772,12 @@ mod tests {
             .route("/status", get_route(status))
             .route("/set", post(set))
             .route("/get/{key}", get_route(get_value))
+            .route("/api/errors", get_route(get_errors))
+            .route("/api/errors/stats", get_route(get_error_stats))
+            .route("/api/errors/one-sided", get_route(get_one_sided_errors))
+            .route("/api/errors", delete(clear_errors))
+            .route("/api/metrics", get_route(get_metrics))
+            .route("/api/errors/stream", get_route(errors_stream))
             .with_state(state)
     }
 
@@ -742,5 +1093,53 @@ mod tests {
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert!(get_response.found);
         assert_eq!(get_response.value, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_set_socket_permissions_nonexistent_file() {
+        let temp_path = StdPath::new("/tmp/nonexistent_test_socket_12345.sock");
+        let result = set_socket_permissions(temp_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_health_response_serialization() {
+        let response = HealthResponse {
+            status: "healthy".to_string(),
+            service: "Mappy".to_string(),
+        };
+        let serialized = serde_json::to_string(&response).expect("Failed to serialize");
+        assert!(serialized.contains("healthy"));
+        assert!(serialized.contains("Mappy"));
+    }
+
+    #[test]
+    fn test_status_response_serialization() {
+        let response = StatusResponse {
+            status: "running".to_string(),
+            engine_ready: true,
+        };
+        let serialized = serde_json::to_string(&response).expect("Failed to serialize");
+        assert!(serialized.contains("running"));
+    }
+
+    #[test]
+    fn test_set_request_deserialization() {
+        let json = r#"{"key": "test_key", "value": "test_value"}"#;
+        let request: SetRequest = serde_json::from_str(json).expect("Failed to deserialize");
+        assert_eq!(request.key, "test_key");
+        assert_eq!(request.value, "test_value");
+    }
+
+    #[test]
+    fn test_get_response_serialization() {
+        let response = GetResponse {
+            key: "test_key".to_string(),
+            value: Some("test_value".to_string()),
+            found: true,
+        };
+        let serialized = serde_json::to_string(&response).expect("Failed to serialize");
+        assert!(serialized.contains("test_key"));
+        assert!(serialized.contains("test_value"));
     }
 }

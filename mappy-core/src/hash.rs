@@ -218,9 +218,65 @@ mod tests {
         let fingerprint = hasher.fingerprint(&key);
         assert!(fingerprint < (1u64 << 8));
 
-        // Same key should produce same fingerprint
         let fingerprint2 = hasher.fingerprint(&key);
         assert_eq!(fingerprint, fingerprint2);
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_twox() {
+        let hasher = FingerprintHasher::new(HashFunction::TwoX, 16);
+        let key = "test_key";
+
+        let fingerprint = hasher.fingerprint(&key);
+        assert!(fingerprint < (1u64 << 16));
+
+        let fingerprint2 = hasher.fingerprint(&key);
+        assert_eq!(fingerprint, fingerprint2);
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_fnv() {
+        let hasher = FingerprintHasher::new(HashFunction::Fnv, 12);
+        let key = "test_key";
+
+        let fingerprint = hasher.fingerprint(&key);
+        assert!(fingerprint < (1u64 << 12));
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_64_bits() {
+        let hasher = FingerprintHasher::new(HashFunction::AHash, 64);
+        let key = "test_key";
+
+        let fingerprint = hasher.fingerprint(&key);
+        assert!(fingerprint <= u64::MAX);
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_different_keys() {
+        let hasher = FingerprintHasher::new(HashFunction::AHash, 16);
+        let key1 = "key1";
+        let key2 = "key2";
+
+        let fp1 = hasher.fingerprint(&key1);
+        let fp2 = hasher.fingerprint(&key2);
+
+        assert_ne!(fp1, fp2);
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_clone() {
+        let hasher = FingerprintHasher::new(HashFunction::AHash, 16);
+        let cloned = hasher.clone();
+        let key = "test_key";
+
+        assert_eq!(hasher.fingerprint(&key), cloned.fingerprint(&key));
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_default() {
+        let hasher = FingerprintHasher::new(HashFunction::default(), 16);
+        assert_eq!(hasher.hash_fn, HashFunction::AHash);
     }
 
     #[test]
@@ -231,16 +287,34 @@ mod tests {
         let slot = perfect_hash.slot_index(fingerprint);
         assert!(slot < 100);
 
-        // Same fingerprint should map to same slot
         let slot2 = perfect_hash.slot_index(fingerprint);
         assert_eq!(slot, slot2);
+    }
+
+    #[test]
+    fn test_perfect_hash_different_fingerprints() {
+        let perfect_hash = PerfectHash::new(100, HashFunction::AHash);
+
+        let slot1 = perfect_hash.slot_index(12345);
+        let slot2 = perfect_hash.slot_index(54321);
+
+        assert!(slot1 < 100);
+        assert!(slot2 < 100);
+    }
+
+    #[test]
+    fn test_perfect_hash_clone() {
+        let perfect_hash = PerfectHash::new(100, HashFunction::AHash);
+        let cloned = perfect_hash.clone();
+
+        let fingerprint = 12345u64;
+        assert_eq!(perfect_hash.slot_index(fingerprint), cloned.slot_index(fingerprint));
     }
 
     #[test]
     fn test_collision_detector() {
         let mut detector = CollisionDetector::new(10);
 
-        // Record some collisions
         for _ in 0..5 {
             assert!(detector.record_collision().is_ok());
         }
@@ -248,7 +322,6 @@ mod tests {
         assert_eq!(detector.collision_count(), 5);
         assert!(!detector.is_approaching_limit());
 
-        // Record more collisions to trigger warning
         for _ in 0..5 {
             assert!(detector.record_collision().is_ok());
         }
@@ -256,14 +329,66 @@ mod tests {
         assert_eq!(detector.collision_count(), 10);
         assert!(detector.is_approaching_limit());
 
-        // Try to record one more collision - should fail
+        assert!(detector.record_collision().is_err());
+    }
+
+    #[test]
+    fn test_collision_detector_reset() {
+        let mut detector = CollisionDetector::new(10);
+        detector.record_collision().ok();
+
+        assert_eq!(detector.collision_count(), 1);
+
+        detector.reset();
+        assert_eq!(detector.collision_count(), 0);
+    }
+
+    #[test]
+    fn test_collision_detector_clone() {
+        let mut detector = CollisionDetector::new(10);
+        detector.record_collision().ok();
+
+        let cloned = detector.clone();
+        assert_eq!(cloned.collision_count(), 1);
+    }
+
+    #[test]
+    fn test_collision_detector_max_zero() {
+        let mut detector = CollisionDetector::new(0);
         assert!(detector.record_collision().is_err());
     }
 
     #[test]
     fn test_optimal_fingerprint_size() {
-        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.01), 10); // log2(100) + 3 = 10
-        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.001), 13); // log2(1000) + 3 = 13
-        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.1), 7); // log2(10) + 3 = 7
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.01), 10);
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.001), 13);
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.1), 7);
+    }
+
+    #[test]
+    fn test_optimal_fingerprint_size_edge_cases() {
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(0.0), 8);
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(1.0), 8);
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(-0.5), 8);
+        assert_eq!(FingerprintHasher::optimal_fingerprint_size(2.0), 8);
+    }
+
+    #[test]
+    fn test_hash_function_eq() {
+        assert_eq!(HashFunction::AHash, HashFunction::AHash);
+        assert_ne!(HashFunction::AHash, HashFunction::TwoX);
+    }
+
+    #[test]
+    fn test_fingerprint_hasher_getters() {
+        let hasher = FingerprintHasher::new(HashFunction::AHash, 16);
+        assert_eq!(hasher.fingerprint_bits(), 16);
+        assert_eq!(hasher.fingerprint_mask(), (1u64 << 16) - 1);
+    }
+
+    #[test]
+    fn test_perfect_hash_getters() {
+        let perfect_hash = PerfectHash::new(100, HashFunction::AHash);
+        assert_eq!(perfect_hash.num_slots(), 100);
     }
 }

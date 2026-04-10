@@ -86,3 +86,103 @@ impl BenchmarkRunner {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_benchmark_runner_huffman() {
+        let tags = vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()];
+        let mut huffman = HuffmanCompressor::new();
+        huffman.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&huffman, &tags, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "huffman");
+        assert!(metrics.stats.original_size > 0);
+    }
+
+    #[test]
+    fn test_benchmark_runner_arithmetic() {
+        let tags = vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()];
+        let mut arithmetic = ArithmeticCompressor::new();
+        arithmetic.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&arithmetic, &tags, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "arithmetic");
+        assert!(metrics.stats.original_size > 0);
+    }
+
+    #[test]
+    fn test_benchmark_runner_dictionary() {
+        let tags = vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()];
+        let mut dictionary = DictionaryCompressor::new();
+        dictionary.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&dictionary, &tags, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "dictionary");
+        assert!(metrics.stats.original_size > 0);
+    }
+
+    #[test]
+    fn test_benchmark_runner_multiple_iterations() {
+        let tags = vec!["tag1".to_string(), "tag2".to_string()];
+        let mut huffman = HuffmanCompressor::new();
+        huffman.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&huffman, &tags, 5);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert!(metrics.stats.compression_speed_mbps >= 0.0);
+        assert!(metrics.stats.decompression_speed_mbps >= 0.0);
+    }
+
+    #[test]
+    fn test_benchmark_runner_all() {
+        let tags = vec![
+            "tag1".to_string(),
+            "tag2".to_string(),
+            "tag3".to_string(),
+            "tag4".to_string(),
+        ];
+
+        let results = BenchmarkRunner::benchmark_all(&tags, 1);
+        assert!(results.is_ok());
+        let metrics = results.unwrap();
+        assert_eq!(metrics.len(), 3);
+        assert!(metrics.iter().any(|m| m.algorithm == "huffman"));
+        assert!(metrics.iter().any(|m| m.algorithm == "arithmetic"));
+        assert!(metrics.iter().any(|m| m.algorithm == "dictionary"));
+    }
+
+    #[test]
+    fn test_benchmark_runner_single_tag() {
+        let tags = vec!["single_tag".to_string()];
+        let mut huffman = HuffmanCompressor::new();
+        huffman.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&huffman, &tags, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert!(metrics.stats.original_size > 0);
+    }
+
+    #[test]
+    fn test_benchmark_runner_compression_ratio() {
+        let tags = vec!["tag1".to_string(), "tag2".to_string(), "tag3".to_string()];
+        let mut huffman = HuffmanCompressor::new();
+        huffman.build_from_corpus(&tags).expect("Failed to build corpus");
+
+        let result = BenchmarkRunner::benchmark(&huffman, &tags, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert!(metrics.stats.compression_ratio >= 0.0);
+        assert!(metrics.stats.compression_ratio <= 1.0);
+    }
+}

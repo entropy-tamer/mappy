@@ -1,16 +1,17 @@
 # Mappy Server - Network Server for Mappy Service
 
-A high-performance HTTP server that provides network access to the Mappy service. Built with Axum and designed for production deployment with comprehensive error handling and monitoring.
+A high-performance HTTP server that provides network access to the Mappy Engine. Built with Axum and designed for production deployment with comprehensive error handling, monitoring, and real-time error tracking.
 
 ## 🚀 Features
 
-- **🌐 HTTP API**: RESTful endpoints for all Mappy operations
+- **🌐 HTTP API**: RESTful endpoints for Engine operations (get/set)
 - **⚡ High Performance**: Built with Axum for maximum throughput
 - **🔐 Security**: TLS support and authentication ready
-- **📊 Monitoring**: Built-in health checks and metrics
+- **📊 Monitoring**: Built-in health checks, metrics, and error tracking
 - **🔧 Configuration**: Environment-based configuration management
 - **📝 Logging**: Comprehensive structured logging with tracing
-- **🗺️ Maplet Support**: Full support for space-efficient maplet operations
+- **🗺️ Engine Support**: Full support for Mappy Engine with error tracking and one-sided error guarantee monitoring
+- **📡 Real-time Updates**: Server-Sent Events (SSE) for streaming error updates
 
 ## 📦 Installation
 
@@ -58,17 +59,18 @@ MAPPY_PORT=3000 ./mappy-server
 ```bash
 # Server configuration (Unix socket is default)
 MAPPY_SOCKET_PATH="/var/run/reynard/mappy.sock"  # Unix socket path (default)
+MAPPY_ENABLE_SOCKET="true"                     # Enable Unix socket server (default: true)
 MAPPY_ENABLE_HTTP="false"                     # Enable HTTP server (default: false)
-MAPPY_PORT=8080                               # HTTP port (only used if ENABLE_HTTP=true)
+MAPPY_PORT=8003                               # HTTP port (only used if ENABLE_HTTP=true)
 MAPPY_HOST=0.0.0.0                            # HTTP host (only used if ENABLE_HTTP=true)
 
-# Maplet configuration
+# Engine configuration
 MAPPY_CAPACITY=10000
 MAPPY_FALSE_POSITIVE_RATE=0.01
 
 # Storage configuration
 MAPPY_DATA_DIR="./data/mappy"
-MAPPY_PERSISTENCE_MODE="hybrid"
+MAPPY_PERSISTENCE_MODE="memory"
 
 # Log level
 RUST_LOG="mappy=info"
@@ -152,30 +154,45 @@ Returns server health status.
 
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2025-01-15T10:30:00Z",
-  "version": "0.1.0"
+  "status": "healthy"
 }
 ```
 
-### Maplet Operations
-
-#### Insert Key-Value Pair
+### Status
 
 ```http
-POST /api/v1/maplet/insert
+GET /status
+```
+
+Returns server and engine status.
+
+**Response:**
+
+```json
+{
+  "status": "running",
+  "engine_ready": true
+}
+```
+
+### Set Key-Value Pair
+
+```http
+POST /set
 Content-Type: application/json
 
 {
   "key": "user:123",
-  "value": 42
+  "value": "some_value"
 }
 ```
 
-#### Query Value
+**Response:** `200 OK` on success, `500 Internal Server Error` on failure, `503 Service Unavailable` if engine is not ready.
+
+### Get Value
 
 ```http
-GET /api/v1/maplet/query/{key}
+GET /get/{key}
 ```
 
 **Response:**
@@ -183,73 +200,149 @@ GET /api/v1/maplet/query/{key}
 ```json
 {
   "key": "user:123",
-  "value": 42,
+  "value": "some_value",
   "found": true
 }
 ```
 
-#### Check Key Exists
-
-```http
-HEAD /api/v1/maplet/contains/{key}
-```
-
-#### Delete Key
-
-```http
-DELETE /api/v1/maplet/delete/{key}
-```
-
-#### Get Statistics
-
-```http
-GET /api/v1/maplet/stats
-```
-
-**Response:**
-
-```json
-{
-  "capacity": 10000,
-  "size": 1500,
-  "load_factor": 0.15,
-  "memory_usage": 1024000,
-  "false_positive_rate": 0.01
-}
-```
-
-### Advanced Operations
-
-#### Find Slot for Key
-
-```http
-GET /api/v1/maplet/slot/{key}
-```
-
-**Response:**
+If the key is not found:
 
 ```json
 {
   "key": "user:123",
-  "slot": 42,
-  "found": true
+  "value": null,
+  "found": false
 }
 ```
 
-#### Batch Operations
+### Error Tracking
+
+#### Get Errors
 
 ```http
-POST /api/v1/maplet/batch/insert
-Content-Type: application/json
+GET /api/errors?limit=100&error_type=CapacityExceeded&severity=High&since=1234567890
+```
 
+Query parameters:
+- `limit`: Maximum number of errors to return (default: 100, max: 1000)
+- `error_type`: Filter by error type (CapacityExceeded, CollisionLimitExceeded, ResizeFailed, SerializationError, Internal, OneSidedError)
+- `severity`: Filter by severity (Low, Medium, High, Critical)
+- `since`: Only return errors after this timestamp (Unix seconds)
+
+**Response:**
+
+```json
 {
-  "operations": [
-    {"key": "user:1", "value": 10},
-    {"key": "user:2", "value": 20},
-    {"key": "user:3", "value": 30}
+  "total_count": 150,
+  "filtered_count": 25,
+  "errors": [
+    {
+      "error_type": "CapacityExceeded",
+      "timestamp": 1234567890,
+      "key": "user:123",
+      "severity": "High"
+    }
   ]
 }
 ```
+
+#### Clear Errors
+
+```http
+DELETE /api/errors
+```
+
+Clears all logged errors.
+
+**Response:** `200 OK`
+
+#### Get Error Statistics
+
+```http
+GET /api/errors/stats
+```
+
+Returns aggregated error statistics.
+
+**Response:**
+
+```json
+{
+  "total_errors": 150,
+  "error_rate": 0.015,
+  "by_type": {
+    "CapacityExceeded": 10,
+    "CollisionLimitExceeded": 5,
+    "ResizeFailed": 2,
+    "SerializationError": 3,
+    "Internal": 1,
+    "OneSidedError": 129
+  },
+  "by_severity": {
+    "Low": 130,
+    "Medium": 5,
+    "High": 12,
+    "Critical": 3
+  },
+  "collision_count": 5,
+  "max_chain_length": 8
+}
+```
+
+#### Get One-Sided Errors
+
+```http
+GET /api/errors/one-sided
+```
+
+Returns errors related to one-sided error guarantees.
+
+**Response:**
+
+```json
+{
+  "total_count": 129,
+  "errors": [
+    {
+      "error_type": "OneSidedError",
+      "timestamp": 1234567890,
+      "key": "user:123",
+      "expected_value": "42",
+      "actual_value": "45",
+      "severity": "Low"
+    }
+  ]
+}
+```
+
+### Metrics
+
+```http
+GET /api/metrics
+```
+
+Returns system metrics and performance data.
+
+**Response:**
+
+```json
+{
+  "uptime_seconds": 3600,
+  "requests_total": 5000,
+  "requests_per_second": 1.39,
+  "error_rate": 0.002
+}
+```
+
+### Error Streaming
+
+```http
+GET /api/errors/stream
+```
+
+Server-Sent Events (SSE) stream for real-time error updates.
+
+**Response:** SSE event stream with error events.
 
 ## 🔐 Security
 
@@ -264,15 +357,24 @@ Content-Type: application/json
 ### Health Endpoints
 
 - `GET /health` - Basic health check
-- `GET /health/detailed` - Detailed system status
-- `GET /metrics` - Prometheus-compatible metrics
+- `GET /status` - Server and engine status
+- `GET /api/metrics` - System metrics and performance data
+
+### Error Tracking Endpoints
+
+- `GET /api/errors` - Query error log with filtering
+- `DELETE /api/errors` - Clear error log
+- `GET /api/errors/stats` - Aggregated error statistics
+- `GET /api/errors/one-sided` - One-sided error guarantees tracking
+- `GET /api/errors/stream` - Real-time error streaming via SSE
 
 ### Metrics
 
 - Request count and duration
-- Error rates by endpoint
-- Memory usage and maplet statistics
-- False positive rate monitoring
+- Error rates by type and severity
+- Collision tracking and chain length monitoring
+- One-sided error guarantee violations
+- System uptime and requests per second
 
 ## 🧪 Testing
 

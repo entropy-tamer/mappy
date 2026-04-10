@@ -102,10 +102,103 @@ mod tests {
     }
 
     #[test]
+    fn test_layout_optimizer_alignment_u8() {
+        let optimizer = LayoutOptimizer::new(64);
+        let alignment = optimizer.calculate_alignment::<u8>();
+        assert!(alignment >= 1);
+    }
+
+    #[test]
+    fn test_layout_optimizer_alignment_u32() {
+        let optimizer = LayoutOptimizer::new(64);
+        let alignment = optimizer.calculate_alignment::<u32>();
+        assert!(alignment >= 4);
+    }
+
+    #[test]
+    fn test_layout_optimizer_padding_zero() {
+        let optimizer = LayoutOptimizer::new(64);
+        let padding = optimizer.calculate_padding(8, 8);
+        assert_eq!(padding, 0);
+    }
+
+    #[test]
+    fn test_layout_optimizer_padding_max() {
+        let optimizer = LayoutOptimizer::new(64);
+        let padding = optimizer.calculate_padding(7, 8);
+        assert_eq!(padding, 1);
+    }
+
+    #[test]
+    fn test_layout_optimizer_cache_friendly() {
+        let optimizer = LayoutOptimizer::new(64);
+        let data = vec![1u8, 2, 3];
+        assert!(optimizer.is_cache_friendly(&data));
+    }
+
+    #[test]
+    fn test_layout_optimizer_not_cache_friendly() {
+        let optimizer = LayoutOptimizer::new(64);
+        let data = vec![0u8; 100];
+        assert!(!optimizer.is_cache_friendly(&data));
+    }
+
+    #[test]
+    fn test_layout_optimizer_clone() {
+        let optimizer = LayoutOptimizer::new(64);
+        let cloned = optimizer.clone();
+        assert_eq!(cloned.cache_line_size, optimizer.cache_line_size);
+    }
+
+    #[test]
     fn test_interleaved_storage() {
         let mut storage = InterleavedStorage::<u64>::new(100, 64);
 
         assert!(storage.set(0, 42).is_ok());
         assert_eq!(storage.get(0), Some(&42));
+    }
+
+    #[test]
+    fn test_interleaved_storage_get_none() {
+        let storage = InterleavedStorage::<u64>::new(100, 64);
+        assert_eq!(storage.get(0), None);
+    }
+
+    #[test]
+    fn test_interleaved_storage_set_multiple() {
+        let mut storage = InterleavedStorage::<u64>::new(100, 64);
+
+        assert!(storage.set(0, 1).is_ok());
+        assert!(storage.set(1, 2).is_ok());
+        assert!(storage.set(2, 3).is_ok());
+
+        assert_eq!(storage.get(0), Some(&1));
+        assert_eq!(storage.get(1), Some(&2));
+        assert_eq!(storage.get(2), Some(&3));
+    }
+
+    #[test]
+    fn test_interleaved_storage_set_resize() {
+        let mut storage = InterleavedStorage::<u64>::new(10, 64);
+
+        assert!(storage.set(5, 42).is_ok());
+        assert_eq!(storage.get(5), Some(&42));
+    }
+
+    #[test]
+    fn test_interleaved_storage_clone() {
+        let mut storage = InterleavedStorage::<u64>::new(100, 64);
+        storage.set(0, 42).ok();
+
+        let cloned = storage.clone();
+        assert_eq!(cloned.get(0), Some(&42));
+    }
+
+    #[test]
+    fn test_interleaved_storage_u8() {
+        let mut storage = InterleavedStorage::<u8>::new(100, 64);
+
+        assert!(storage.set(0, 255).is_ok());
+        assert_eq!(storage.get(0), Some(&255));
     }
 }

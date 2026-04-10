@@ -165,3 +165,85 @@ impl ChartGenerator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::benchmark::metrics::CompressionStats;
+
+    #[test]
+    fn test_compression_ratio_chart() {
+        let metrics = vec![BenchmarkMetrics {
+            algorithm: "test".to_string(),
+            stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+            memory_usage_bytes: 500,
+        }];
+
+        let result = ChartGenerator::compression_ratio_chart(&metrics, "/tmp/test_ratio.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_speed_comparison_chart() {
+        let metrics = vec![BenchmarkMetrics {
+            algorithm: "test".to_string(),
+            stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+            memory_usage_bytes: 500,
+        }];
+
+        let result = ChartGenerator::speed_comparison_chart(&metrics, "/tmp/test_speed.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_ratio_vs_speed_chart() {
+        let metrics = vec![BenchmarkMetrics {
+            algorithm: "test".to_string(),
+            stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+            memory_usage_bytes: 500,
+        }];
+
+        let result = ChartGenerator::ratio_vs_speed_chart(&metrics, "/tmp/test_ratio_speed.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compression_ratio_chart_empty_metrics() {
+        let metrics: Vec<BenchmarkMetrics> = vec![];
+        let result = ChartGenerator::compression_ratio_chart(&metrics, "/tmp/test_empty.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_speed_comparison_chart_empty_metrics() {
+        let metrics: Vec<BenchmarkMetrics> = vec![];
+        let result = ChartGenerator::speed_comparison_chart(&metrics, "/tmp/test_empty_speed.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_ratio_vs_speed_chart_empty_metrics() {
+        let metrics: Vec<BenchmarkMetrics> = vec![];
+        let result = ChartGenerator::ratio_vs_speed_chart(&metrics, "/tmp/test_empty_ratio_speed.png");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compression_ratio_chart_multiple_metrics() {
+        let metrics = vec![
+            BenchmarkMetrics {
+                algorithm: "algo1".to_string(),
+                stats: CompressionStats::new(1000, 500, 100.0, 50.0, 128),
+                memory_usage_bytes: 500,
+            },
+            BenchmarkMetrics {
+                algorithm: "algo2".to_string(),
+                stats: CompressionStats::new(1000, 600, 120.0, 60.0, 128),
+                memory_usage_bytes: 600,
+            },
+        ];
+
+        let result = ChartGenerator::compression_ratio_chart(&metrics, "/tmp/test_multiple.png");
+        assert!(result.is_ok());
+    }
+}

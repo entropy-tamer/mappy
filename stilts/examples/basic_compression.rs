@@ -1,7 +1,7 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Basic compression example
 
-use stilts::{HuffmanCompressor, SpaceSeparatedParser, TagParser};
+use stilts::{Compressor, HuffmanCompressor, SpaceSeparatedParser, TagParser};
 
 fn main() -> anyhow::Result<()> {
     // Parse tags

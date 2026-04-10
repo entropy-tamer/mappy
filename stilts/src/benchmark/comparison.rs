@@ -177,3 +177,121 @@ impl ComparisonRunner {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_benchmark_dict() {
+        let data = b"test data for compression";
+        let result = ComparisonRunner::benchmark_dict(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "dict");
+        assert_eq!(metrics.stats.original_size, data.len());
+        assert_eq!(metrics.stats.compressed_size, data.len());
+        assert_eq!(metrics.stats.compression_ratio, 1.0);
+    }
+
+    #[test]
+    fn test_benchmark_zlib() {
+        let data = b"test data for zlib compression testing";
+        let result = ComparisonRunner::benchmark_zlib(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "zlib");
+        assert!(metrics.stats.original_size > 0);
+        assert!(metrics.stats.compressed_size > 0);
+        assert!(metrics.stats.compression_ratio > 0.0);
+    }
+
+    #[test]
+    fn test_benchmark_gzip() {
+        let data = b"test data for gzip compression testing";
+        let result = ComparisonRunner::benchmark_gzip(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "gzip");
+        assert!(metrics.stats.original_size > 0);
+        assert!(metrics.stats.compressed_size > 0);
+        assert!(metrics.stats.compression_ratio > 0.0);
+    }
+
+    #[test]
+    fn test_benchmark_lz4() {
+        let data = b"test data for lz4 compression testing";
+        let result = ComparisonRunner::benchmark_lz4(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.algorithm, "lz4");
+        assert!(metrics.stats.original_size > 0);
+        assert!(metrics.stats.compressed_size > 0);
+    }
+
+    #[test]
+    fn test_benchmark_compare_all() {
+        let data = b"test data for comparison testing";
+        let result = ComparisonRunner::compare_all(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.len(), 4);
+        let algorithms: Vec<&str> = metrics.iter().map(|m| m.algorithm.as_str()).collect();
+        assert!(algorithms.contains(&"dict"));
+        assert!(algorithms.contains(&"zlib"));
+        assert!(algorithms.contains(&"gzip"));
+        assert!(algorithms.contains(&"lz4"));
+    }
+
+    #[test]
+    fn test_benchmark_empty_data() {
+        let data = b"";
+        let result = ComparisonRunner::benchmark_dict(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.stats.original_size, 0);
+        assert_eq!(metrics.stats.compressed_size, 0);
+    }
+
+    #[test]
+    fn test_benchmark_single_byte() {
+        let data = b"a";
+        let result = ComparisonRunner::benchmark_dict(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.stats.original_size, 1);
+    }
+
+    #[test]
+    fn test_benchmark_large_data() {
+        let data = vec![b'a'; 10000];
+        let result = ComparisonRunner::benchmark_dict(&data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert_eq!(metrics.stats.original_size, 10000);
+    }
+
+    #[test]
+    fn test_benchmark_multiple_iterations() {
+        let data = b"test data for iterations";
+        let result = ComparisonRunner::benchmark_zlib(data, 5);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+        assert!(metrics.stats.compression_speed_mbps >= 0.0);
+        assert!(metrics.stats.decompression_speed_mbps >= 0.0);
+    }
+
+    #[test]
+    fn test_benchmark_compression_ratios() {
+        let data = b"repeated repeated repeated data data data";
+        let result = ComparisonRunner::compare_all(data, 1);
+        assert!(result.is_ok());
+        let metrics = result.unwrap();
+
+        let dict_metrics = metrics.iter().find(|m| m.algorithm == "dict").expect("dict not found");
+        assert_eq!(dict_metrics.stats.compression_ratio, 1.0);
+
+        let zlib_metrics = metrics.iter().find(|m| m.algorithm == "zlib").expect("zlib not found");
+        assert!(zlib_metrics.stats.compression_ratio < 1.0);
+    }
+}

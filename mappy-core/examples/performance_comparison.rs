@@ -32,10 +32,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         test_btreemap(&test_data, size).await;
 
         // Test Mappy (Memory)
-        test_mappy(&test_data, size, PersistenceMode::Memory).await;
+        if let Err(e) = test_mappy(&test_data, size, PersistenceMode::Memory).await {
+            eprintln!("Mappy (Memory) test failed: {}", e);
+        }
 
         // Test Mappy (Disk)
-        test_mappy(&test_data, size, PersistenceMode::Disk).await;
+        if let Err(e) = test_mappy(&test_data, size, PersistenceMode::Disk).await {
+            eprintln!("Mappy (Disk) test failed: {}", e);
+        }
 
         println!();
     }
@@ -125,7 +129,7 @@ async fn test_mappy(
     test_data: &[(String, String)],
     _size: usize,
     persistence_mode: PersistenceMode,
-) {
+) -> Result<(), Box<dyn std::error::Error>> {
     let config = EngineConfig {
         persistence_mode,
         data_dir: if persistence_mode == PersistenceMode::Memory {
@@ -141,15 +145,14 @@ async fn test_mappy(
         ..Default::default()
     };
 
-    let engine = Engine::new(config).await.unwrap();
+    let engine = Engine::new(config).await?;
 
     let start = Instant::now();
 
     for (key, value) in test_data {
         engine
             .set(key.clone(), value.as_bytes().to_vec())
-            .await
-            .unwrap();
+            .await?;
     }
 
     let insert_time = start.elapsed();
@@ -157,13 +160,13 @@ async fn test_mappy(
     // Test reads
     let start = Instant::now();
     for (key, _) in test_data.iter().take(1000) {
-        let _ = engine.get(key).await.unwrap();
+        engine.get(key).await?;
     }
     let read_time = start.elapsed();
 
     // Get actual memory usage
-    let stats = engine.stats().await.unwrap();
-    let memory_usage = engine.memory_usage().await.unwrap();
+    let stats = engine.stats().await?;
+    let memory_usage = engine.memory_usage().await?;
 
     println!("  Mappy ({:?}):", persistence_mode);
     println!("    Insert time: {:?}", insert_time);
@@ -171,7 +174,8 @@ async fn test_mappy(
     println!("    Memory usage: {} bytes", memory_usage);
     println!("    Maplet stats: {:?}", stats.maplet_stats);
 
-    engine.close().await.unwrap();
+    engine.close().await?;
+    Ok(())
 }
 
 /// Test memory efficiency with different false positive rates
@@ -232,7 +236,9 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
                 for j in 0..1000 {
                     let key = format!("concurrent_{}_{}", i, j);
                     let value = format!("value_{}_{}", i, j);
-                    engine.set(key, value.into_bytes()).await.unwrap();
+                    if let Err(e) = engine.set(key.clone(), value.into_bytes()).await {
+                        eprintln!("Failed to set {}: {}", key, e);
+                    }
                 }
             })
         })
@@ -252,7 +258,9 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
             tokio::spawn(async move {
                 for j in 0..2000 {
                     let key = format!("concurrent_{}_{}", i % 10, j % 1000);
-                    let _ = engine.get(&key).await.unwrap();
+                    if let Err(e) = engine.get(&key).await {
+                        eprintln!("Failed to get {}: {}", key, e);
+                    }
                 }
             })
         })

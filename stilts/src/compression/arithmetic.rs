@@ -181,7 +181,135 @@ mod tests {
         compressor.build_from_corpus(&tags).unwrap();
 
         let compressed = compressor.compress(&tags).unwrap();
-        // Note: Arithmetic decoding is simplified, so full round-trip may not work perfectly
         assert!(!compressed.is_empty());
+    }
+
+    #[test]
+    fn test_arithmetic_new() {
+        let compressor = ArithmeticCompressor::new();
+        assert!(compressor.probabilities.is_empty());
+    }
+
+    #[test]
+    fn test_arithmetic_default() {
+        let compressor = ArithmeticCompressor::default();
+        assert!(compressor.probabilities.is_empty());
+    }
+
+    #[test]
+    fn test_arithmetic_clone() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string(), "tag2".to_string()])
+            .unwrap();
+
+        let cloned = compressor.clone();
+        assert_eq!(cloned.probabilities.len(), compressor.probabilities.len());
+    }
+
+    #[test]
+    fn test_build_from_corpus_empty() {
+        let mut compressor = ArithmeticCompressor::new();
+        let result = compressor.build_from_corpus(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_build_from_corpus_single_tag() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string()])
+            .unwrap();
+        assert_eq!(compressor.probabilities.len(), 1);
+    }
+
+    #[test]
+    fn test_build_from_corpus_multiple_tags() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor
+            .build_from_corpus(&[
+                "tag1".to_string(),
+                "tag2".to_string(),
+                "tag3".to_string(),
+            ])
+            .unwrap();
+        assert_eq!(compressor.probabilities.len(), 3);
+    }
+
+    #[test]
+    fn test_build_from_corpus_with_duplicates() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor
+            .build_from_corpus(&[
+                "tag1".to_string(),
+                "tag1".to_string(),
+                "tag2".to_string(),
+            ])
+            .unwrap();
+        assert_eq!(compressor.probabilities.len(), 2);
+    }
+
+    #[test]
+    fn test_compress_empty_tags() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor.build_from_corpus(&["tag1".to_string()]).unwrap();
+        let result = compressor.compress(&[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compress_without_corpus() {
+        let compressor = ArithmeticCompressor::new();
+        let tags = vec!["tag1".to_string(), "tag2".to_string()];
+        let result = compressor.compress(&tags);
+        assert!(result.is_ok());
+        assert!(!result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_decompress_empty_data() {
+        let compressor = ArithmeticCompressor::new();
+        let result = compressor.decompress(&[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decompress_insufficient_data() {
+        let compressor = ArithmeticCompressor::new();
+        let result = compressor.decompress(&[1, 2, 3]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_algorithm_name() {
+        let compressor = ArithmeticCompressor::new();
+        assert_eq!(compressor.algorithm_name(), "arithmetic");
+    }
+
+    #[test]
+    fn test_cumulative_ranges() {
+        let mut compressor = ArithmeticCompressor::new();
+        compressor
+            .build_from_corpus(&["tag1".to_string(), "tag2".to_string()])
+            .unwrap();
+
+        let tags = vec!["tag1".to_string(), "tag2".to_string()];
+        let ranges = compressor.get_cumulative_ranges(&tags);
+        assert_eq!(ranges.len(), 2);
+    }
+
+    #[test]
+    fn test_cumulative_ranges_empty() {
+        let compressor = ArithmeticCompressor::new();
+        let ranges = compressor.get_cumulative_ranges(&[]);
+        assert_eq!(ranges.len(), 0);
+    }
+
+    #[test]
+    fn test_cumulative_ranges_unknown_tag() {
+        let compressor = ArithmeticCompressor::new();
+        let tags = vec!["unknown".to_string()];
+        let ranges = compressor.get_cumulative_ranges(&tags);
+        assert_eq!(ranges.len(), 1);
     }
 }

@@ -95,7 +95,6 @@ mod tests {
     async fn test_concurrent_maplet() {
         let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
 
-        // Test basic operations
         assert!(maplet.insert("key1".to_string(), 5).await.is_ok());
         assert_eq!(maplet.query(&"key1".to_string()).await, Some(5));
         assert!(maplet.contains(&"key1".to_string()).await);
@@ -108,7 +107,6 @@ mod tests {
             Arc::new(ConcurrentMaplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap());
         let mut handles = vec![];
 
-        // Spawn multiple tasks to insert data
         for i in 0..4 {
             let maplet = Arc::clone(&maplet);
             let handle = tokio::spawn(async move {
@@ -120,12 +118,80 @@ mod tests {
             handles.push(handle);
         }
 
-        // Wait for all tasks to complete
         for handle in handles {
             handle.await.unwrap();
         }
 
-        // Verify some data was inserted
         assert!(maplet.len().await > 0);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_delete() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+
+        maplet.insert("key1".to_string(), 5).await.unwrap();
+        let deleted = maplet.delete(&"key1".to_string(), &5).await.unwrap();
+        assert!(deleted);
+        assert_eq!(maplet.query(&"key1".to_string()).await, None);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_is_empty() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        assert!(maplet.is_empty().await);
+
+        maplet.insert("key1".to_string(), 5).await.unwrap();
+        assert!(!maplet.is_empty().await);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_stats() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+
+        maplet.insert("key1".to_string(), 5).await.unwrap();
+        let stats = maplet.stats().await;
+        assert_eq!(stats.len, 1);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_query_none() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        assert_eq!(maplet.query(&"nonexistent".to_string()).await, None);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_contains_false() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        assert!(!maplet.contains(&"nonexistent".to_string()).await);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_invalid_config() {
+        let result = ConcurrentMaplet::<String, u64, CounterOperator>::new(0, 0.01);
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_invalid_error_rate() {
+        let result = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 1.5);
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_delete_nonexistent() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+        let deleted = maplet.delete(&"nonexistent".to_string(), &5).await.unwrap();
+        assert!(!deleted);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_maplet_multiple_inserts() {
+        let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
+
+        for i in 0..10 {
+            maplet.insert(format!("key{}", i), i).await.unwrap();
+        }
+
+        assert_eq!(maplet.len().await, 10);
     }
 }

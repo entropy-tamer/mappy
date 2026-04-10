@@ -285,12 +285,10 @@ mod tests {
     fn test_error_rate_controller() {
         let mut controller = ErrorRateController::new(0.01).unwrap();
 
-        // Record some queries
         for _ in 0..100 {
             controller.record_query(false);
         }
 
-        // Record a few false positives
         for _ in 0..1 {
             controller.record_query(true);
         }
@@ -302,12 +300,55 @@ mod tests {
     }
 
     #[test]
+    fn test_error_rate_controller_invalid_rate() {
+        let result = ErrorRateController::new(0.0);
+        assert!(result.is_err());
+
+        let result = ErrorRateController::new(1.0);
+        assert!(result.is_err());
+
+        let result = ErrorRateController::new(-0.5);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_error_rate_controller_stats() {
+        let mut controller = ErrorRateController::new(0.01).unwrap();
+        controller.record_query(false);
+        controller.record_query(true);
+
+        let stats = controller.stats();
+        assert_eq!(stats.query_count, 2);
+        assert_eq!(stats.false_positive_count, 1);
+        assert_eq!(stats.target_error_rate, 0.01);
+    }
+
+    #[test]
+    fn test_error_rate_controller_unacceptable() {
+        let mut controller = ErrorRateController::new(0.01).unwrap();
+
+        for _ in 0..10 {
+            controller.record_query(true);
+        }
+
+        assert!(!controller.is_error_rate_acceptable());
+    }
+
+    #[test]
+    fn test_error_rate_controller_record_collision() {
+        let mut controller = ErrorRateController::new(0.01).unwrap();
+        controller.record_collision(0x1234, 0);
+
+        let stats = controller.stats();
+        assert_eq!(stats.collision_count, 0);
+    }
+
+    #[test]
     fn test_collision_tracker() {
         let mut tracker = CollisionTracker::new();
 
-        // Record some collisions
         tracker.record_collision(0x1234, 0);
-        tracker.record_collision(0x5678, 0); // Collision at slot 0
+        tracker.record_collision(0x5678, 0);
         tracker.record_collision(0x9ABC, 1);
 
         assert_eq!(tracker.collision_count(), 1);
@@ -318,11 +359,52 @@ mod tests {
     }
 
     #[test]
+    fn test_collision_tracker_default() {
+        let tracker = CollisionTracker::default();
+        assert_eq!(tracker.collision_count(), 0);
+        assert_eq!(tracker.max_chain_length(), 0);
+    }
+
+    #[test]
+    fn test_collision_tracker_no_collisions() {
+        let mut tracker = CollisionTracker::new();
+        tracker.record_collision(0x1234, 0);
+        tracker.record_collision(0x5678, 1);
+
+        assert_eq!(tracker.collision_count(), 0);
+        assert_eq!(tracker.max_chain_length(), 1);
+    }
+
+    #[test]
+    fn test_collision_tracker_empty() {
+        let tracker = CollisionTracker::new();
+        assert_eq!(tracker.collision_count(), 0);
+        assert_eq!(tracker.max_chain_length(), 0);
+    }
+
+    #[test]
+    fn test_collision_tracker_multiple_same_slot() {
+        let mut tracker = CollisionTracker::new();
+        tracker.record_collision(0x1234, 0);
+        tracker.record_collision(0x5678, 0);
+        tracker.record_collision(0x9ABC, 0);
+
+        assert_eq!(tracker.collision_count(), 1);
+        assert_eq!(tracker.max_chain_length(), 3);
+    }
+
+    #[test]
+    fn test_collision_tracker_get_colliding_none() {
+        let tracker = CollisionTracker::new();
+        let colliding = tracker.get_colliding_fingerprints(0x1234);
+        assert_eq!(colliding, Vec::<u64>::new());
+    }
+
+    #[test]
     fn test_strong_maplet_validator() {
         let validator = StrongMapletValidator::new(5, 0.01);
         let mut tracker = CollisionTracker::new();
 
-        // Add some collisions
         tracker.record_collision(0x1234, 0);
         tracker.record_collision(0x5678, 0);
 
@@ -335,5 +417,74 @@ mod tests {
         assert!(validation.is_valid);
         assert_eq!(validation.max_chain_length, 2);
         assert_eq!(validation.collision_count, 1);
+    }
+
+    #[test]
+    fn test_strong_maplet_validator_chain_length_fail() {
+        let validator = StrongMapletValidator::new(1, 0.01);
+        let mut tracker = CollisionTracker::new();
+
+        tracker.record_collision(0x1234, 0);
+        tracker.record_collision(0x5678, 0);
+
+        let validation = validator
+            .validate_strong_property::<u64, crate::operators::CounterOperator>(&tracker, 0.005)
+            .unwrap();
+
+        assert!(!validation.chain_length_ok);
+        assert!(!validation.is_valid);
+    }
+
+    #[test]
+    fn test_strong_maplet_validator_error_rate_fail() {
+        let validator = StrongMapletValidator::new(5, 0.01);
+        let tracker = CollisionTracker::new();
+
+        let validation = validator
+            .validate_strong_property::<u64, crate::operators::CounterOperator>(&tracker, 0.5)
+            .unwrap();
+
+        assert!(!validation.error_rate_ok);
+        assert!(!validation.is_valid);
+    }
+
+    #[test]
+    fn test_strong_maplet_validator_zero_chain() {
+        let validator = StrongMapletValidator::new(5, 0.01);
+        let tracker = CollisionTracker::new();
+
+        let validation = validator
+            .validate_strong_property::<u64, crate::operators::CounterOperator>(&tracker, 0.005)
+            .unwrap();
+
+        assert_eq!(validation.prob_exceed_chain, 0.0);
+    }
+
+    #[test]
+    fn test_strong_maplet_validator_clone() {
+        let validator = StrongMapletValidator::new(5, 0.01);
+        let cloned = validator.clone();
+        assert_eq!(cloned.max_chain_length, validator.max_chain_length);
+        assert_eq!(cloned.error_threshold, validator.error_threshold);
+    }
+
+    #[test]
+    fn test_collision_tracker_clone() {
+        let mut tracker = CollisionTracker::new();
+        tracker.record_collision(0x1234, 0);
+        tracker.record_collision(0x5678, 0);
+
+        let cloned = tracker.clone();
+        assert_eq!(cloned.collision_count(), tracker.collision_count());
+    }
+
+    #[test]
+    fn test_error_rate_controller_clone() {
+        let mut controller = ErrorRateController::new(0.01).unwrap();
+        controller.record_query(true);
+
+        let cloned = controller.clone();
+        assert_eq!(cloned.query_count, controller.query_count);
+        assert_eq!(cloned.false_positive_count, controller.false_positive_count);
     }
 }

@@ -117,3 +117,116 @@ impl Default for StorageConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_storage_stats_default() {
+        let stats = StorageStats::default();
+        assert_eq!(stats.total_keys, 0);
+        assert_eq!(stats.memory_usage, 0);
+        assert_eq!(stats.disk_usage, 0);
+    }
+
+    #[test]
+    fn test_storage_stats_serialization() {
+        let stats = StorageStats {
+            total_keys: 100,
+            memory_usage: 1024,
+            disk_usage: 2048,
+            operations_count: 500,
+            avg_latency_us: 100,
+        };
+
+        let serialized = serde_json::to_string(&stats).expect("Failed to serialize");
+        let deserialized: StorageStats =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized.total_keys, 100);
+        assert_eq!(deserialized.memory_usage, 1024);
+    }
+
+    #[test]
+    fn test_storage_config_default() {
+        let config = StorageConfig::default();
+        assert_eq!(config.data_dir, "./data");
+        assert!(config.enable_compression);
+        assert_eq!(config.sync_interval, 1);
+        assert_eq!(config.write_buffer_size, 1024 * 1024);
+    }
+
+    #[test]
+    fn test_storage_config_clone() {
+        let config = StorageConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.data_dir, config.data_dir);
+        assert_eq!(cloned.enable_compression, config.enable_compression);
+    }
+
+    #[test]
+    fn test_storage_config_serialization() {
+        let config = StorageConfig::default();
+        let serialized = serde_json::to_string(&config).expect("Failed to serialize");
+        let deserialized: StorageConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized.data_dir, config.data_dir);
+    }
+
+    #[test]
+    fn test_persistence_mode_eq() {
+        assert_eq!(PersistenceMode::Memory, PersistenceMode::Memory);
+        assert_ne!(PersistenceMode::Memory, PersistenceMode::Disk);
+    }
+
+    #[test]
+    fn test_persistence_mode_clone() {
+        let mode = PersistenceMode::Memory;
+        let cloned = mode;
+        assert_eq!(cloned, mode);
+    }
+
+    #[test]
+    fn test_persistence_mode_serialization() {
+        let mode = PersistenceMode::Memory;
+        let serialized = serde_json::to_string(&mode).expect("Failed to serialize");
+        let deserialized: PersistenceMode =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(deserialized, mode);
+    }
+
+    #[test]
+    fn test_storage_config_custom() {
+        let config = StorageConfig {
+            data_dir: "/tmp/data".to_string(),
+            max_memory: Some(1024 * 1024),
+            enable_compression: false,
+            sync_interval: 5,
+            write_buffer_size: 2048,
+        };
+
+        assert_eq!(config.data_dir, "/tmp/data");
+        assert_eq!(config.max_memory, Some(1024 * 1024));
+        assert!(!config.enable_compression);
+        assert_eq!(config.sync_interval, 5);
+        assert_eq!(config.write_buffer_size, 2048);
+    }
+
+    #[test]
+    fn test_storage_stats_clone() {
+        let stats = StorageStats {
+            total_keys: 100,
+            memory_usage: 1024,
+            disk_usage: 2048,
+            operations_count: 500,
+            avg_latency_us: 100,
+        };
+
+        let cloned = stats.clone();
+        assert_eq!(cloned.total_keys, 100);
+        assert_eq!(cloned.memory_usage, 1024);
+    }
+}

@@ -1,10 +1,13 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Example: Storing compressed tags in mappy
 
+#[cfg(feature = "mappy-integration")]
 use stilts::benchmark::mappy_comparison::MappyComparisonRunner;
+#[cfg(feature = "mappy-integration")]
 use stilts::formats::{SpaceSeparatedParser, TagParser};
 #[cfg(feature = "mappy-integration")]
 use stilts::mappy_integration::MappyTagStorage;
+#[cfg(feature = "mappy-integration")]
 use stilts::plotting::ReportGenerator;
 
 #[cfg(feature = "mappy-integration")]

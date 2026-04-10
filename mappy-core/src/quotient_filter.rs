@@ -539,4 +539,167 @@ mod tests {
             "Should not find slot for non-existing fingerprint"
         );
     }
+
+    #[test]
+    fn test_quotient_filter_delete_nonexistent() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        let deleted = filter.delete(0xDEAD).unwrap();
+        assert!(!deleted);
+    }
+
+    #[test]
+    fn test_quotient_filter_is_empty() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        assert!(filter.is_empty());
+
+        filter.insert(0x1234).unwrap();
+
+        assert!(!filter.is_empty());
+    }
+
+    #[test]
+    fn test_quotient_filter_load_factor() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        assert_eq!(filter.load_factor(), 0.0);
+
+        filter.insert(0x1234).unwrap();
+        filter.insert(0x5678).unwrap();
+
+        assert!(filter.load_factor() > 0.0);
+    }
+
+    #[test]
+    fn test_quotient_filter_quotient_bits() {
+        let filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        assert!(filter.quotient_bits() > 0);
+    }
+
+    #[test]
+    fn test_quotient_filter_get_slot_for_fingerprint() {
+        let filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        let slot = filter.get_slot_for_fingerprint(0x1234);
+        assert!(slot < 100);
+    }
+
+    #[test]
+    fn test_quotient_filter_capacity_getter() {
+        let filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        assert_eq!(filter.capacity(), 100);
+    }
+
+    #[test]
+    fn test_slot_metadata_default() {
+        let metadata = SlotMetadata::default();
+
+        assert_eq!(metadata.remainder, 0);
+        assert!(!metadata.runend);
+        assert!(!metadata.occupied);
+        assert!(!metadata.shifted);
+    }
+
+    #[test]
+    fn test_slot_metadata_clone() {
+        let metadata = SlotMetadata {
+            remainder: 123,
+            runend: true,
+            occupied: true,
+            shifted: false,
+        };
+
+        let cloned = metadata.clone();
+        assert_eq!(cloned.remainder, 123);
+        assert!(cloned.runend);
+        assert!(cloned.occupied);
+        assert!(!cloned.shifted);
+    }
+
+    #[test]
+    fn test_slot_metadata_eq() {
+        let metadata1 = SlotMetadata {
+            remainder: 123,
+            runend: true,
+            occupied: true,
+            shifted: false,
+        };
+
+        let metadata2 = SlotMetadata {
+            remainder: 123,
+            runend: true,
+            occupied: true,
+            shifted: false,
+        };
+
+        assert_eq!(metadata1, metadata2);
+    }
+
+    #[test]
+    fn test_quotient_filter_twox_hash() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::TwoX).unwrap();
+
+        assert!(filter.insert(0x1234).is_ok());
+        assert!(filter.query(0x1234));
+    }
+
+    #[test]
+    fn test_quotient_filter_fnv_hash() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::Fnv).unwrap();
+
+        assert!(filter.insert(0x1234).is_ok());
+        assert!(filter.query(0x1234));
+    }
+
+    #[test]
+    fn test_quotient_filter_invalid_capacity() {
+        let filter = QuotientFilter::new(0, 8, HashFunction::AHash);
+        assert!(filter.is_err());
+    }
+
+    #[test]
+    fn test_quotient_filter_invalid_fingerprint_bits() {
+        let filter = QuotientFilter::new(100, 0, HashFunction::AHash);
+        assert!(filter.is_err());
+
+        let filter = QuotientFilter::new(100, 65, HashFunction::AHash);
+        assert!(filter.is_err());
+    }
+
+    #[test]
+    fn test_quotient_filter_stats_clone() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+        filter.insert(0x1234).unwrap();
+
+        let stats = filter.stats();
+        let cloned = stats.clone();
+
+        assert_eq!(cloned.capacity, stats.capacity);
+        assert_eq!(cloned.len, stats.len);
+    }
+
+    #[test]
+    fn test_quotient_filter_count_nonexistent() {
+        let filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        assert_eq!(filter.count(0xDEAD), 0);
+    }
+
+    #[test]
+    fn test_quotient_filter_delete_all_instances() {
+        let mut filter = QuotientFilter::new(100, 8, HashFunction::AHash).unwrap();
+
+        filter.insert(0x1234).unwrap();
+        filter.insert(0x1234).unwrap();
+
+        assert_eq!(filter.count(0x1234), 2);
+
+        filter.delete(0x1234).unwrap();
+        filter.delete(0x1234).unwrap();
+
+        assert_eq!(filter.count(0x1234), 0);
+    }
 }

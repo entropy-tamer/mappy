@@ -572,7 +572,6 @@ mod tests {
     fn test_vector_concat_operator_merge_order() {
         let op = VectorConcatOperator;
 
-        // Verify merge order matters (even though trait says commutative)
         let vec1 = vec![1, 2];
         let vec2 = vec![3, 4];
         let result1 = op.merge(vec1.clone(), vec2.clone()).unwrap();
@@ -580,5 +579,192 @@ mod tests {
         assert_ne!(result1, result2);
         assert_eq!(result1, vec![1, 2, 3, 4]);
         assert_eq!(result2, vec![3, 4, 1, 2]);
+    }
+
+    #[test]
+    fn test_counter_operator_default() {
+        let op: CounterOperator = Default::default();
+        assert_eq!(op.merge(5u64, 3u64).unwrap(), 8);
+    }
+
+    #[test]
+    fn test_max_operator_default() {
+        let op: MaxOperator = Default::default();
+        assert_eq!(op.merge(5u64, 3u64).unwrap(), 5);
+    }
+
+    #[test]
+    fn test_min_operator_default() {
+        let op: MinOperator = Default::default();
+        assert_eq!(op.merge(5u64, 3u64).unwrap(), 3);
+    }
+
+    #[test]
+    fn test_set_operator_default() {
+        let op = SetOperator::default();
+        let mut set1 = HashSet::new();
+        set1.insert("a".to_string());
+        let set2 = HashSet::new();
+        let result = op.merge(set1, set2).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_string_operator_default() {
+        let op = StringOperator::default();
+        assert_eq!(
+            op.merge("left".to_string(), "right".to_string()).unwrap(),
+            "right"
+        );
+    }
+
+    #[test]
+    fn test_vector_operator_default() {
+        let op = VectorOperator::default();
+        let vec1 = vec![1.0, 2.0, 3.0];
+        let vec2 = vec![4.0, 5.0, 6.0];
+        let result = op.merge(vec1, vec2).unwrap();
+        assert_eq!(result, vec![5.0, 7.0, 9.0]);
+    }
+
+    #[test]
+    fn test_byte_array_operator_default() {
+        let op = ByteArrayOperator::default();
+        let bytes1 = vec![1, 2, 3];
+        let bytes2 = vec![4, 5, 6];
+        let result = op.merge(bytes1, bytes2).unwrap();
+        assert_eq!(result, vec![4, 5, 6]);
+    }
+
+    #[test]
+    fn test_counter_operator_clone() {
+        let op: CounterOperator = CounterOperator;
+        let cloned = op;
+        assert_eq!(cloned.merge(5u64, 3u64).unwrap(), 8);
+    }
+
+    #[test]
+    fn test_max_operator_clone() {
+        let op: MaxOperator = MaxOperator;
+        let cloned = op;
+        assert_eq!(cloned.merge(5u64, 3u64).unwrap(), 5);
+    }
+
+    #[test]
+    fn test_min_operator_clone() {
+        let op: MinOperator = MinOperator;
+        let cloned = op;
+        assert_eq!(cloned.merge(5u64, 3u64).unwrap(), 3);
+    }
+
+    #[test]
+    fn test_set_operator_clone() {
+        let op = SetOperator;
+        let cloned = op;
+        let mut set1 = HashSet::new();
+        set1.insert("a".to_string());
+        let set2 = HashSet::new();
+        let result = cloned.merge(set1, set2).unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_string_operator_clone() {
+        let op = StringOperator;
+        let cloned = op;
+        assert_eq!(
+            cloned.merge("left".to_string(), "right".to_string()).unwrap(),
+            "right"
+        );
+    }
+
+    #[test]
+    fn test_string_concat_operator_clone() {
+        let op = StringConcatOperator;
+        let cloned = op;
+        assert_eq!(
+            cloned.merge("hello".to_string(), "world".to_string()).unwrap(),
+            "helloworld"
+        );
+    }
+
+    #[test]
+    fn test_vector_concat_operator_clone() {
+        let op = VectorConcatOperator;
+        let cloned = op;
+        let vec1 = vec![1, 2, 3];
+        let vec2 = vec![4, 5, 6];
+        let result = cloned.merge(vec1, vec2).unwrap();
+        assert_eq!(result, vec![1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn test_vector_operator_clone() {
+        let op: VectorOperator = VectorOperator;
+        let cloned = op;
+        let vec1 = vec![1.0, 2.0, 3.0];
+        let vec2 = vec![4.0, 5.0, 6.0];
+        let result = cloned.merge(vec1, vec2).unwrap();
+        assert_eq!(result, vec![5.0, 7.0, 9.0]);
+    }
+
+    #[test]
+    fn test_byte_array_operator_clone() {
+        let op = ByteArrayOperator;
+        let cloned = op;
+        let bytes1 = vec![1, 2, 3];
+        let bytes2 = vec![4, 5, 6];
+        let result = cloned.merge(bytes1, bytes2).unwrap();
+        assert_eq!(result, vec![4, 5, 6]);
+    }
+
+    #[test]
+    fn test_bool_or_operator_clone() {
+        let op = BoolOrOperator;
+        let cloned = op;
+        assert!(cloned.merge(false, true).unwrap());
+    }
+
+    #[test]
+    fn test_bool_and_operator_clone() {
+        let op = BoolAndOperator;
+        let cloned = op;
+        assert!(cloned.merge(true, true).unwrap());
+    }
+
+    #[test]
+    fn test_bool_or_operator_identity() {
+        let op = BoolOrOperator;
+        assert!(!op.identity());
+    }
+
+    #[test]
+    fn test_bool_and_operator_identity() {
+        let op = BoolAndOperator;
+        assert!(op.identity());
+    }
+
+    #[test]
+    fn test_string_concat_operator_identity() {
+        let op = StringConcatOperator;
+        assert_eq!(op.identity(), "");
+    }
+
+    #[test]
+    fn test_vector_concat_operator_identity() {
+        let op = VectorConcatOperator;
+        assert_eq!(
+            <VectorConcatOperator as MergeOperator<Vec<i32>>>::identity(&op),
+            Vec::<i32>::new()
+        );
+    }
+
+    #[test]
+    fn test_vector_operator_identity_f32() {
+        let op: VectorOperator = VectorOperator;
+        assert_eq!(
+            <VectorOperator as MergeOperator<Vec<f32>>>::identity(&op),
+            Vec::<f32>::new()
+        );
     }
 }

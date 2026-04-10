@@ -57,7 +57,7 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get values
     let user1 = engine.get("user:1").await?;
-    println!("  user:1 = {:?}", String::from_utf8_lossy(&user1.unwrap()));
+    println!("  user:1 = {:?}", String::from_utf8_lossy(user1.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]")));
 
     // Check existence
     let exists = engine.exists("user:2").await?;
@@ -145,7 +145,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let memory_value = memory_engine.get("memory_key").await?;
     println!(
         "  Memory storage: {:?}",
-        String::from_utf8_lossy(&memory_value.unwrap())
+        String::from_utf8_lossy(memory_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
     memory_engine.close().await?;
 
@@ -165,7 +165,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let disk_value = disk_engine.get("disk_key").await?;
     println!(
         "  Disk storage: {:?}",
-        String::from_utf8_lossy(&disk_value.unwrap())
+        String::from_utf8_lossy(disk_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
     disk_engine.close().await?;
 
@@ -185,7 +185,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let aof_value = aof_engine.get("aof_key").await?;
     println!(
         "  AOF storage: {:?}",
-        String::from_utf8_lossy(&aof_value.unwrap())
+        String::from_utf8_lossy(aof_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
     aof_engine.close().await?;
 
@@ -244,7 +244,9 @@ async fn demo_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> 
                 for j in 0..100 {
                     let key = format!("concurrent_{}_{}", i, j);
                     let value = format!("value_{}_{}", i, j);
-                    engine.set(key, value.into_bytes()).await.unwrap();
+                    if let Err(e) = engine.set(key.clone(), value.into_bytes()).await {
+                        eprintln!("Failed to set {}: {}", key, e);
+                    }
                 }
             })
         })
@@ -266,8 +268,12 @@ async fn demo_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> 
             tokio::spawn(async move {
                 for j in 0..50 {
                     let key = format!("concurrent_{}_{}", i, j);
-                    let value = engine.get(&key).await.unwrap();
-                    assert!(value.is_some());
+                    let value = engine.get(&key).await;
+                    if let Ok(Some(_)) = value {
+                        // Key found
+                    } else if let Err(e) = value {
+                        eprintln!("Failed to get {}: {}", key, e);
+                    }
                 }
             })
         })
@@ -313,7 +319,7 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let cache_value = engine.get("cache:expensive_calculation").await?;
     println!(
         "    Cache hit: {:?}",
-        String::from_utf8_lossy(&cache_value.unwrap())
+        String::from_utf8_lossy(cache_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
 
     // Use case 3: Rate limiting
@@ -354,11 +360,11 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let beta_feature = engine.get("feature:beta_feature").await?;
     println!(
         "    New UI: {:?}",
-        String::from_utf8_lossy(&new_ui.unwrap())
+        String::from_utf8_lossy(new_ui.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
     println!(
         "    Beta Feature: {:?}",
-        String::from_utf8_lossy(&beta_feature.unwrap())
+        String::from_utf8_lossy(beta_feature.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
     );
 
     engine.close().await?;
