@@ -45,7 +45,7 @@ tracing-subscriber = { path = "../../vendor/tracing/tracing-subscriber", feature
 
 # Testing
 criterion = { path = "../../vendor/criterion", features = ["html_reports"] }
-proptest = "1.10.0"
+proptest = "1.11.0"
 quickcheck = { path = "../../vendor/quickcheck"}
 
 # Python bindings
@@ -55,19 +55,24 @@ pyo3 = { version = "0.28.3", features = ["extension-module"] }
 getrandom = { path = "../../vendor/getrandom" }
 rand = { path = "../../vendor/rand" }
 rand_core = { path = "../../vendor/rand_core" }
+futures = { path = "../../vendor/futures-rs/futures", features = ["executor"] }
+futures-core = { path = "../../vendor/futures-rs/futures-core", default-features = false }
+futures-util = { path = "../../vendor/futures-rs/futures-util", default-features = false, features = ["alloc"] }
 
 # Web server dependencies
 axum = { path = "../../vendor/axum/axum", features = ["macros"] }
 tower = { path = "../../vendor/tower/tower", features = ["util"] }
 tower-http = { path = "../../vendor/tower-http/tower-http", features = ["cors", "trace", "fs"] }
 hyper = { path = "../../vendor/hyper", features = ["full"] }
-hyper-util = { version = "0.1.20", features = ["full"] }
+hyper-util = { path = "../../vendor/hyper-util", features = ["full"] }
 tokio-rustls = { path = "../../vendor/tokio-rustls" }
+rustls = { path = "../../vendor/rustls/rustls" }
+rustls-ring = { path = "../../vendor/rustls/rustls-ring" }
 config = { path = "../../vendor/config" }
-dotenvy = { path = "../../vendor/dotenvy" }
+dotenvy = { path = "../../vendor/dotenvy/dotenvy" }
 
 # HTTP client dependencies
-reqwest = { path = "../../vendor/reqwest", features = ["json"] }
+reqwest = { path = "../../vendor/reqwest", features = ["json", "rustls", "__rustls-ring"] }
 urlencoding = "2.1.3"
 
 # Storage dependencies
@@ -79,3 +84,29 @@ plotters = { path = "../../vendor/plotters/plotters" }
 
 [patch.crates-io]
 bytes = { path = "../../vendor/bytes" }
+serde = { path = "../../vendor/serde/serde" }
+serde_core = { path = "../../vendor/serde/serde_core" }
+serde_derive = { path = "../../vendor/serde/serde_derive" }
+futures = { path = "../../vendor/futures-rs/futures" }
+futures-core = { path = "../../vendor/futures-rs/futures-core" }
+futures-sink = { path = "../../vendor/futures-rs/futures-sink" }
+futures-util = { path = "../../vendor/futures-rs/futures-util" }
+http = { path = "../../vendor/http" }
+http-body = { path = "../../vendor/http-body/http-body" }
+http-body-util = { path = "../../vendor/http-body/http-body-util" }
+tower-service = { path = "../../vendor/tower/tower-service" }
+tower-layer = { path = "../../vendor/tower/tower-layer" }
+tower = { path = "../../vendor/tower/tower" }
+rustls = { path = "../../vendor/rustls/rustls" }
+rustls-ring = { path = "../../vendor/rustls/rustls-ring" }
+rustls-pki-types = { path = "../../vendor/rustls-pki-types" }
+chrono = { path = "../../vendor/chrono" }
+indexmap = { path = "../../vendor/indexmap" }
+thiserror = { path = "../../vendor/thiserror" }
+thiserror-impl = { path = "../../vendor/thiserror/impl" }
+once_cell = { path = "../../vendor/once_cell" }
+memchr = { path = "../../vendor/memchr" }
+log = { path = "../../vendor/log" }
+smallvec = { path = "../../vendor/smallvec" }
+cfg-if = { path = "../../vendor/cfg-if" }
+libc = { path = "../../vendor/libc" }

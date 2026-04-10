@@ -49,7 +49,6 @@ tempfile = { path = "../../../vendor/tempfile" }
 rand = { path = "../../../vendor/rand" }
 serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
 serde_json = { path = "../../../vendor/serde_json" }
-redis = { version = "1.1.0", features = ["tokio-comp", "aio"] }
 
 [[bench]]
 name = "comparison"
@@ -61,10 +60,6 @@ harness = false
 
 [[bench]]
 name = "storage_benchmarks"
-harness = false
-
-[[bench]]
-name = "redis_comparison"
 harness = false
 
 [[bench]]

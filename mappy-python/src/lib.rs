@@ -28,7 +28,7 @@ use tokio::runtime::Runtime;
 // ============================================================================
 
 /// Python wrapper for CounterOperator
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyCounterOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
@@ -46,7 +46,7 @@ impl PyCounterOperator {
 }
 
 /// Python wrapper for MaxOperator
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyMaxOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
@@ -62,7 +62,7 @@ impl PyMaxOperator {
 }
 
 /// Python wrapper for MinOperator
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyMinOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
@@ -78,7 +78,7 @@ impl PyMinOperator {
 }
 
 /// Python wrapper for VectorOperator
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyVectorOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
@@ -626,7 +626,7 @@ impl PyMaplet {
 // ============================================================================
 
 /// Python wrapper for Engine configuration
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PyEngineConfig {
     #[pyo3(get, set)]
@@ -725,7 +725,7 @@ impl PyEngineConfig {
 }
 
 /// Python wrapper for Engine statistics
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PyEngineStats {
     #[pyo3(get)]

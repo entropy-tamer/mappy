@@ -4,7 +4,7 @@
 
 pub use mappy_core::*;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -83,16 +83,11 @@ struct SetRequest {
 
 #[derive(Deserialize)]
 struct GetResponse {
-    key: String,
     value: Option<String>,
-    found: bool,
 }
 
 #[derive(Deserialize)]
-struct HealthResponse {
-    status: String,
-    service: String,
-}
+pub struct HealthResponse;
 
 impl Client {
     /// Create a new client with default configuration
@@ -115,7 +110,7 @@ impl Client {
     }
 
     /// Send a request via Unix socket
-    async fn request_unix(&self, method: &str, path: &str, body: Option<&[u8]>) -> Result<Vec<u8>> {
+    async fn request_unix(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
         let socket_path = self
             .config
             .socket_path
@@ -155,7 +150,7 @@ impl Client {
     }
 
     /// Send a request via HTTP
-    async fn request_http(&self, method: &str, path: &str, body: Option<&[u8]>) -> Result<Vec<u8>> {
+    async fn request_http(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
         let url = self
             .config
             .http_url
@@ -182,7 +177,7 @@ impl Client {
     }
 
     /// Send a request (auto-detects socket vs HTTP)
-    async fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> Result<Vec<u8>> {
+    async fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
         if self.config.socket_path.is_some() {
             self.request_unix(method, path, body).await
         } else if self.config.http_url.is_some() {
@@ -193,14 +188,14 @@ impl Client {
     }
 
     /// Check server health
-    pub async fn health(&self) -> Result<HealthResponse> {
+    pub async fn health(&self) -> anyhow::Result<HealthResponse> {
         let response = self.request("GET", "/health", None).await?;
         let health: HealthResponse = serde_json::from_slice(&response)?;
         Ok(health)
     }
 
     /// Set a key-value pair
-    pub async fn set(&self, key: impl Into<String>, value: impl Into<String>) -> Result<()> {
+    pub async fn set(&self, key: impl Into<String>, value: impl Into<String>) -> anyhow::Result<()> {
         let request = SetRequest {
             key: key.into(),
             value: value.into(),
@@ -211,7 +206,7 @@ impl Client {
     }
 
     /// Get a value by key
-    pub async fn get(&self, key: impl Into<String>) -> Result<Option<String>> {
+    pub async fn get(&self, key: impl Into<String>) -> anyhow::Result<Option<String>> {
         let key = key.into();
         let path = format!("/get/{}", urlencoding::encode(&key));
         let response = self.request("GET", &path, None).await?;

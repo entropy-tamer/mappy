@@ -985,10 +985,6 @@ mod tests {
         assert!(maplet.query(&key).await.is_some());
 
         maplet.delete(&key, &value).await.unwrap();
-        // Query might still return a value due to false positives, but should be less likely
-        let query_result = maplet.query(&key).await;
-        // False positives are possible, so we can't assert it's None
-        // But we can verify the key is no longer in the values map
     }
 
     #[tokio::test]

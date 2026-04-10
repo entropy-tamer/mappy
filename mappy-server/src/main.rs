@@ -17,7 +17,6 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::RwLock;
 use tower::Service;
-use tower::util::ServiceExt;
 use tracing::info;
 
 #[derive(Clone)]
@@ -234,7 +233,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting Mappy Server");
 
     // Load environment variables
-    dotenvy::dotenv().ok();
+    dotenvy::EnvLoader::new().load().ok();
 
     // Get configuration from environment
     let socket_path = std::env::var("MAPPY_SOCKET_PATH")
