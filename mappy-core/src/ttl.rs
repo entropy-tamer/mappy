@@ -114,12 +114,15 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if removing the old TTL or setting the new TTL fails.
-    pub async fn set_ttl(&self, key: String, db_id: u8, ttl_seconds: u64) -> MapletResult<()> {
+    pub async fn set_ttl(self: Arc<Self>, key: String, db_id: u8, ttl_seconds: u64) -> MapletResult<()>
+    where
+        Self: Send + Sync,
+    {
         let entry = TTLEntry::new(key.clone(), db_id, ttl_seconds);
         let expires_at = entry.expires_at;
 
         // Remove from old expiration time if it exists
-        self.remove_ttl(&key).await?;
+        Arc::clone(&self).remove_ttl(key.clone()).await?;
 
         // Add to new expiration time
         {
@@ -143,9 +146,12 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if retrieving TTL fails.
-    pub async fn get_ttl(&self, key: &str) -> MapletResult<Option<i64>> {
+    pub async fn get_ttl(self: Arc<Self>, key: String) -> MapletResult<Option<i64>>
+    where
+        Self: Send + Sync,
+    {
         let key_map = self.key_to_expiration.read().await;
-        if let Some(&expires_at) = key_map.get(key) {
+        if let Some(&expires_at) = key_map.get(&key) {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -162,9 +168,12 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if removing TTL fails.
-    pub async fn remove_ttl(&self, key: &str) -> MapletResult<()> {
+    pub async fn remove_ttl(self: Arc<Self>, key: String) -> MapletResult<()>
+    where
+        Self: Send + Sync,
+    {
         let mut key_map = self.key_to_expiration.write().await;
-        if let Some(expires_at) = key_map.remove(key) {
+        if let Some(expires_at) = key_map.remove(&key) {
             drop(key_map);
 
             let mut expiration_map = self.expiration_map.write().await;
@@ -183,9 +192,12 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if checking expiration fails.
-    pub async fn is_expired(&self, key: &str) -> MapletResult<bool> {
+    pub async fn is_expired(self: Arc<Self>, key: String) -> MapletResult<bool>
+    where
+        Self: Send + Sync,
+    {
         let key_map = self.key_to_expiration.read().await;
-        if let Some(&expires_at) = key_map.get(key) {
+        if let Some(&expires_at) = key_map.get(&key) {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -200,7 +212,10 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if retrieving expired keys fails.
-    pub async fn get_expired_keys(&self) -> MapletResult<Vec<TTLEntry>> {
+    pub async fn get_expired_keys(self: Arc<Self>) -> MapletResult<Vec<TTLEntry>>
+    where
+        Self: Send + Sync,
+    {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -239,8 +254,9 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if starting the cleanup task fails.
-    pub async fn start_cleanup<F>(&self, mut cleanup_callback: F) -> MapletResult<()>
+    pub async fn start_cleanup<F>(self: Arc<Self>, mut cleanup_callback: F) -> MapletResult<()>
     where
+        Self: Send + Sync,
         F: FnMut(Vec<TTLEntry>) -> MapletResult<()> + Send + Sync + 'static,
     {
         if !self.config.enable_background_cleanup {
@@ -319,12 +335,17 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if stopping the cleanup task fails.
-    pub async fn stop_cleanup(&self) -> MapletResult<()> {
+    pub async fn stop_cleanup(self: Arc<Self>) -> MapletResult<()>
+    where
+        Self: Send + Sync,
+    {
         // Send shutdown signal
         {
             let mut shutdown_tx = self.shutdown_tx.write().await;
             if let Some(tx) = shutdown_tx.take() {
-                let _ = tx.send(());
+                if let Err(e) = tx.send(()) {
+                    tracing::warn!("Failed to send shutdown signal: {:?}", e);
+                }
             }
         }
 
@@ -332,7 +353,9 @@ impl TTLManager {
         {
             let mut cleanup_handle = self.cleanup_handle.write().await;
             if let Some(handle) = cleanup_handle.take() {
-                let _ = handle.await;
+                if let Err(e) = handle.await {
+                    tracing::warn!("Cleanup task error: {}", e);
+                }
             }
         }
 
@@ -344,7 +367,10 @@ impl TTLManager {
     /// # Errors
     /// Returns an error if retrieving statistics fails.
     #[allow(clippy::significant_drop_tightening)] // Both guards needed for entire calculation
-    pub async fn get_stats(&self) -> MapletResult<TTLStats> {
+    pub async fn get_stats(self: Arc<Self>) -> MapletResult<TTLStats>
+    where
+        Self: Send + Sync,
+    {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -375,7 +401,10 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if clearing fails.
-    pub async fn clear_all(&self) -> MapletResult<()> {
+    pub async fn clear_all(self: Arc<Self>) -> MapletResult<()>
+    where
+        Self: Send + Sync,
+    {
         {
             let mut expiration_map = self.expiration_map.write().await;
             expiration_map.clear();
@@ -406,32 +435,32 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_manager_basic_operations() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
 
-        let ttl = manager.get_ttl("key1").await.unwrap();
+        let ttl = Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap();
         assert!(ttl.is_some());
         assert!(ttl.unwrap() <= 60);
 
-        assert!(!manager.is_expired("key1").await.unwrap());
+        assert!(!Arc::clone(&manager).is_expired("key1".to_string()).await.unwrap());
 
-        manager.remove_ttl("key1").await.unwrap();
-        assert!(manager.get_ttl("key1").await.unwrap().is_none());
+        Arc::clone(&manager).remove_ttl("key1".to_string()).await.unwrap();
+        assert!(Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn test_ttl_expiration() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        manager.set_ttl("key1".to_string(), 0, 1).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 1).await.unwrap();
 
         tokio::time::sleep(Duration::from_millis(1100)).await;
 
-        assert!(manager.is_expired("key1").await.unwrap());
+        assert!(Arc::clone(&manager).is_expired("key1".to_string()).await.unwrap());
 
-        let expired = manager.get_expired_keys().await.unwrap();
+        let expired = Arc::clone(&manager).get_expired_keys().await.unwrap();
         assert!(!expired.is_empty());
         assert_eq!(expired[0].key, "key1");
     }
@@ -439,12 +468,12 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_stats() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        manager.set_ttl("key2".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        Arc::clone(&manager).set_ttl("key2".to_string(), 0, 120).await.unwrap();
 
-        let stats = manager.get_stats().await.unwrap();
+        let stats = Arc::clone(&manager).get_stats().await.unwrap();
         assert_eq!(stats.total_keys_with_ttl, 2);
         assert_eq!(stats.expired_keys, 0);
         assert!(stats.next_expiration.is_some());
@@ -453,14 +482,14 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_clear_all() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        manager.set_ttl("key2".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        Arc::clone(&manager).set_ttl("key2".to_string(), 0, 120).await.unwrap();
 
-        manager.clear_all().await.unwrap();
+        Arc::clone(&manager).clear_all().await.unwrap();
 
-        let stats = manager.get_stats().await.unwrap();
+        let stats = Arc::clone(&manager).get_stats().await.unwrap();
         assert_eq!(stats.total_keys_with_ttl, 0);
     }
 
@@ -536,38 +565,38 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_manager_get_ttl_nonexistent() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        let ttl = manager.get_ttl("nonexistent").await.unwrap();
+        let ttl = Arc::clone(&manager).get_ttl("nonexistent".to_string()).await.unwrap();
         assert!(ttl.is_none());
     }
 
     #[tokio::test]
     async fn test_ttl_manager_is_expired_nonexistent() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        let expired = manager.is_expired("nonexistent").await.unwrap();
+        let expired = Arc::clone(&manager).is_expired("nonexistent".to_string()).await.unwrap();
         assert!(!expired);
     }
 
     #[tokio::test]
     async fn test_ttl_manager_remove_ttl_nonexistent() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        assert!(manager.remove_ttl("nonexistent").await.is_ok());
+        assert!(Arc::clone(&manager).remove_ttl("nonexistent".to_string()).await.is_ok());
     }
 
     #[tokio::test]
     async fn test_ttl_manager_update_ttl() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        manager.set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        manager.set_ttl("key1".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 120).await.unwrap();
 
-        let ttl = manager.get_ttl("key1").await.unwrap();
+        let ttl = Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap();
         assert!(ttl.is_some());
         assert!(ttl.unwrap() <= 120);
     }
@@ -575,23 +604,60 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_manager_multiple_keys() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
         for i in 0..10 {
-            manager.set_ttl(format!("key{}", i), 0, 60).await.unwrap();
+            Arc::clone(&manager).set_ttl(format!("key{}", i), 0, 60).await.unwrap();
         }
 
-        let stats = manager.get_stats().await.unwrap();
+        let stats = Arc::clone(&manager).get_stats().await.unwrap();
         assert_eq!(stats.total_keys_with_ttl, 10);
     }
 
     #[tokio::test]
     async fn test_ttl_manager_get_expired_keys_empty() {
         let config = TTLConfig::default();
-        let manager = TTLManager::new(config);
+        let manager = Arc::new(TTLManager::new(config));
 
-        let expired = manager.get_expired_keys().await.unwrap();
+        let expired = Arc::clone(&manager).get_expired_keys().await.unwrap();
         assert!(expired.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_ttl_manager_futures_are_send() {
+        let config = TTLConfig::default();
+        let manager = Arc::new(TTLManager::new(config));
+
+        // Test that TTLManager futures are Send by spawning them in tokio tasks
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            Arc::clone(&manager_clone).set_ttl("key1".to_string(), 0, 60).await
+        });
+        assert!(handle.await.unwrap().is_ok());
+
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            Arc::clone(&manager_clone).get_ttl("key1".to_string()).await
+        });
+        assert!(handle.await.unwrap().unwrap().is_some());
+
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            Arc::clone(&manager_clone).is_expired("key1".to_string()).await
+        });
+        assert!(!handle.await.unwrap().unwrap());
+
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            Arc::clone(&manager_clone).remove_ttl("key1".to_string()).await
+        });
+        assert!(handle.await.unwrap().is_ok());
+
+        let manager_clone = Arc::clone(&manager);
+        let handle = tokio::spawn(async move {
+            Arc::clone(&manager_clone).get_stats().await
+        });
+        assert!(handle.await.unwrap().is_ok());
     }
 
     #[tokio::test]

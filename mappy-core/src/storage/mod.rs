@@ -30,31 +30,49 @@ pub struct StorageStats {
 #[async_trait]
 pub trait Storage: Send + Sync {
     /// Get a value by key
-    async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>;
+    async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>
+    where
+        Self: Send + Sync;
 
     /// Set a key-value pair
-    async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>;
+    async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>
+    where
+        Self: Send + Sync;
 
     /// Delete a key
-    async fn delete(&self, key: &str) -> MapletResult<bool>;
+    async fn delete(&self, key: &str) -> MapletResult<bool>
+    where
+        Self: Send + Sync;
 
     /// Check if a key exists
-    async fn exists(&self, key: &str) -> MapletResult<bool>;
+    async fn exists(&self, key: &str) -> MapletResult<bool>
+    where
+        Self: Send + Sync;
 
     /// Get all keys
-    async fn keys(&self) -> MapletResult<Vec<String>>;
+    async fn keys(&self) -> MapletResult<Vec<String>>
+    where
+        Self: Send + Sync;
 
     /// Clear all data
-    async fn clear_database(&self) -> MapletResult<()>;
+    async fn clear_database(&self) -> MapletResult<()>
+    where
+        Self: Send + Sync;
 
     /// Flush any pending writes
-    async fn flush(&self) -> MapletResult<()>;
+    async fn flush(&self) -> MapletResult<()>
+    where
+        Self: Send + Sync;
 
     /// Close the storage backend
-    async fn close(&self) -> MapletResult<()>;
+    async fn close(&self) -> MapletResult<()>
+    where
+        Self: Send + Sync;
 
     /// Get storage statistics
-    async fn stats(&self) -> MapletResult<StorageStats>;
+    async fn stats(&self) -> MapletResult<StorageStats>
+    where
+        Self: Send + Sync;
 }
 
 /// Storage factory for creating different backends

@@ -40,8 +40,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_basic_maplet_creation() {
-        let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
-        assert_eq!(maplet.len().await, 0);
+        let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
+        assert_eq!(Arc::clone(&maplet).len().await, 0);
         assert!(maplet.error_rate() <= 0.01);
     }
 }
