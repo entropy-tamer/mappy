@@ -211,7 +211,7 @@ async fn set(
     Json(request): Json<SetRequest>,
 ) -> Result<StatusCode, StatusCode> {
     let engine_guard = state.engine.read().await;
-    if let Some(ref engine) = *engine_guard {
+    if let Some(engine) = &*engine_guard {
         engine
             .set(request.key.clone(), request.value.as_bytes().to_vec())
             .await
@@ -227,8 +227,8 @@ async fn get_value(
     Path(key): Path<String>,
 ) -> Result<Json<GetResponse>, StatusCode> {
     let engine_guard = state.engine.read().await;
-    if let Some(ref engine) = *engine_guard {
-        match engine.get(&key).await {
+    if let Some(engine) = &*engine_guard {
+        match engine.get(key.clone()).await {
             Ok(Some(value)) => Ok(Json(GetResponse {
                 key,
                 value: Some(String::from_utf8_lossy(&value).to_string()),
@@ -398,7 +398,7 @@ async fn get_metrics(State(state): State<AppState>) -> Json<MetricsResponse> {
     let engine_guard = state.engine.read().await;
     let error_log = state.error_log.read().await;
 
-    let (total_keys, memory_usage, load_factor) = if let Some(ref engine) = *engine_guard {
+    let (total_keys, memory_usage, load_factor) = if let Some(engine) = &*engine_guard {
         let stats = engine.stats().await.unwrap();
         (stats.maplet_stats.len, stats.maplet_stats.memory_usage, stats.maplet_stats.load_factor)
     } else {

@@ -160,7 +160,7 @@ async fn test_mappy(
     // Test reads
     let start = Instant::now();
     for (key, _) in test_data.iter().take(1000) {
-        engine.get(key).await?;
+        engine.get(key.clone()).await?;
     }
     let read_time = start.elapsed();
 
@@ -258,7 +258,7 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
             tokio::spawn(async move {
                 for j in 0..2000 {
                     let key = format!("concurrent_{}_{}", i % 10, j % 1000);
-                    if let Err(e) = engine.get(&key).await {
+                    if let Err(e) = engine.get(key.clone()).await {
                         eprintln!("Failed to get {}: {}", key, e);
                     }
                 }

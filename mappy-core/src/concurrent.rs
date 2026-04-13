@@ -5,7 +5,6 @@
 use crate::MapletResult;
 use std::hash::Hash;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Thread-safe maplet wrapper
 #[derive(Debug)]
@@ -15,8 +14,8 @@ where
     V: Clone + Send + Sync + std::fmt::Debug,
     Op: crate::operators::MergeOperator<V> + Send + Sync,
 {
-    /// Inner maplet protected by read-write lock
-    inner: Arc<RwLock<crate::maplet::Maplet<K, V, Op>>>,
+    /// Inner maplet (Maplet is already thread-safe with internal Arc<RwLock> fields)
+    inner: Arc<crate::maplet::Maplet<K, V, Op>>,
 }
 
 impl<K, V, Op> ConcurrentMaplet<K, V, Op>
@@ -32,56 +31,49 @@ where
     pub fn new(capacity: usize, false_positive_rate: f64) -> MapletResult<Self> {
         let maplet = crate::maplet::Maplet::<K, V, Op>::new(capacity, false_positive_rate)?;
         Ok(Self {
-            inner: Arc::new(RwLock::new(maplet)),
+            inner: Arc::new(maplet),
         })
     }
 
-    /// Insert a key-value pair (write lock)
+    /// Insert a key-value pair
     ///
     /// # Errors
     /// Returns an error if the insertion fails.
     pub async fn insert(&self, key: K, value: V) -> MapletResult<()> {
-        let maplet = self.inner.read().await;
-        maplet.insert(key, value).await
+        Arc::clone(&self.inner).insert(key, value).await
     }
 
-    /// Query a key (read lock)
+    /// Query a key
     pub async fn query(&self, key: &K) -> Option<V> {
-        let maplet = self.inner.read().await;
-        maplet.query(key).await
+        Arc::clone(&self.inner).query(key.clone()).await
     }
 
-    /// Check if key exists (read lock)
+    /// Check if key exists
     pub async fn contains(&self, key: &K) -> bool {
-        let maplet = self.inner.read().await;
-        maplet.contains(key).await
+        Arc::clone(&self.inner).contains(key.clone()).await
     }
 
-    /// Delete a key-value pair (write lock)
+    /// Delete a key-value pair
     ///
     /// # Errors
     /// Returns an error if the deletion fails.
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
-        let maplet = self.inner.read().await;
-        maplet.delete(key, value).await
+        Arc::clone(&self.inner).delete(key.clone(), value.clone()).await
     }
 
-    /// Get length (read lock)
+    /// Get length
     pub async fn len(&self) -> usize {
-        let maplet = self.inner.read().await;
-        maplet.len().await
+        Arc::clone(&self.inner).len().await
     }
 
-    /// Check if empty (read lock)
+    /// Check if empty
     pub async fn is_empty(&self) -> bool {
-        let maplet = self.inner.read().await;
-        maplet.is_empty().await
+        Arc::clone(&self.inner).is_empty().await
     }
 
-    /// Get statistics (read lock)
+    /// Get statistics
     pub async fn stats(&self) -> crate::MapletStats {
-        let maplet = self.inner.read().await;
-        maplet.stats().await
+        Arc::clone(&self.inner).stats().await
     }
 }
 

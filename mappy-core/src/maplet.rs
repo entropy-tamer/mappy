@@ -290,6 +290,41 @@ where
         stats
     }
 
+    /// Clear all data from the maplet
+    ///
+    /// # Errors
+    /// Returns an error if clearing fails.
+    pub async fn clear(self: Arc<Self>) -> MapletResult<()>
+    where
+        Self: Send + Sync,
+    {
+        // Clear the quotient filter
+        {
+            let mut filter = self.filter.write().await;
+            filter.clear();
+        }
+
+        // Clear the values HashMap
+        {
+            let mut values = self.values.write().await;
+            values.clear();
+        }
+
+        // Reset the len counter
+        {
+            let mut len = self.len.write().await;
+            *len = 0;
+        }
+
+        // Reset the collision detector
+        {
+            let mut detector = self.collision_detector.write().await;
+            *detector = CollisionDetector::new(self.config.capacity / 4);
+        }
+
+        Ok(())
+    }
+
     /// Resize the maplet to a new capacity
     ///
     /// # Errors

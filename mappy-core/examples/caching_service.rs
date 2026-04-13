@@ -5,6 +5,7 @@
 //! It includes cache invalidation, TTL management, and performance monitoring.
 
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -123,7 +124,7 @@ impl CachingService {
         let cache_key = format!("user:{id}");
 
         // Try to get from cache first
-        if let Some(cached_data) = self.cache.get(&cache_key).await? {
+        if let Some(cached_data) = self.cache.get(cache_key.clone()).await? {
             self.cache_hits += 1;
             let user: User = serde_json::from_slice(&cached_data)?;
             println!("  Cache HIT for user:{id}");
@@ -138,7 +139,7 @@ impl CachingService {
             // Store in cache with TTL
             let user_data = serde_json::to_vec(&user)?;
             self.cache.set(cache_key, user_data).await?;
-            self.cache.expire(&format!("user:{id}"), 300).await?; // 5 minutes TTL
+            self.cache.expire(format!("user:{id}"), 300).await?; // 5 minutes TTL
 
             Ok(Some(user))
         } else {
@@ -151,7 +152,7 @@ impl CachingService {
         let cache_key = format!("post:{id}");
 
         // Try to get from cache first
-        if let Some(cached_data) = self.cache.get(&cache_key).await? {
+        if let Some(cached_data) = self.cache.get(cache_key.clone()).await? {
             self.cache_hits += 1;
             let post: Post = serde_json::from_slice(&cached_data)?;
             println!("  Cache HIT for post:{id}");

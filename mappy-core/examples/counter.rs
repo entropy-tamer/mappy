@@ -4,8 +4,8 @@
 //! Demonstrates using maplets for k-mer counting in computational biology,
 //! as described in Section 4 of the research paper.
 
-use mappy_core::types::MapletConfig;
-use mappy_core::{CounterOperator, Maplet};
+use mappy_core::{Maplet, MapletConfig, operators::CounterOperator};
+use std::sync::Arc;
 use std::collections::HashMap;
 
 /// Simulate k-mer counting using a maplet
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a maplet for counting k-mers
     let config = MapletConfig::new(10000, 0.001); // 0.1% false positive rate
-    let kmer_counter = Maplet::<String, u32, CounterOperator>::with_config(config)?;
+    let kmer_counter = Arc::new(Maplet::<String, u32, CounterOperator>::with_config(config)?);
 
     // Simulate DNA sequences
     let sequences = vec![
@@ -62,13 +62,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nComparison with HashMap:");
     for kmer in &test_kmers {
-        let maplet_count = kmer_counter.query(&(*kmer).to_string()).await;
-        let hashmap_count = hashmap_counter.get(&(*kmer).to_string());
-        println!("  {kmer}: Maplet={maplet_count:?}, HashMap={hashmap_count:?}");
+        let count = Arc::clone(&kmer_counter).query(kmer.to_string()).await;
+        let hashmap_count = hashmap_counter.get(kmer);
+        println!("  {kmer}: Maplet={count:?}, HashMap={hashmap_count:?}");
     }
 
     // Show statistics
-    let stats = kmer_counter.stats().await;
+    let stats = Arc::clone(&kmer_counter).stats().await;
     println!("\nMaplet Statistics:");
     println!("  Capacity: {}", stats.capacity);
     println!("  Items: {}", stats.len);

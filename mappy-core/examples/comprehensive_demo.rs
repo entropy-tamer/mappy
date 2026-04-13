@@ -56,11 +56,11 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // Get values
-    let user1 = engine.get("user:1").await?;
+    let user1 = engine.get("user:1".to_string()).await?;
     println!("  user:1 = {:?}", String::from_utf8_lossy(user1.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]")));
 
     // Check existence
-    let exists = engine.exists("user:2").await?;
+    let exists = engine.exists("user:2".to_string()).await?;
     println!("  user:2 exists: {}", exists);
 
     // Get all keys
@@ -68,7 +68,7 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("  All keys: {:?}", keys);
 
     // Delete a key
-    let deleted = engine.delete("user:3").await?;
+    let deleted = engine.delete("user:3".to_string()).await?;
     println!("  Deleted user:3: {}", deleted);
 
     // Final state
@@ -92,35 +92,35 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
     engine
         .set("session:abc123".to_string(), b"user_data".to_vec())
         .await?;
-    engine.expire("session:abc123", 2).await?; // Expires in 2 seconds
+    engine.expire("session:abc123".to_string(), 2).await?; // Expires in 2 seconds
 
     // Check TTL
-    let ttl = engine.ttl("session:abc123").await?;
+    let ttl = engine.ttl("session:abc123".to_string()).await?;
     println!("  session:abc123 TTL: {:?} seconds", ttl);
 
     // Set another key with longer TTL
     engine
         .set("cache:data".to_string(), b"cached_data".to_vec())
         .await?;
-    engine.expire("cache:data", 10).await?; // Expires in 10 seconds
+    engine.expire("cache:data".to_string(), 10).await?; // Expires in 10 seconds
 
     // Wait for first key to expire
     println!("  Waiting for session:abc123 to expire...");
     sleep(Duration::from_millis(2100)).await;
 
     // Check if expired
-    let expired_value = engine.get("session:abc123").await?;
+    let expired_value = engine.get("session:abc123".to_string()).await?;
     println!("  session:abc123 after expiration: {:?}", expired_value);
 
     // Check TTL of second key
-    let remaining_ttl = engine.ttl("cache:data").await?;
+    let remaining_ttl = engine.ttl("cache:data".to_string()).await?;
     println!("  cache:data remaining TTL: {:?} seconds", remaining_ttl);
 
     // Remove TTL (make persistent)
-    let had_ttl = engine.persist("cache:data").await?;
+    let had_ttl = engine.persist("cache:data".to_string()).await?;
     println!("  Removed TTL from cache:data: {}", had_ttl);
 
-    let final_ttl = engine.ttl("cache:data").await?;
+    let final_ttl = engine.ttl("cache:data".to_string()).await?;
     println!("  cache:data TTL after persist: {:?}", final_ttl);
 
     engine.close().await?;
@@ -142,7 +142,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     memory_engine
         .set("memory_key".to_string(), b"memory_value".to_vec())
         .await?;
-    let memory_value = memory_engine.get("memory_key").await?;
+    let memory_value = memory_engine.get("memory_key".to_string()).await?;
     println!(
         "  Memory storage: {:?}",
         String::from_utf8_lossy(memory_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
@@ -162,7 +162,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     disk_engine
         .set("disk_key".to_string(), b"disk_value".to_vec())
         .await?;
-    let disk_value = disk_engine.get("disk_key").await?;
+    let disk_value = disk_engine.get("disk_key".to_string()).await?;
     println!(
         "  Disk storage: {:?}",
         String::from_utf8_lossy(disk_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
@@ -182,7 +182,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     aof_engine
         .set("aof_key".to_string(), b"aof_value".to_vec())
         .await?;
-    let aof_value = aof_engine.get("aof_key").await?;
+    let aof_value = aof_engine.get("aof_key".to_string()).await?;
     println!(
         "  AOF storage: {:?}",
         String::from_utf8_lossy(aof_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
@@ -210,7 +210,7 @@ async fn demo_statistics() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set some TTLs
     for i in 0..10 {
-        engine.expire(&format!("key_{}", i), 60).await?;
+        engine.expire(format!("key_{}", i), 60).await?;
     }
 
     // Get statistics

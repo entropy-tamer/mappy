@@ -4,8 +4,9 @@
 //! Demonstrates using maplets for network routing tables,
 //! as described in Section 6 of the research paper.
 
-use mappy_core::{Maplet, SetOperator};
+use mappy_core::{Maplet, operators::SetOperator};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 /// Simulate network routing using a maplet
 #[tokio::main]
@@ -15,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a maplet for routing table (prefix -> set of next hops)
     let config = mappy_core::types::MapletConfig::new(1000, 0.01);
-    let routing_table = Maplet::<String, HashSet<String>, SetOperator>::with_config(config)?;
+    let routing_table = Arc::new(Maplet::<String, HashSet<String>, SetOperator>::with_config(config)?);
 
     // Simulate network topology
     let routes = vec![
@@ -72,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nComparison with HashMap:");
     for ip in &test_ips {
-        let maplet_route = find_best_route(&routing_table, ip).await;
+        let maplet_route = find_best_route_maplet(&routing_table, &ip).await;
         let hashmap_route = find_best_route_hashmap(&hashmap_routes, ip);
         println!("  {ip}: Maplet={maplet_route:?}, HashMap={hashmap_route:?}");
     }
@@ -82,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Find the best route for an IP address using the maplet
 async fn find_best_route(
-    routing_table: &Maplet<String, HashSet<String>, SetOperator>,
+    routing_table: &Arc<Maplet<String, HashSet<String>, SetOperator>>,
     ip: &str,
 ) -> Option<HashSet<String>> {
     // Simple longest prefix match simulation
@@ -92,13 +93,13 @@ async fn find_best_route(
     for prefix_len in (0..=4).rev() {
         if prefix_len == 0 {
             // Try default route
-            if let Some(routes) = routing_table.query(&"0.0.0.0/0".to_string()).await {
+            if let Some(routes) = routing_table.query("0.0.0.0/0".to_string()).await {
                 return Some(routes);
             }
         } else {
             let prefix = format!("{}/{}", ip_parts[..prefix_len].join("."), prefix_len * 8);
 
-            if let Some(routes) = routing_table.query(&prefix).await {
+            if let Some(routes) = routing_table.query(prefix).await {
                 return Some(routes);
             }
         }

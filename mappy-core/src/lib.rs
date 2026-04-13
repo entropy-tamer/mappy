@@ -37,6 +37,7 @@ pub type Result<T> = std::result::Result<T, MapletError>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_basic_maplet_creation() {

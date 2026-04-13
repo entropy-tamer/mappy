@@ -242,6 +242,13 @@ impl QuotientFilter {
         self.quotient_bits
     }
 
+    /// Clear all data from the filter
+    pub fn clear(&mut self) {
+        self.slots = vec![SlotMetadata::default(); self.capacity];
+        self.len = 0;
+        self.multiset_counts.clear();
+    }
+
     /// Extract quotient from fingerprint
     const fn extract_quotient(&self, fingerprint: u64) -> u64 {
         fingerprint & self.quotient_mask

@@ -14,7 +14,7 @@ version = "0.3.2"
 edition = "2024"
 authors = ["Balazs Horvath"]
 license = "MIT"
-repository = "https://github.com/entropy-tamer/mappy"
+repository = "https://git.sly.so/kade/mappy"
 description = "Space-efficient maplet data structures for approximate key-value mappings"
 
 [workspace.dependencies]
@@ -86,6 +86,9 @@ dashmap = "6.1.0"
 plotters = { path = "../../vendor/plotters/plotters" }
 
 [patch.crates-io]
+proc-macro2 = { path = "../../vendor/proc-macro2" }
+syn = { path = "../../vendor/syn" }
+quote = { path = "../../vendor/quote" }
 bytes = { path = "../../vendor/bytes" }
 serde = { path = "../../vendor/serde/serde" }
 serde_core = { path = "../../vendor/serde/serde_core" }

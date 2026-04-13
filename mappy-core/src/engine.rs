@@ -73,8 +73,8 @@ pub struct EngineStats {
 
 /// Main engine that combines maplet with storage
 pub struct Engine {
-    /// The maplet for approximate key-value operations
-    maplet: Arc<RwLock<Maplet<String, Vec<u8>, ReplaceOperator>>>,
+    /// The maplet for approximate key-value operations (Maplet is already thread-safe with internal Arc<RwLock> fields)
+    maplet: Arc<Maplet<String, Vec<u8>, ReplaceOperator>>,
     /// The storage backend
     storage: Arc<dyn Storage>,
     /// TTL manager
@@ -93,9 +93,9 @@ impl Engine {
     /// # Errors
     /// Returns an error if the engine cannot be created with the given configuration.
     pub async fn new(config: EngineConfig) -> MapletResult<Self> {
-        let maplet = Arc::new(RwLock::new(
+        let maplet = Arc::new(
             Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(config.maplet.clone())?,
-        ));
+        );
 
         // Use EngineConfig's data_dir if provided, otherwise use StorageConfig's default
         let mut storage_config = config.storage.clone();
@@ -148,9 +148,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn get(self: Arc<Self>, key: String) -> MapletResult<Option<Vec<u8>>>
-    where
-        Self: Send + Sync,
+    pub async fn get(&self, key: String) -> MapletResult<Option<Vec<u8>>>
     {
         // Check if key has expired
         if Arc::clone(&self.ttl_manager).is_expired(key.clone()).await? {
@@ -163,8 +161,7 @@ impl Engine {
         }
 
         // First check the maplet for approximate membership
-        let maplet = Arc::clone(&self.maplet);
-        if !Arc::clone(&maplet).contains(key.clone()).await {
+        if !Arc::clone(&self.maplet).contains(key.clone()).await {
             return Ok(None);
         }
 
@@ -184,16 +181,10 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn set(self: Arc<Self>, key: String, value: Vec<u8>) -> MapletResult<()>
-    where
-        Self: Send + Sync,
+    pub async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>
     {
         // Store in the maplet for approximate membership
-        self.maplet
-            .write()
-            .await
-            .insert(key.clone(), value.clone())
-            .await?;
+        Arc::clone(&self.maplet).insert(key.clone(), value.clone()).await?;
 
         // Store in the actual storage backend
         self.storage.set(key, value).await?;
@@ -211,9 +202,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn delete(self: Arc<Self>, key: String) -> MapletResult<bool>
-    where
-        Self: Send + Sync,
+    pub async fn delete(&self, key: String) -> MapletResult<bool>
     {
         // Remove from storage
         let result = self.storage.delete(&key).await?;
@@ -235,13 +224,10 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn exists(self: Arc<Self>, key: String) -> MapletResult<bool>
-    where
-        Self: Send + Sync,
+    pub async fn exists(&self, key: String) -> MapletResult<bool>
     {
         // Check maplet first for fast approximate membership
-        let maplet = Arc::clone(&self.maplet);
-        if !Arc::clone(&maplet).contains(key.clone()).await {
+        if !Arc::clone(&self.maplet).contains(key.clone()).await {
             return Ok(false);
         }
 
@@ -261,9 +247,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn keys(self: Arc<Self>) -> MapletResult<Vec<String>>
-    where
-        Self: Send + Sync,
+    pub async fn keys(&self) -> MapletResult<Vec<String>>
     {
         let result = self.storage.keys().await?;
 
@@ -280,21 +264,16 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if clearing the maplet or storage fails.
-    pub async fn clear(self: Arc<Self>) -> MapletResult<()>
-    where
-        Self: Send + Sync,
+    pub async fn clear(&self) -> MapletResult<()>
     {
         // Clear maplet
-        {
-            let mut maplet_guard = self.maplet.write().await;
-            // Note: Maplet doesn't have a clear method, so we create a new one
-            *maplet_guard = Maplet::<String, Vec<u8>, ReplaceOperator>::with_config(
-                self.config.maplet.clone(),
-            )?;
-        }
+        Arc::clone(&self.maplet).clear().await?;
 
         // Clear storage
         self.storage.clear_database().await?;
+
+        // Clear TTL manager
+        Arc::clone(&self.ttl_manager).clear_all().await?;
 
         // Reset operation counter
         {
@@ -309,9 +288,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if flushing to storage fails.
-    pub async fn flush(self: Arc<Self>) -> MapletResult<()>
-    where
-        Self: Send + Sync,
+    pub async fn flush(&self) -> MapletResult<()>
     {
         self.storage.flush().await?;
         Ok(())
@@ -321,9 +298,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if stopping TTL cleanup or closing storage fails.
-    pub async fn close(self: Arc<Self>) -> MapletResult<()>
-    where
-        Self: Send + Sync,
+    pub async fn close(&self) -> MapletResult<()>
     {
         // Stop TTL cleanup task
         Arc::clone(&self.ttl_manager).stop_cleanup().await?;
@@ -337,9 +312,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving storage or TTL statistics fails.
-    pub async fn stats(self: Arc<Self>) -> MapletResult<EngineStats>
-    where
-        Self: Send + Sync,
+    pub async fn stats(&self) -> MapletResult<EngineStats>
     {
         let maplet = Arc::clone(&self.maplet);
         let maplet_stats = Arc::clone(&maplet).stats().await;
@@ -363,9 +336,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving storage statistics fails.
-    pub async fn memory_usage(self: Arc<Self>) -> MapletResult<u64>
-    where
-        Self: Send + Sync,
+    pub async fn memory_usage(&self) -> MapletResult<u64>
     {
         let storage_stats = self.storage.stats().await?;
         Ok(storage_stats.memory_usage)
@@ -387,12 +358,10 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if checking key existence or setting TTL fails.
-    pub async fn expire(self: Arc<Self>, key: String, ttl_seconds: u64) -> MapletResult<bool>
-    where
-        Self: Send + Sync,
+    pub async fn expire(&self, key: String, ttl_seconds: u64) -> MapletResult<bool>
     {
         // Check if key exists
-        if !self.clone().exists(key.clone()).await? {
+        if !self.exists(key.clone()).await? {
             return Ok(false);
         }
 
@@ -414,9 +383,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving TTL fails.
-    pub async fn ttl(self: Arc<Self>, key: String) -> MapletResult<Option<i64>>
-    where
-        Self: Send + Sync,
+    pub async fn ttl(&self, key: String) -> MapletResult<Option<i64>>
     {
         let result = Arc::clone(&self.ttl_manager).get_ttl(key.clone()).await?;
 
@@ -433,9 +400,7 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving or removing TTL fails.
-    pub async fn persist(self: Arc<Self>, key: String) -> MapletResult<bool>
-    where
-        Self: Send + Sync,
+    pub async fn persist(&self, key: String) -> MapletResult<bool>
     {
         let had_ttl = Arc::clone(&self.ttl_manager).get_ttl(key.clone()).await?.is_some();
         Arc::clone(&self.ttl_manager).remove_ttl(key.clone()).await?;
@@ -454,12 +419,9 @@ impl Engine {
     /// # Errors
     /// Returns an error if the operation fails.
     #[cfg(feature = "quotient-filter")]
-    pub async fn find_slot_for_key(self: Arc<Self>, key: String) -> MapletResult<Option<usize>>
-    where
-        Self: Send + Sync,
+    pub async fn find_slot_for_key(&self, key: String) -> MapletResult<Option<usize>>
     {
-        let maplet = Arc::clone(&self.maplet);
-        let result = Arc::clone(&maplet).find_slot_for_key(key.clone()).await;
+        let result = Arc::clone(&self.maplet).find_slot_for_key(key.clone()).await;
         Ok(result)
     }
 }
@@ -479,24 +441,21 @@ mod tests {
     #[tokio::test]
     async fn test_engine_basic_operations() {
         let config = EngineConfig::default();
-        let engine = Arc::new(Engine::new(config).await.unwrap());
+        let engine = Engine::new(config).await.unwrap();
 
         // Test set and get
-        Arc::clone(&engine)
-            .set("key1".to_string(), b"value1".to_vec())
-            .await
-            .unwrap();
-        let value = Arc::clone(&engine).get("key1".to_string()).await.unwrap();
+        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        let value = engine.get("key1".to_string()).await.unwrap();
         assert_eq!(value, Some(b"value1".to_vec()));
 
         // Test exists
-        assert!(Arc::clone(&engine).exists("key1".to_string()).await.unwrap());
-        assert!(!Arc::clone(&engine).exists("nonexistent".to_string()).await.unwrap());
+        assert!(engine.exists("key1".to_string()).await.unwrap());
+        assert!(!engine.exists("nonexistent".to_string()).await.unwrap());
 
         // Test delete
-        let deleted = Arc::clone(&engine).delete("key1".to_string()).await.unwrap();
+        let deleted = engine.delete("key1".to_string()).await.unwrap();
         assert!(deleted);
-        assert!(!Arc::clone(&engine).exists("key1".to_string()).await.unwrap());
+        assert!(!engine.exists("key1".to_string()).await.unwrap());
     }
 
     #[tokio::test]
@@ -518,17 +477,14 @@ mod tests {
             ..Default::default()
         };
 
-        let engine = Arc::new(Engine::new(config).await.unwrap());
+        let engine = Engine::new(config).await.unwrap();
 
         // Test operations
-        Arc::clone(&engine)
-            .set("key1".to_string(), b"value1".to_vec())
-            .await
-            .unwrap();
-        let value = Arc::clone(&engine).get("key1".to_string()).await.unwrap();
+        engine.set("key1".to_string(), b"value1".to_vec()).await.unwrap();
+        let value = engine.get("key1".to_string()).await.unwrap();
         assert_eq!(value, Some(b"value1".to_vec()));
 
-        Arc::clone(&engine).close().await.unwrap();
+        engine.close().await.unwrap();
     }
 
     #[tokio::test]
