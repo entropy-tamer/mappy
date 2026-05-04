@@ -11,38 +11,38 @@ categories = ["compression", "algorithms"]
 
 [dependencies]
 # Error handling
-anyhow = { path = "../../../vendor/anyhow" }
-thiserror = "2.0.18"
+anyhow = { git = "https://git.sly.so/kade/anyhow" }
+thiserror = { git = "https://git.sly.so/kade/thiserror" }
 
 # Serialization
-serde = { path = "../../../vendor/serde/serde", features = ["derive"] }
-serde_json = { path = "../../../vendor/serde_json" }
+serde = { git = "https://git.sly.so/kade/serde", features = ["derive"] }
+serde_json = { git = "https://git.sly.so/kade/serde_json" }
 bitcode.workspace = true
 
 # Bit manipulation
-bitvec = { path = "../../../vendor/bitvec" }
+bitvec = { git = "https://git.sly.so/kade/bitvec" }
 
 # Compression comparison
-flate2 = "1.1.9"
-lz4 = "1.28.1"
+flate2 = { git = "https://git.sly.so/kade/flate2-rs" }
+lz4 = { git = "https://git.sly.so/kade/lz4-rs" }
 
 # Parallel processing
-rayon = { path = "../../../vendor/rayon" }
+rayon = { git = "https://git.sly.so/kade/rayon" }
 
 # Plotting
 plotters.workspace = true
 
 # Hashing
-ahash = { path = "../../../vendor/ahash" }
+ahash = { git = "https://git.sly.so/kade/ahash" }
 
 # Collections
-indexmap = { path = "../../../vendor/indexmap" }
+indexmap = { git = "https://git.sly.so/kade/indexmap" }
 
 # Date/time for reports
-chrono = "0.4.44"
+chrono = { git = "https://git.sly.so/kade/chrono" }
 
 # Async runtime (for ML benchmarks with mappy)
-tokio = { path = "../../../vendor/tokio/tokio", features = ["rt", "rt-multi-thread", "macros"], optional = true }
+tokio = { git = "https://git.sly.so/kade/tokio", features = ["rt", "rt-multi-thread", "macros"], optional = true }
 
 # Mappy integration (optional, for benchmarks)
 mappy-core = { path = "../mappy-core", optional = true }
@@ -52,8 +52,8 @@ default = []
 mappy-integration = ["mappy-core", "tokio"]
 
 [dev-dependencies]
-criterion = { path = "../../../vendor/criterion", features = ["html_reports"] }
-proptest = "1.10.0"
+criterion = { git = "https://git.sly.so/kade/criterion", features = ["html_reports"] }
+proptest = { git = "https://git.sly.so/kade/proptest" }
 mappy-core = { path = "../mappy-core" }
 
 [[bench]]

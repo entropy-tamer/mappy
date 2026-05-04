@@ -21,6 +21,6 @@ mappy-client = { path = "../mappy-client" }
 
 [dev-dependencies]
 tower = { workspace = true }
-tokio-test = { path = "../../../vendor/tokio/tokio-test" }
+tokio-test = { git = "https://git.sly.so/kade/tokio", package = "tokio-test" }
 hyper = { workspace = true }
 tower-http = { workspace = true }

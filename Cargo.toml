@@ -19,99 +19,99 @@ description = "Space-efficient maplet data structures for approximate key-value 
 
 [workspace.dependencies]
 # Async runtime
-tokio = { path = "../../vendor/tokio/tokio", features = ["full"] }
-async-trait = { path = "../../vendor/async-trait" }
+tokio = { git = "https://git.sly.so/kade/tokio", features = ["full"] }
+async-trait = { git = "https://git.sly.so/kade/async-trait" }
 
 # Serialization
-serde = { path = "../../vendor/serde/serde", features = ["derive"] }
-serde_json = { path = "../../vendor/serde_json" }
-bitcode = { path = "../../vendor/bitcode" }
+serde = { git = "https://git.sly.so/kade/serde", package = "serde", features = ["derive"] }
+serde_json = { git = "https://git.sly.so/kade/serde_json" }
+bitcode = { git = "https://git.sly.so/kade/bitcode" }
 
 # Hashing and bit operations
-ahash = { path = "../../vendor/ahash" }
-bitvec = { path = "../../vendor/bitvec" }
-twox-hash = "2.1.2"
+ahash = { git = "https://git.sly.so/kade/ahash" }
+bitvec = { git = "https://git.sly.so/kade/bitvec" }
+twox-hash = { git = "https://git.sly.so/kade/twox-hash" }
 
 # Error handling
-anyhow = { path = "../../vendor/anyhow" }
-thiserror = { path = "../../vendor/thiserror" }
+anyhow = { git = "https://git.sly.so/kade/anyhow" }
+thiserror = { git = "https://git.sly.so/kade/thiserror" }
 
 # Concurrency
-parking_lot = { path = "../../vendor/parking_lot" }
-rayon = { path = "../../vendor/rayon" }
+parking_lot = { git = "https://git.sly.so/kade/parking_lot" }
+rayon = { git = "https://git.sly.so/kade/rayon" }
 
 # Logging
-tracing = { path = "../../vendor/tracing/tracing" }
-tracing-subscriber = { path = "../../vendor/tracing/tracing-subscriber", features = ["env-filter"] }
+tracing = { git = "https://git.sly.so/kade/tracing", package = "tracing" }
+tracing-subscriber = { git = "https://git.sly.so/kade/tracing", package = "tracing-subscriber", features = ["env-filter"] }
 
 # Testing
-criterion = { path = "../../vendor/criterion", features = ["html_reports"] }
-proptest = "1.11.0"
-quickcheck = { path = "../../vendor/quickcheck"}
+criterion = { git = "https://git.sly.so/kade/criterion", features = ["html_reports"] }
+proptest = { git = "https://git.sly.so/kade/proptest" }
+quickcheck = { git = "https://git.sly.so/kade/quickcheck"}
 
 # Python bindings
-pyo3 = { version = "0.28.3", features = ["extension-module"] }
+pyo3 = { git = "https://git.sly.so/kade/pyo3", features = ["extension-module"] }
 
 # Additional dependencies
-getrandom = { path = "../../vendor/getrandom" }
-rand = { path = "../../vendor/rand" }
-rand_core = { path = "../../vendor/rand_core" }
-futures = { path = "../../vendor/futures-rs/futures", features = ["executor"] }
-futures-core = { path = "../../vendor/futures-rs/futures-core", default-features = false }
-futures-util = { path = "../../vendor/futures-rs/futures-util", default-features = false, features = ["alloc"] }
-futures-sink = { path = "../../vendor/futures-rs/futures-sink" }
+getrandom = { git = "https://git.sly.so/kade/getrandom" }
+rand = { git = "https://git.sly.so/kade/rand" }
+rand_core = { git = "https://git.sly.so/kade/rand_core" }
+tempfile = { git = "https://git.sly.so/kade/tempfile" }
+futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
+futures-core = { git = "https://git.sly.so/kade/futures-rs", package = "futures-core", default-features = false }
+futures-util = { git = "https://git.sly.so/kade/futures-rs", package = "futures-util", default-features = false, features = ["alloc"] }
+futures-sink = { git = "https://git.sly.so/kade/futures-rs", package = "futures-sink" }
 
 # Web server dependencies
-axum = { path = "../../vendor/axum/axum", features = ["macros"] }
-tokio-tungstenite = { path = "../../vendor/tokio-tungstenite" }
-tower = { path = "../../vendor/tower/tower", features = ["util"] }
-tower-http = { path = "../../vendor/tower-http/tower-http", features = ["cors", "trace", "fs"] }
-hyper = { path = "../../vendor/hyper", features = ["full", "http1", "http2"] }
-hyper-util = { path = "../../vendor/hyper-util", features = ["full"] }
-http-body-util = { path = "../../vendor/http-body/http-body-util" }
-tokio-rustls = { path = "../../vendor/tokio-rustls" }
-rustls-ring = { path = "../../vendor/rustls/rustls-ring" }
-config = { path = "../../vendor/config" }
-dotenvy = { path = "../../vendor/dotenvy/dotenvy" }
+axum = { git = "https://git.sly.so/kade/axum-main", package = "axum", features = ["macros"] }
+tokio-tungstenite = { git = "https://git.sly.so/kade/tokio-tungstenite" }
+tower = { git = "https://git.sly.so/kade/tower", package = "tower", features = ["util"] }
+tower-http = { git = "https://git.sly.so/kade/tower-http", package = "tower-http", features = ["cors", "trace", "fs"] }
+hyper = { git = "https://git.sly.so/kade/hyper", features = ["full", "http1", "http2"] }
+hyper-util = { git = "https://git.sly.so/kade/hyper-util", features = ["full"] }
+http-body-util = { git = "https://git.sly.so/kade/http-body", package = "http-body-util" }
+tokio-rustls = { git = "https://git.sly.so/kade/tokio-rustls" }
+rustls-ring = { git = "https://git.sly.so/kade/rustls", package = "rustls-ring" }
+config = { git = "https://git.sly.so/kade/config-rs" }
+dotenvy = { git = "https://git.sly.so/kade/dotenvy", package = "dotenvy" }
 
 # HTTP client dependencies
-reqwest = { path = "../../vendor/reqwest", features = ["json", "rustls", "__rustls-ring"] }
-urlencoding = "2.1.3"
+reqwest = { git = "https://git.sly.so/kade/reqwest", features = ["json", "rustls", "__rustls-ring"] }
+urlencoding = { git = "https://git.sly.so/kade/urlencoding" }
 
 # Storage dependencies
-sled = { path = "../../vendor/sled" }
+sled = { git = "https://git.sly.so/kade/sled" }
 dashmap = "6.1.0"
 
 # Plotting dependencies
-plotters = { path = "../../vendor/plotters/plotters" }
+plotters = { git = "https://git.sly.so/kade/plotters", package = "plotters" }
 
 [patch.crates-io]
-proc-macro2 = { path = "../../vendor/proc-macro2" }
-syn = { path = "../../vendor/syn" }
-quote = { path = "../../vendor/quote" }
-bytes = { path = "../../vendor/bytes" }
-serde = { path = "../../vendor/serde/serde" }
-serde_core = { path = "../../vendor/serde/serde_core" }
-serde_derive = { path = "../../vendor/serde/serde_derive" }
-futures = { path = "../../vendor/futures-rs/futures" }
-futures-core = { path = "../../vendor/futures-rs/futures-core" }
-futures-sink = { path = "../../vendor/futures-rs/futures-sink" }
-futures-util = { path = "../../vendor/futures-rs/futures-util" }
-http = { path = "../../vendor/http" }
-http-body = { path = "../../vendor/http-body/http-body" }
-http-body-util = { path = "../../vendor/http-body/http-body-util" }
-tower-service = { path = "../../vendor/tower/tower-service" }
-tower-layer = { path = "../../vendor/tower/tower-layer" }
-tower = { path = "../../vendor/tower/tower" }
-rustls = { path = "../../vendor/rustls/rustls" }
-rustls-ring = { path = "../../vendor/rustls/rustls-ring" }
-rustls-pki-types = { path = "../../vendor/rustls-pki-types" }
-chrono = { path = "../../vendor/chrono" }
-indexmap = { path = "../../vendor/indexmap" }
-thiserror = { path = "../../vendor/thiserror" }
-thiserror-impl = { path = "../../vendor/thiserror/impl" }
-once_cell = { path = "../../vendor/once_cell" }
-memchr = { path = "../../vendor/memchr" }
-log = { path = "../../vendor/log" }
-smallvec = { path = "../../vendor/smallvec" }
-cfg-if = { path = "../../vendor/cfg-if" }
+proc-macro2 = { git = "https://git.sly.so/kade/proc-macro2" }
+syn = { git = "https://git.sly.so/kade/syn" }
+quote = { git = "https://git.sly.so/kade/quote" }
+bytes = { git = "https://git.sly.so/kade/bytes" }
+serde = { git = "https://git.sly.so/kade/serde", package = "serde" }
+serde_core = { git = "https://git.sly.so/kade/serde", package = "serde_core" }
+serde_derive = { git = "https://git.sly.so/kade/serde", package = "serde_derive" }
+futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
+futures-core = { git = "https://git.sly.so/kade/futures-rs", package = "futures-core" }
+futures-sink = { git = "https://git.sly.so/kade/futures-rs", package = "futures-sink" }
+futures-util = { git = "https://git.sly.so/kade/futures-rs", package = "futures-util" }
+http = { git = "https://git.sly.so/kade/http" }
+http-body = { git = "https://git.sly.so/kade/http-body", package = "http-body" }
+http-body-util = { git = "https://git.sly.so/kade/http-body", package = "http-body-util" }
+tower-service = { git = "https://git.sly.so/kade/tower", package = "tower-service" }
+tower-layer = { git = "https://git.sly.so/kade/tower", package = "tower-layer" }
+tower = { git = "https://git.sly.so/kade/tower", package = "tower" }
+rustls = { git = "https://git.sly.so/kade/rustls", package = "rustls" }
+rustls-ring = { git = "https://git.sly.so/kade/rustls", package = "rustls-ring" }
+rustls-pki-types = { git = "https://git.sly.so/kade/rustls-pki-types" }
+chrono = { git = "https://git.sly.so/kade/chrono" }
+indexmap = { git = "https://git.sly.so/kade/indexmap" }
+thiserror = { git = "https://git.sly.so/kade/thiserror" }
+once_cell = { git = "https://git.sly.so/kade/once_cell" }
+memchr = { git = "https://git.sly.so/kade/memchr" }
+log = { git = "https://git.sly.so/kade/log" }
+smallvec = { git = "https://git.sly.so/kade/smallvec" }
+cfg-if = { git = "https://git.sly.so/kade/cfg-if" }

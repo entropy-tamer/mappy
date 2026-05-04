@@ -33,10 +33,10 @@ dotenvy.workspace = true
 mappy-core = { path = "../mappy-core" }
 
 # Additional dependencies
-bytes = { path = "../../../vendor/bytes" }
-tokio-util = { path = "../../../vendor/tokio/tokio-util", features = ["codec"] }
-futures = "0.3.32"
-async-stream = "0.3.6"
+bytes = { git = "https://git.sly.so/kade/bytes" }
+tokio-util = { git = "https://git.sly.so/kade/tokio", package = "tokio-util", features = ["codec"] }
+futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
+async-stream = { git = "https://git.sly.so/kade/async-stream" }
 
 # Binary target
 [[bin]]
