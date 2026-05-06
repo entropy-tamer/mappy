@@ -144,17 +144,17 @@ impl Engine {
         })
     }
 
-    /// Get a value by key
+    /// Get value for a key
     ///
     /// # Errors
-    /// Returns an error if the operation fails.
-    pub async fn get(&self, key: String) -> MapletResult<Option<Vec<u8>>>
+    /// Returns an error if retrieving value fails.
+    pub async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>
     {
         // Check if key has expired
-        if Arc::clone(&self.ttl_manager).is_expired(key.clone()).await? {
+        if Arc::clone(&self.ttl_manager).is_expired(key.to_string()).await? {
             // Remove expired key
-            Arc::clone(&self.ttl_manager).remove_ttl(key.clone()).await?;
-            if let Err(delete_error) = self.storage.delete(&key).await {
+            Arc::clone(&self.ttl_manager).remove_ttl(key.to_string()).await?;
+            if let Err(delete_error) = self.storage.delete(&key.to_string()).await {
                 tracing::warn!("Failed to delete expired key: {}", delete_error);
             }
             return Ok(None);
@@ -358,15 +358,16 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if checking key existence or setting TTL fails.
-    pub async fn expire(&self, key: String, ttl_seconds: u64) -> MapletResult<bool>
+    pub async fn expire(&self, key: &str, ttl_seconds: u64) -> MapletResult<bool>
     {
         // Check if key exists
-        if !self.exists(key.clone()).await? {
+        if !self.exists(key.to_string()).await? {
             return Ok(false);
         }
 
         // Set TTL
         Arc::clone(&self.ttl_manager)
+            .set_ttl(key.to_string(), 0, ttl_seconds)
             .set_ttl(key.clone(), 0, ttl_seconds)
             .await?;
 
@@ -383,9 +384,9 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving TTL fails.
-    pub async fn ttl(&self, key: String) -> MapletResult<Option<i64>>
+    pub async fn ttl(&self, key: &str) -> MapletResult<Option<i64>>
     {
-        let result = Arc::clone(&self.ttl_manager).get_ttl(key.clone()).await?;
+        let result = Arc::clone(&self.ttl_manager).get_ttl(key.to_string()).await?;
 
         // Increment operation counter
         {

@@ -10,9 +10,13 @@ readme = "README.md"
 keywords = ["mappy", "maplet", "data-structures", "server", "api"]
 categories = ["data-structures", "web-programming::http-server"]
 
+[features]
+default = ["tokio-runtime"]
+tokio-runtime = ["tokio"]
+
 [dependencies]
 # Workspace dependencies
-tokio.workspace = true
+tokio = { workspace = true, optional = true }  # Make tokio optional
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true

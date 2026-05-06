@@ -16,7 +16,8 @@ quotient-filter = []
 
 [dependencies]
 # Core dependencies with explicit versions
-ahash.workspace = true
+ahash.workspace = true  # Restored - we need to fix the SIMD issues properly
+fnv.workspace = true  # Fallback hash without SIMD
 bitvec.workspace = true
 twox-hash.workspace = true
 serde.workspace = true

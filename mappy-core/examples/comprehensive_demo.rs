@@ -95,14 +95,14 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
     engine.expire("session:abc123".to_string(), 2).await?; // Expires in 2 seconds
 
     // Check TTL
-    let ttl = engine.ttl("session:abc123".to_string()).await?;
-    println!("  session:abc123 TTL: {:?} seconds", ttl);
+    let session_ttl = engine.ttl("session:abc123".to_string()).await?;
+    println!("  session:abc123 TTL: {:?} seconds", session_ttl);
 
     // Set another key with longer TTL
     engine
         .set("cache:data".to_string(), b"cached_data".to_vec())
         .await?;
-    engine.expire("cache:data".to_string(), 10).await?; // Expires in 10 seconds
+    let result = Arc::clone(&engine).expire("nonexistent", 60).await.unwrap(); // Expires in 10 seconds
 
     // Wait for first key to expire
     println!("  Waiting for session:abc123 to expire...");

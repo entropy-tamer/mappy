@@ -156,6 +156,25 @@ where
         Ok(())
     }
 
+    /// Insert a key-value pair (string version)
+    ///
+    /// # Errors
+    /// Returns an error if insertion fails.
+    pub async fn insert_str(self: Arc<Self>, key: &str, value: V) -> MapletResult<()>
+    where
+        K: ToString,
+    {
+        let fingerprint = self.hash_key(&key.to_string());
+        let mut filter_guard = self.filter.write().await;
+        filter_guard.insert(fingerprint)?;
+        Arc::clone(&self).store_value(fingerprint, value).await?;
+        {
+            let mut len_guard = self.len.write().await;
+            *len_guard += 1;
+        }
+        Ok(())
+    }
+
     /// Query a key to get its associated value
     pub async fn query(self: Arc<Self>, key: K) -> Option<V>
     where
@@ -167,9 +186,23 @@ where
         if !filter_guard.query(fingerprint) {
             return None;
         }
-        drop(filter_guard);
 
-        // Get the value directly from the HashMap using the fingerprint
+        let values_guard = self.values.read().await;
+        values_guard.get(&fingerprint).cloned()
+    }
+
+    /// Query a key to get its associated value (string version)
+    pub async fn query_str(self: Arc<Self>, key: &str) -> Option<V>
+    where
+        K: ToString,
+    {
+        let fingerprint = self.hash_key(&key.to_string());
+
+        let filter_guard = self.filter.read().await;
+        if !filter_guard.query(fingerprint) {
+            return None;
+        }
+
         let values_guard = self.values.read().await;
         values_guard.get(&fingerprint).cloned()
     }

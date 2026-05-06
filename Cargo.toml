@@ -27,8 +27,9 @@ serde = { git = "https://git.sly.so/kade/serde", package = "serde", features = [
 serde_json = { git = "https://git.sly.so/kade/serde_json" }
 bitcode = { git = "https://git.sly.so/kade/bitcode" }
 
-# Hashing and bit operations
-ahash = { git = "https://git.sly.so/kade/ahash", rev = "c9e3fd1" }
+# Hashing and bit operations  
+ahash = { git = "https://git.sly.so/kade/ahash", rev = "999fd53" }  # Latest commit with SIMD fixes
+fnv = { git = "https://git.sly.so/kade/fnv" }  # Fallback hash without SIMD
 bitvec = { git = "https://git.sly.so/kade/bitvec" }
 twox-hash = { git = "https://git.sly.so/kade/twox-hash" }
 
