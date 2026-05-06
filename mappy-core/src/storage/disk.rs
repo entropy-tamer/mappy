@@ -43,7 +43,7 @@ impl DiskStorage {
         let db = sled::Config::new()
             .path(&db_path)
             .flush_every_ms(None)
-            .open::<LEAF_FANOUT>()
+            .open()
             .map_err(|e| MapletError::Internal(format!("Failed to open database: {e}")))?;
 
         let tree = db
@@ -105,7 +105,7 @@ impl Storage for DiskStorage {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
             tree.insert(&key, value)
                 .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
-            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+            tree.len()
         };
         
         let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
@@ -135,7 +135,7 @@ impl Storage for DiskStorage {
                 .remove(key)
                 .map_err(|e| MapletError::Internal(format!("Failed to delete key: {e}")))?
                 .is_some();
-            let tree_len = tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?;
+            let tree_len = tree.len();
             (existed, tree_len)
         };
         
@@ -260,7 +260,7 @@ impl Storage for DiskStorage {
         let mut stats = self.stats.read().await.clone();
         let tree_len = {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
-            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+            tree.len()
         };
         let disk_usage = self.calculate_disk_usage().await;
         
