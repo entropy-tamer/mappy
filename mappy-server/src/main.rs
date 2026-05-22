@@ -228,7 +228,7 @@ async fn get_value(
 ) -> Result<Json<GetResponse>, StatusCode> {
     let engine_guard = state.engine.read().await;
     if let Some(engine) = &*engine_guard {
-        match engine.get(key.clone()).await {
+        match engine.get(&key).await {
             Ok(Some(value)) => Ok(Json(GetResponse {
                 key,
                 value: Some(String::from_utf8_lossy(&value).to_string()),
@@ -546,16 +546,6 @@ async fn serve_http_socket(listener: TcpListener, app: Router) -> anyhow::Result
 
 #[cfg(feature = "tokio-runtime")]
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
-#[cfg(feature = "smol-runtime")]
-async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
-#[cfg(feature = "async-std-runtime")]
 async fn main() -> anyhow::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();

@@ -64,7 +64,7 @@ futures-util = { git = "https://git.sly.so/kade/futures-rs", package = "futures-
 futures-sink = { git = "https://git.sly.so/kade/futures-rs", package = "futures-sink" }
 
 # Web server dependencies
-axum = { git = "https://git.sly.so/kade/axum-main", package = "axum", features = ["macros"] }
+axum = { git = "https://git.sly.so/kade/axum", package = "axum", features = ["macros"] }
 tokio-tungstenite = { git = "https://git.sly.so/kade/tokio-tungstenite" }
 tower = { git = "https://git.sly.so/kade/tower", package = "tower", features = ["util"] }
 tower-http = { git = "https://git.sly.so/kade/tower-http", package = "tower-http", features = ["cors", "trace", "fs"] }
@@ -82,7 +82,10 @@ urlencoding = { git = "https://git.sly.so/kade/urlencoding" }
 
 # Storage dependencies
 sled = { git = "https://git.sly.so/kade/sled" }
-dashmap = "6.1.0"
+dashmap = { git = "https://git.sly.so/kade/dashmap" }
+num-traits = { git = "https://git.sly.so/kade/num-traits" }
+bytemuck = { git = "https://git.sly.so/kade/bytemuck" }
+smallvec = { git = "https://git.sly.so/kade/smallvec" }
 
 # Plotting dependencies
 plotters = { git = "https://git.sly.so/kade/plotters", package = "plotters" }
@@ -92,6 +95,9 @@ proc-macro2 = { git = "https://git.sly.so/kade/proc-macro2" }
 syn = { git = "https://git.sly.so/kade/syn" }
 quote = { git = "https://git.sly.so/kade/quote" }
 bytes = { git = "https://git.sly.so/kade/bytes" }
+tokio = { git = "https://git.sly.so/kade/tokio", package = "tokio" }
+tokio-util = { git = "https://git.sly.so/kade/tokio", package = "tokio-util" }
+tokio-test = { git = "https://git.sly.so/kade/tokio", package = "tokio-test" }
 serde = { git = "https://git.sly.so/kade/serde", package = "serde" }
 serde_core = { git = "https://git.sly.so/kade/serde", package = "serde_core" }
 serde_derive = { git = "https://git.sly.so/kade/serde", package = "serde_derive" }
@@ -116,3 +122,10 @@ memchr = { git = "https://git.sly.so/kade/memchr" }
 log = { git = "https://git.sly.so/kade/log" }
 smallvec = { git = "https://git.sly.so/kade/smallvec" }
 cfg-if = { git = "https://git.sly.so/kade/cfg-if" }
+regex-automata = { git = "https://git.sly.so/kade/regex" }
+matchers = { git = "https://git.sly.so/kade/matchers" }
+nu-ansi-term = { git = "https://git.sly.so/kade/nu-ansi-term" }
+sharded-slab = { git = "https://git.sly.so/kade/sharded-slab" }
+thread_local = { git = "https://git.sly.so/kade/thread_local-rs" }
+parking_lot_core = { git = "https://git.sly.so/kade/parking_lot_core" }
+icu_normalizer = { git = "https://git.sly.so/kade/icu4x", package = "icu_normalizer" }

@@ -201,7 +201,7 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::Counter(maplet) => {
                     let val: u64 = value.extract()?;
                     self.runtime
-                        .block_on(async { maplet.insert(key, val).await })
+                        .block_on(async { maplet.clone().insert(key, val).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -209,7 +209,7 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::MaxU64(maplet) => {
                     let val: u64 = value.extract()?;
                     self.runtime
-                        .block_on(async { maplet.insert(key, val).await })
+                        .block_on(async { maplet.clone().insert(key, val).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -217,7 +217,7 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::MaxF64(maplet) => {
                     let val: f64 = value.extract()?;
                     self.runtime
-                        .block_on(async { maplet.insert(key, val).await })
+                        .block_on(async { maplet.clone().insert(key, val).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -225,7 +225,7 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::MinU64(maplet) => {
                     let val: u64 = value.extract()?;
                     self.runtime
-                        .block_on(async { maplet.insert(key, val).await })
+                        .block_on(async { maplet.clone().insert(key, val).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -233,7 +233,7 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::MinF64(maplet) => {
                     let val: f64 = value.extract()?;
                     self.runtime
-                        .block_on(async { maplet.insert(key, val).await })
+                        .block_on(async { maplet.clone().insert(key, val).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -286,7 +286,7 @@ impl PyMapletGeneric {
                         }
                     };
                     self.runtime
-                        .block_on(async { maplet.insert(key, vec).await })
+                        .block_on(async { maplet.clone().insert(key, vec).await })
                         .map_err(|e| {
                             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
                         })?;
@@ -302,37 +302,37 @@ impl PyMapletGeneric {
                 PyMapletGenericInner::Counter(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MaxU64(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MaxF64(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     Ok(result.map(|v| to_py_any_f64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MinU64(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     Ok(result.map(|v| to_py_any_u64(py, v).unbind()))
                 }
                 PyMapletGenericInner::MinF64(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     Ok(result.map(|v| to_py_any_f64(py, v).unbind()))
                 }
                 PyMapletGenericInner::Vector(maplet) => {
                     let result = self
                         .runtime
-                        .block_on(async { maplet.query(&key.to_string()).await });
+                        .block_on(async { maplet.clone().query_str(key).await });
                     if let Some(vec) = result {
                         // Convert Vec<f64> to Python list (can be converted to numpy array in Python)
                         let list = PyList::new(py, vec)?;
@@ -348,22 +348,27 @@ impl PyMapletGeneric {
     fn contains(&self, key: String) -> bool {
         match &self.inner {
             PyMapletGenericInner::Counter(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime
+                    .block_on(async { maplet.clone().contains(key.clone()).await })
             }
             PyMapletGenericInner::MaxU64(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime
+                    .block_on(async { maplet.clone().contains(key.clone()).await })
             }
             PyMapletGenericInner::MaxF64(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime
+                    .block_on(async { maplet.clone().contains(key.clone()).await })
             }
             PyMapletGenericInner::MinU64(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime
+                    .block_on(async { maplet.clone().contains(key.clone()).await })
             }
             PyMapletGenericInner::MinF64(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime
+                    .block_on(async { maplet.clone().contains(key.clone()).await })
             }
             PyMapletGenericInner::Vector(maplet) => {
-                self.runtime.block_on(async { maplet.contains(&key).await })
+                self.runtime.block_on(async { maplet.clone().contains(key).await })
             }
         }
     }
@@ -371,22 +376,22 @@ impl PyMapletGeneric {
     fn len(&self) -> usize {
         match &self.inner {
             PyMapletGenericInner::Counter(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
             PyMapletGenericInner::MaxU64(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
             PyMapletGenericInner::MaxF64(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
             PyMapletGenericInner::MinU64(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
             PyMapletGenericInner::MinF64(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
             PyMapletGenericInner::Vector(maplet) => {
-                self.runtime.block_on(async { maplet.len().await })
+                self.runtime.block_on(async { maplet.clone().len().await })
             }
         }
     }
@@ -394,22 +399,22 @@ impl PyMapletGeneric {
     fn is_empty(&self) -> bool {
         match &self.inner {
             PyMapletGenericInner::Counter(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
             PyMapletGenericInner::MaxU64(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
             PyMapletGenericInner::MaxF64(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
             PyMapletGenericInner::MinU64(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
             PyMapletGenericInner::MinF64(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
             PyMapletGenericInner::Vector(maplet) => {
-                self.runtime.block_on(async { maplet.is_empty().await })
+                self.runtime.block_on(async { maplet.clone().is_empty().await })
             }
         }
     }
@@ -428,22 +433,28 @@ impl PyMapletGeneric {
     fn load_factor(&self) -> f64 {
         match &self.inner {
             PyMapletGenericInner::Counter(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
             PyMapletGenericInner::MaxU64(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
             PyMapletGenericInner::MaxF64(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
             PyMapletGenericInner::MinU64(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
             PyMapletGenericInner::MinF64(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
             PyMapletGenericInner::Vector(maplet) => {
-                self.runtime.block_on(async { maplet.load_factor().await })
+                self.runtime
+                    .block_on(async { maplet.clone().load_factor().await })
             }
         }
     }
@@ -452,22 +463,22 @@ impl PyMapletGeneric {
         match &self.inner {
             PyMapletGenericInner::Counter(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
             PyMapletGenericInner::MaxU64(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
             PyMapletGenericInner::MaxF64(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
             PyMapletGenericInner::MinU64(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
             PyMapletGenericInner::MinF64(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
             PyMapletGenericInner::Vector(maplet) => Ok(self
                 .runtime
-                .block_on(async { maplet.find_slot_for_key(&key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
         }
     }
 
@@ -478,43 +489,43 @@ impl PyMapletGeneric {
             .block_on(async {
                 match &self.inner {
                     PyMapletGenericInner::Counter(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
                     }
                     PyMapletGenericInner::MaxU64(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
                     }
                     PyMapletGenericInner::MaxF64(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
                     }
                     PyMapletGenericInner::MinU64(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
                     }
                     PyMapletGenericInner::MinF64(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
                     }
                     PyMapletGenericInner::Vector(maplet) => {
-                        if let Some(value) = maplet.query(&key.to_string()).await {
-                            maplet.delete(&key.to_string(), &value).await
+                        if let Some(value) = maplet.clone().query_str(key).await {
+                            maplet.clone().delete(key.to_string(), value).await
                         } else {
                             Ok(false)
                         }
@@ -557,7 +568,7 @@ impl PyMapletGeneric {
 /// Python wrapper for Maplet (legacy support)
 #[pyclass]
 pub struct PyMaplet {
-    inner: Maplet<String, u64, CounterOperator>,
+    inner: Arc<Maplet<String, u64, CounterOperator>>,
     runtime: Arc<Runtime>,
 }
 
@@ -573,14 +584,14 @@ impl PyMaplet {
             ))
         })?);
         Ok(Self {
-            inner: maplet,
+            inner: Arc::new(maplet),
             runtime,
         })
     }
 
     fn insert(&mut self, key: String, value: u64) -> PyResult<()> {
         self.runtime
-            .block_on(async { self.inner.insert(key, value).await })
+            .block_on(async { self.inner.clone().insert(key, value).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(())
     }
@@ -588,20 +599,20 @@ impl PyMaplet {
     fn query(&self, key: &str) -> PyResult<Option<u64>> {
         Ok(self
             .runtime
-            .block_on(async { self.inner.query(&key.to_string()).await }))
+            .block_on(async { self.inner.clone().query_str(key).await }))
     }
 
     fn contains(&self, key: &str) -> bool {
         self.runtime
-            .block_on(async { self.inner.contains(&key.to_string()).await })
+            .block_on(async { self.inner.clone().contains(key.to_string()).await })
     }
 
     fn len(&self) -> usize {
-        self.runtime.block_on(async { self.inner.len().await })
+        self.runtime.block_on(async { self.inner.clone().len().await })
     }
 
     fn is_empty(&self) -> bool {
-        self.runtime.block_on(async { self.inner.is_empty().await })
+        self.runtime.block_on(async { self.inner.clone().is_empty().await })
     }
 
     fn error_rate(&self) -> f64 {
@@ -610,14 +621,14 @@ impl PyMaplet {
 
     fn load_factor(&self) -> f64 {
         self.runtime
-            .block_on(async { self.inner.load_factor().await })
+            .block_on(async { self.inner.clone().load_factor().await })
     }
 
     /// Find the slot for a key (quotient filter feature)
     fn find_slot_for_key(&self, key: &str) -> PyResult<Option<usize>> {
         Ok(self
             .runtime
-            .block_on(async { self.inner.find_slot_for_key(&key.to_string()).await }))
+            .block_on(async { self.inner.clone().find_slot_for_key(key.to_string()).await }))
     }
 }
 
@@ -821,7 +832,7 @@ impl PyEngine {
     fn exists(&self, key: String) -> PyResult<bool> {
         Ok(self
             .runtime
-            .block_on(async { self.inner.exists(&key).await })
+            .block_on(async { self.inner.exists(key).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
     }
 
@@ -829,7 +840,7 @@ impl PyEngine {
     fn delete(&self, key: String) -> PyResult<bool> {
         Ok(self
             .runtime
-            .block_on(async { self.inner.delete(&key).await })
+            .block_on(async { self.inner.delete(key).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
     }
 
@@ -871,7 +882,7 @@ impl PyEngine {
     fn persist(&self, key: String) -> PyResult<bool> {
         Ok(self
             .runtime
-            .block_on(async { self.inner.persist(&key).await })
+            .block_on(async { self.inner.persist(key).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
     }
 
@@ -937,7 +948,7 @@ impl PyEngine {
     fn find_slot_for_key(&self, key: String) -> PyResult<Option<usize>> {
         let result = self
             .runtime
-            .block_on(async { self.inner.find_slot_for_key(&key).await })
+            .block_on(async { self.inner.find_slot_for_key(key).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(result)
     }

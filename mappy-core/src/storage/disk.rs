@@ -105,7 +105,7 @@ impl Storage for DiskStorage {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
             tree.insert(&key, value)
                 .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
-            tree.len()
+            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
         };
         
         let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
@@ -113,7 +113,7 @@ impl Storage for DiskStorage {
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = tree_len as u64;
+            stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         })
         .await;
 
@@ -135,7 +135,9 @@ impl Storage for DiskStorage {
                 .remove(key)
                 .map_err(|e| MapletError::Internal(format!("Failed to delete key: {e}")))?
                 .is_some();
-            let tree_len = tree.len();
+            let tree_len = tree
+                .len()
+                .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?;
             (existed, tree_len)
         };
         
@@ -144,7 +146,7 @@ impl Storage for DiskStorage {
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = tree_len as u64;
+            stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         })
         .await;
 
@@ -260,11 +262,11 @@ impl Storage for DiskStorage {
         let mut stats = self.stats.read().await.clone();
         let tree_len = {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
-            tree.len()
+            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
         };
         let disk_usage = self.calculate_disk_usage().await;
         
-        stats.total_keys = tree_len as u64;
+        stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         stats.disk_usage = disk_usage;
         Ok(stats)
     }

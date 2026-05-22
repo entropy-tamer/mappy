@@ -29,22 +29,22 @@ rayon.workspace = true
 tracing.workspace = true
 
 # Additional dependencies
-num-traits = "0.2"
-smallvec = "1.13"
-bytemuck = "1.19"
+num-traits.workspace = true
+smallvec.workspace = true
+bytemuck.workspace = true
 
 # Async runtime
-tokio = { version = "1.40", features = ["full"] }
-async-trait = "0.1"
+tokio.workspace = true
+async-trait.workspace = true
 
 # Storage backends
-dashmap = "6.1.0"
-sled = "0.34"
+dashmap.workspace = true
+sled.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
-proptest = "1.10.0"
+proptest.workspace = true
 quickcheck.workspace = true
 tempfile.workspace = true
 rand.workspace = true

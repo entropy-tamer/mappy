@@ -161,7 +161,7 @@ impl Engine {
         }
 
         // First check the maplet for approximate membership
-        if !Arc::clone(&self.maplet).contains(key.clone()).await {
+        if !Arc::clone(&self.maplet).contains(key.to_string()).await {
             return Ok(None);
         }
 
@@ -227,7 +227,7 @@ impl Engine {
     pub async fn exists(&self, key: String) -> MapletResult<bool>
     {
         // Check maplet first for fast approximate membership
-        if !Arc::clone(&self.maplet).contains(key.clone()).await {
+        if !Arc::clone(&self.maplet).contains(key.to_string()).await {
             return Ok(false);
         }
 
@@ -368,7 +368,6 @@ impl Engine {
         // Set TTL
         Arc::clone(&self.ttl_manager)
             .set_ttl(key.to_string(), 0, ttl_seconds)
-            .set_ttl(key.clone(), 0, ttl_seconds)
             .await?;
 
         // Increment operation counter

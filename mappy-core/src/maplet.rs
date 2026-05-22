@@ -164,7 +164,7 @@ where
     where
         K: ToString,
     {
-        let fingerprint = self.hash_key(&key.to_string());
+        let fingerprint = self.hash_str_key(key);
         let mut filter_guard = self.filter.write().await;
         filter_guard.insert(fingerprint)?;
         Arc::clone(&self).store_value(fingerprint, value).await?;
@@ -196,7 +196,7 @@ where
     where
         K: ToString,
     {
-        let fingerprint = self.hash_key(&key.to_string());
+        let fingerprint = self.hash_str_key(key);
 
         let filter_guard = self.filter.read().await;
         if !filter_guard.query(fingerprint) {
@@ -418,6 +418,15 @@ where
 
         // Create a consistent hasher - we need to use the same seed as the quotient filter
         // For now, use a fixed seed to ensure consistency
+        let random_state = RandomState::with_seed(42);
+
+        random_state.hash_one(key)
+    }
+
+    #[allow(clippy::unused_self)] // Mirrors `hash_key` for string convenience methods.
+    fn hash_str_key(&self, key: &str) -> u64 {
+        use ahash::RandomState;
+
         let random_state = RandomState::with_seed(42);
 
         random_state.hash_one(key)
