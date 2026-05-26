@@ -1,0 +1,42 @@
+name: License Bundle Generation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  license-bundle:
+    name: Generate License Notices
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+      
+      - name: Install cargo-about
+        run: cargo install cargo-about
+      
+      - name: Generate license notices
+        run: cargo about generate about.hbs > THIRD_PARTY_NOTICES.html
+      
+      - name: Upload license notices
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-notices
+          path: THIRD_PARTY_NOTICES.html

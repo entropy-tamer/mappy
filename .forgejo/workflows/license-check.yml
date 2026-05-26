@@ -1,0 +1,73 @@
+name: License Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+      
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+      
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+      
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+      
+      - name: Check licenses
+        run: cargo deny check licenses
+      
+      - name: Install cargo-bundle-licenses
+        run: cargo install cargo-bundle-licenses
+      
+      - name: Generate initial THIRDPARTY.yml if needed
+        run: |
+          if [ ! -f THIRDPARTY.yml ]; then
+            cargo bundle-licenses --format yaml --output THIRDPARTY.yml
+          fi
+      
+      - name: Check license drift
+        run: |
+          cargo bundle-licenses --format yaml --output CI_check.yaml --previous THIRDPARTY.yml
+          rm CI_check.yaml
+      
+      - name: Install cargo-about
+        run: cargo install cargo-about
+      
+      - name: Verify license generation
+        run: cargo about generate about.hbs > /dev/null
