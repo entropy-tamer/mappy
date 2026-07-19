@@ -110,6 +110,18 @@ impl Engine {
             PersistenceMode::Hybrid => Arc::new(HybridStorage::new(storage_config.clone())?),
         };
 
+        // Rebuild maplet from persistent storage so keys survive restarts.
+        // Without this, Engine::get() short-circuits on maplet.contains() == false
+        // even though the data exists in the storage backend.
+        if config.persistence_mode != PersistenceMode::Memory {
+            let stored_keys = storage.keys().await?;
+            for key in stored_keys {
+                if let Some(value) = storage.get(&key).await? {
+                    Arc::clone(&maplet).insert(key, value).await?;
+                }
+            }
+        }
+
         // Create TTL manager
         let ttl_manager = Arc::new(TTLManager::new(config.ttl.clone()));
 
