@@ -5,6 +5,7 @@ members = [
     "mappy-python",
     "mappy-server",
     "mappy-proxy",
+    "mappy-daemon",
     "stilts"
 ]
 resolver = "3"
@@ -52,6 +53,11 @@ quickcheck = { git = "https://git.sly.so/kade/quickcheck"}
 
 # Python bindings
 pyo3 = { git = "https://git.sly.so/kade/pyo3", features = ["extension-module"] }
+
+# Smol async runtime (for mappy-daemon)
+smol = { git = "https://git.sly.so/kade/smol" }
+async-net = { git = "https://git.sly.so/kade/async-net" }
+futures-lite = { git = "https://git.sly.so/kade/futures-lite" }
 
 # Additional dependencies
 getrandom = { git = "https://git.sly.so/kade/getrandom" }
