@@ -13,7 +13,7 @@ use crate::{
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use async_lock::RwLock;
 
 /// Core maplet data structure
 ///

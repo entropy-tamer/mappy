@@ -11,13 +11,17 @@ keywords = ["data-structures", "filters", "approximate", "space-efficient", "map
 categories = ["data-structures", "algorithms"]
 
 [features]
-default = ["quotient-filter"]
+default = ["quotient-filter", "smol"]
 quotient-filter = []
+# Use smol as the async runtime (default)
+smol = ["dep:smol", "dep:futures-lite"]
+# Use tokio as the async runtime (opt-in)
+tokio = ["dep:tokio"]
 
 [dependencies]
 # Core dependencies with explicit versions
-ahash.workspace = true  # Restored - we need to fix the SIMD issues properly
-fnv.workspace = true  # Fallback hash without SIMD
+ahash.workspace = true
+fnv.workspace = true
 bitvec.workspace = true
 twox-hash.workspace = true
 serde.workspace = true
@@ -33,9 +37,15 @@ num-traits.workspace = true
 smallvec.workspace = true
 bytemuck.workspace = true
 
-# Async runtime
-tokio.workspace = true
+# Runtime-agnostic async primitives (always used)
+async-lock.workspace = true
+async-channel.workspace = true
 async-trait.workspace = true
+
+# Feature-gated async runtimes
+smol = { workspace = true, optional = true }
+futures-lite = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 # Storage backends
 dashmap.workspace = true
@@ -50,6 +60,8 @@ tempfile.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Tests always use tokio for #[tokio::test]
+tokio = { workspace = true }
 
 [[bench]]
 name = "comparison"
@@ -74,8 +86,4 @@ pedantic = "warn"
 nursery = "warn"
 cargo = "warn"
 all = "warn"
-# Allow multiple crate versions for transitive dependencies we cannot control
-# - sled 0.34.7 requires parking_lot 0.11.2 (we use 0.12.5)
-# - png 0.17.16 (via plotters) requires bitflags 1.3.2 (we use 2.9.4)
-# - Other conflicts are from transitive dependencies of third-party crates
 multiple-crate-versions = "allow"

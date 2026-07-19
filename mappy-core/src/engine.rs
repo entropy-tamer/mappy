@@ -13,7 +13,7 @@ use crate::{Maplet, MapletResult, MergeOperator};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
-use tokio::sync::RwLock;
+use async_lock::RwLock;
 
 /// Simple merge operator for Vec<u8> that replaces values
 #[derive(Debug, Clone, Default)]
@@ -121,9 +121,17 @@ impl Engine {
                 let storage = Arc::clone(&storage_clone);
 
                 // Spawn async task for cleanup
+                #[cfg(feature = "smol")]
+                smol::spawn(async move {
+                    for entry in expired_entries {
+                        if let Err(delete_error) = storage.delete(&entry.key).await {
+                            tracing::warn!("Failed to delete expired key: {}", delete_error);
+                        }
+                    }
+                }).detach();
+                #[cfg(feature = "tokio")]
                 tokio::spawn(async move {
                     for entry in expired_entries {
-                        // Remove expired key from storage
                         if let Err(delete_error) = storage.delete(&entry.key).await {
                             tracing::warn!("Failed to delete expired key: {}", delete_error);
                         }

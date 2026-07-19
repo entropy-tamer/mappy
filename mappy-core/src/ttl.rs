@@ -1,14 +1,15 @@
 //! TTL (Time-To-Live) management for mappy
 //!
 //! Provides expiration tracking and automatic cleanup of expired keys.
+//! Runtime-agnostic: uses `async_lock` for synchronization and feature-gated
+//! spawn/timer (`smol` by default, `tokio` opt-in).
 
 use crate::MapletResult;
+use async_lock::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::RwLock;
-use tokio::time::{Duration, interval};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// TTL configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +84,9 @@ impl TTLEntry {
     }
 }
 
+/// Type-erased background task handle (works with both smol::Task and tokio::JoinHandle).
+type CleanupHandle = std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>>;
+
 /// TTL manager for tracking and cleaning up expired keys
 pub struct TTLManager {
     /// TTL configuration
@@ -92,9 +96,52 @@ pub struct TTLManager {
     /// Map of key -> expiration time for fast lookups
     key_to_expiration: Arc<RwLock<std::collections::HashMap<String, u64>>>,
     /// Background cleanup task handle
-    cleanup_handle: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
-    /// Shutdown signal
-    shutdown_tx: Arc<RwLock<Option<tokio::sync::oneshot::Sender<()>>>>,
+    cleanup_handle: Arc<RwLock<Option<CleanupHandle>>>,
+    /// Shutdown signal sender
+    shutdown_tx: Arc<RwLock<Option<async_channel::Sender<()>>>>,
+}
+
+/// Perform one cleanup batch: collect expired entries, remove them from the maps,
+/// and invoke the callback. Runtime-agnostic (uses async_lock::RwLock).
+async fn run_cleanup_batch<F>(
+    expiration_map: &Arc<RwLock<BTreeMap<u64, Vec<TTLEntry>>>>,
+    key_to_expiration: &Arc<RwLock<std::collections::HashMap<String, u64>>>,
+    max_batch: usize,
+    cleanup_callback: &mut F,
+) where
+    F: FnMut(Vec<TTLEntry>) -> MapletResult<()>,
+{
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let mut expired_entries = Vec::new();
+    {
+        let mut map = expiration_map.write().await;
+        let expired_times: Vec<u64> = map
+            .range(..=now)
+            .take(max_batch)
+            .map(|(&time, _)| time)
+            .collect();
+        for time in expired_times {
+            if let Some(entries) = map.remove(&time) {
+                expired_entries.extend(entries);
+            }
+        }
+    }
+
+    if !expired_entries.is_empty() {
+        {
+            let mut key_map = key_to_expiration.write().await;
+            for entry in &expired_entries {
+                key_map.remove(&entry.key);
+            }
+        }
+        if let Err(e) = cleanup_callback(expired_entries) {
+            eprintln!("TTL cleanup callback error: {e}");
+        }
+    }
 }
 
 impl TTLManager {
@@ -263,60 +310,67 @@ impl TTLManager {
             return Ok(());
         }
 
-        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
+        let (shutdown_tx, shutdown_rx) = async_channel::bounded(1);
         let expiration_map = Arc::clone(&self.expiration_map);
         let key_to_expiration = Arc::clone(&self.key_to_expiration);
         let config = self.config.clone();
 
-        let handle = tokio::spawn(async move {
-            let mut interval = interval(Duration::from_secs(config.cleanup_interval_secs));
-
-            loop {
-                tokio::select! {
-                    _ = interval.tick() => {
-                        // Perform cleanup
-                        let now = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_secs();
-
-                        let mut expired_entries = Vec::new();
-                        {
-                            let mut expiration_map = expiration_map.write().await;
-                            let expired_times: Vec<u64> = expiration_map
-                                .range(..=now)
-                                .take(config.max_cleanup_batch_size)
-                                .map(|(&time, _)| time)
-                                .collect();
-
-                            for time in expired_times {
-                                if let Some(entries) = expiration_map.remove(&time) {
-                                    expired_entries.extend(entries);
-                                }
-                            }
-                        }
-
-                        if !expired_entries.is_empty() {
-                            // Update key lookup map
-                            {
-                                let mut key_map = key_to_expiration.write().await;
-                                for entry in &expired_entries {
-                                    key_map.remove(&entry.key);
-                                }
-                            }
-
-                            // Call cleanup callback
-                            if let Err(e) = cleanup_callback(expired_entries) {
-                                eprintln!("TTL cleanup callback error: {e}");
-                            }
-                        }
-                    }
-                    _ = &mut shutdown_rx => {
+        // --- smol: race a repeating timer against the shutdown channel ---
+        #[cfg(feature = "smol")]
+        let handle: CleanupHandle = {
+            use futures_lite::future::FutureExt as _;
+            let interval_duration = Duration::from_secs(config.cleanup_interval_secs);
+            Box::pin(smol::spawn(async move {
+                loop {
+                    let tick = async {
+                        smol::Timer::after(interval_duration).await;
+                        true
+                    };
+                    let shutdown = async {
+                        let _ = shutdown_rx.recv().await;
+                        false
+                    };
+                    // Returns true on tick, false on shutdown
+                    if !tick.or(shutdown).await {
                         break;
                     }
+                    run_cleanup_batch(
+                        &expiration_map,
+                        &key_to_expiration,
+                        config.max_cleanup_batch_size,
+                        &mut cleanup_callback,
+                    )
+                    .await;
                 }
-            }
-        });
+            }))
+        };
+
+        // --- tokio: select! between interval tick and shutdown ---
+        #[cfg(feature = "tokio")]
+        let handle: CleanupHandle = {
+            Box::pin(async move {
+                let _ = tokio::spawn(async move {
+                    let mut interval =
+                        tokio::time::interval(Duration::from_secs(config.cleanup_interval_secs));
+                    loop {
+                        tokio::select! {
+                            _ = interval.tick() => {
+                                run_cleanup_batch(
+                                    &expiration_map,
+                                    &key_to_expiration,
+                                    config.max_cleanup_batch_size,
+                                    &mut cleanup_callback,
+                                ).await;
+                            }
+                            _ = shutdown_rx.recv() => {
+                                break;
+                            }
+                        }
+                    }
+                })
+                .await;
+            })
+        };
 
         // Store cleanup handle and shutdown sender
         {
@@ -343,7 +397,7 @@ impl TTLManager {
         {
             let mut shutdown_tx = self.shutdown_tx.write().await;
             if let Some(tx) = shutdown_tx.take() {
-                if let Err(e) = tx.send(()) {
+                if let Err(e) = tx.send(()).await {
                     tracing::warn!("Failed to send shutdown signal: {:?}", e);
                 }
             }
@@ -353,9 +407,7 @@ impl TTLManager {
         {
             let mut cleanup_handle = self.cleanup_handle.write().await;
             if let Some(handle) = cleanup_handle.take() {
-                if let Err(e) = handle.await {
-                    tracing::warn!("Cleanup task error: {}", e);
-                }
+                handle.await;
             }
         }
 
@@ -366,7 +418,7 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if retrieving statistics fails.
-    #[allow(clippy::significant_drop_tightening)] // Both guards needed for entire calculation
+    #[allow(clippy::significant_drop_tightening)]
     pub async fn get_stats(self: Arc<Self>) -> MapletResult<TTLStats>
     where
         Self: Send + Sync,
@@ -628,7 +680,6 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        // Test that TTLManager futures are Send by spawning them in tokio tasks
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
             Arc::clone(&manager_clone).set_ttl("key1".to_string(), 0, 60).await

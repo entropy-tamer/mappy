@@ -9,7 +9,7 @@ use sled::{Db, Tree};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tokio::sync::RwLock;
+use async_lock::RwLock;
 
 const LEAF_FANOUT: usize = 1024;
 

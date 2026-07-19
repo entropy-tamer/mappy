@@ -1,7 +1,6 @@
 //! Append-Only File (AOF) storage backend
 //!
 //! Provides durability through append-only logging with periodic sync.
-
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
 use async_trait::async_trait;
@@ -12,8 +11,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
-use tokio::time::{Duration, interval};
+use async_lock::RwLock;
+use std::time::Duration;
 
 /// AOF storage backend
 pub struct AOFStorage {
@@ -29,7 +28,7 @@ pub struct AOFStorage {
     #[allow(dead_code)]
     start_time: Instant,
     /// Background sync task handle
-    sync_handle: Option<tokio::task::JoinHandle<()>>,
+    sync_handle: Option<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>>>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -123,24 +122,38 @@ impl AOFStorage {
 
     /// Start background sync task
     fn start_sync_task(&mut self) {
-        let _cache = Arc::clone(&self.cache);
         let aof_path = self.aof_path.clone();
         let sync_interval = Duration::from_secs(self.config.sync_interval);
 
-        let handle = tokio::spawn(async move {
-            let mut interval = interval(sync_interval);
-
-            loop {
-                interval.tick().await;
-
-                // Force sync to disk (only if file exists)
-                if aof_path.exists() {
-                    if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
-                        eprintln!("Failed to sync AOF file: {e}");
+        #[cfg(feature = "smol")]
+        let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
+            Box::pin(smol::spawn(async move {
+                loop {
+                    smol::Timer::after(sync_interval).await;
+                    if aof_path.exists() {
+                        if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                            eprintln!("Failed to sync AOF file: {e}");
+                        }
                     }
                 }
-            }
-        });
+            }));
+
+        #[cfg(feature = "tokio")]
+        let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
+            Box::pin(async move {
+                let _ = tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(sync_interval);
+                    loop {
+                        interval.tick().await;
+                        if aof_path.exists() {
+                            if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                                eprintln!("Failed to sync AOF file: {e}");
+                            }
+                        }
+                    }
+                })
+                .await;
+            });
 
         self.sync_handle = Some(handle);
     }
@@ -320,7 +333,7 @@ impl Storage for AOFStorage {
     async fn close(&self) -> MapletResult<()> {
         // Cancel background sync task
         if let Some(handle) = &self.sync_handle {
-            handle.abort();
+            // Task is cancelled when the storage is dropped.
         }
 
         // Final sync

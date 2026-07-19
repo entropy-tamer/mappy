@@ -58,6 +58,8 @@ pyo3 = { git = "https://git.sly.so/kade/pyo3", features = ["extension-module"] }
 smol = { git = "https://git.sly.so/kade/smol" }
 async-net = { git = "https://git.sly.so/kade/async-net" }
 futures-lite = { git = "https://git.sly.so/kade/futures-lite" }
+async-lock = { git = "https://git.sly.so/kade/async-lock" }
+async-channel = { git = "https://git.sly.so/kade/async-channel" }
 
 # Additional dependencies
 getrandom = { git = "https://git.sly.so/kade/getrandom" }

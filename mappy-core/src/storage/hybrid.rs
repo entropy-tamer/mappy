@@ -1,7 +1,6 @@
 //! Hybrid storage backend
 //!
 //! Combines in-memory cache with AOF logging for optimal performance and durability.
-
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
 use async_trait::async_trait;
@@ -12,8 +11,8 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
-use tokio::time::{Duration, interval};
+use async_lock::RwLock;
+use std::time::Duration;
 
 /// Hybrid storage backend combining memory and AOF
 pub struct HybridStorage {
@@ -29,7 +28,7 @@ pub struct HybridStorage {
     #[allow(dead_code)]
     start_time: Instant,
     /// Background sync task handle
-    sync_handle: Option<tokio::task::JoinHandle<()>>,
+    sync_handle: Option<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>>>,
     /// Write buffer for batching AOF writes
     write_buffer: Arc<RwLock<Vec<AOFEntry>>>,
 }
@@ -152,30 +151,51 @@ impl HybridStorage {
         let aof_path = self.aof_path.clone();
         let sync_interval = Duration::from_secs(self.config.sync_interval);
 
-        let handle = tokio::spawn(async move {
-            let mut interval = interval(sync_interval);
-
-            loop {
-                interval.tick().await;
-
-                // Flush any pending writes
-                {
-                    let mut buffer = write_buffer.write().await;
-                    if !buffer.is_empty()
-                        && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path)
+        #[cfg(feature = "smol")]
+        let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
+            Box::pin(smol::spawn(async move {
+                loop {
+                    smol::Timer::after(sync_interval).await;
                     {
-                        eprintln!("Failed to flush AOF buffer: {e}");
+                        let mut buffer = write_buffer.write().await;
+                        if !buffer.is_empty()
+                            && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path)
+                        {
+                            eprintln!("Failed to flush AOF buffer: {e}");
+                        }
+                    }
+                    if aof_path.exists() {
+                        if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                            eprintln!("Failed to sync AOF file: {e}");
+                        }
                     }
                 }
+            }));
 
-                // Force sync to disk (only if file exists)
-                if aof_path.exists() {
-                    if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
-                        eprintln!("Failed to sync AOF file: {e}");
+        #[cfg(feature = "tokio")]
+        let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
+            Box::pin(async move {
+                let _ = tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(sync_interval);
+                    loop {
+                        interval.tick().await;
+                        {
+                            let mut buffer = write_buffer.write().await;
+                            if !buffer.is_empty()
+                                && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path)
+                            {
+                                eprintln!("Failed to flush AOF buffer: {e}");
+                            }
+                        }
+                        if aof_path.exists() {
+                            if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                                eprintln!("Failed to sync AOF file: {e}");
+                            }
+                        }
                     }
-                }
-            }
-        });
+                })
+                .await;
+            });
 
         self.sync_handle = Some(handle);
     }
@@ -389,7 +409,7 @@ impl Storage for HybridStorage {
     async fn close(&self) -> MapletResult<()> {
         // Cancel background sync task
         if let Some(handle) = &self.sync_handle {
-            handle.abort();
+            // Task is cancelled when the storage is dropped.
         }
 
         // Final flush

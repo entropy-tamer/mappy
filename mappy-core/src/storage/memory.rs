@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
+use async_lock::RwLock;
 
 /// In-memory storage using `DashMap`
 pub struct MemoryStorage {
