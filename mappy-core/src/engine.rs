@@ -132,8 +132,10 @@ impl Engine {
             .start_cleanup(move |expired_entries| {
                 let storage = Arc::clone(&storage_clone);
 
-                // Spawn async task for cleanup
-                #[cfg(feature = "smol")]
+                // Spawn async task for cleanup.
+                // When both runtimes are enabled (feature unification across
+                // workspace crates), tokio wins so each value is moved exactly once.
+                #[cfg(all(feature = "smol", not(feature = "tokio")))]
                 smol::spawn(async move {
                     for entry in expired_entries {
                         if let Err(delete_error) = storage.delete(&entry.key).await {

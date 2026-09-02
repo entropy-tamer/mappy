@@ -1,33 +1,34 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use mappy_core::hash::HashFunction;
 use mappy_core::quotient_filter::QuotientFilter;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::HashSet;
-use std::hint::black_box;
+use std::hint::black_box as hint_black_box;
 
 /// Benchmark quotient filter insertion performance
 fn bench_quotient_filter_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_insert");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(
             BenchmarkId::new("QuotientFilter", size),
-            size,
+            &size,
             |b, &size| {
                 b.iter(|| {
                     let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
                     let mut rng = StdRng::seed_from_u64(42);
 
-                    for _ in 0..*size {
+                    for _ in 0..size {
                         let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
-                    black_box(filter)
+                    hint_black_box(filter)
                 })
             },
         );
@@ -40,8 +41,8 @@ fn bench_quotient_filter_insert(c: &mut Criterion) {
 fn bench_quotient_filter_query(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_query");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
         // Prepare filter with data
         let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
@@ -60,7 +61,7 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
             |b, values| {
                 b.iter(|| {
                     for &value in values {
-                        black_box(filter.query(value));
+                        hint_black_box(filter.query(value));
                     }
                 })
             },
@@ -74,12 +75,12 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
 fn bench_quotient_filter_delete(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_delete");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(
             BenchmarkId::new("QuotientFilter", size),
-            size,
+            &size,
             |b, &size| {
                 b.iter(|| {
                     let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
@@ -87,7 +88,7 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
                     let mut values = Vec::new();
 
                     // Insert values
-                    for _ in 0..*size {
+                    for _ in 0..size {
                         let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         values.push(value);
@@ -98,7 +99,7 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
                         filter.delete(value).unwrap();
                     }
 
-                    black_box(filter)
+                    hint_black_box(filter)
                 })
             },
         );
@@ -111,52 +112,56 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
 fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_vs_hashset");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
         // Benchmark QuotientFilter
         group.bench_with_input(
             BenchmarkId::new("QuotientFilter", size),
-            size,
+            &size,
             |b, &size| {
                 b.iter(|| {
                     let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
                     let mut rng = StdRng::seed_from_u64(42);
 
-                    for _ in 0..*size {
+                    for _ in 0..size {
                         let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
-                    for _ in 0..*size {
+                    for _ in 0..size {
                         let value = rng.random::<u64>();
-                        black_box(filter.query(value));
+                        hint_black_box(filter.query(value));
                     }
 
-                    black_box(filter)
+                    hint_black_box(filter)
                 })
             },
         );
 
         // Benchmark HashSet
-        group.bench_with_input(BenchmarkId::new("HashSet", size), size, |b, &size| {
-            b.iter(|| {
-                let mut set = HashSet::new();
-                let mut rng = StdRng::seed_from_u64(42);
+        group.bench_with_input(
+            BenchmarkId::new("HashSet", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut set = HashSet::new();
+                    let mut rng = StdRng::seed_from_u64(42);
 
-                for _ in 0..*size {
-                    let value = rng.random::<u64>();
-                    set.insert(value);
-                }
+                    for _ in 0..size {
+                        let value = rng.random::<u64>();
+                        set.insert(value);
+                    }
 
-                for _ in 0..*size {
-                    let value = rng.random::<u64>();
-                    black_box(set.contains(&value));
-                }
+                    for _ in 0..size {
+                        let value = rng.random::<u64>();
+                        hint_black_box(set.contains(&value));
+                    }
 
-                black_box(set)
-            })
-        });
+                    hint_black_box(set)
+                })
+            },
+        );
     }
 
     group.finish();
@@ -166,31 +171,30 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
 fn bench_hash_functions(c: &mut Criterion) {
     let mut group = c.benchmark_group("hash_functions");
 
-    let hash_functions = vec![
+    let hashes = [
         ("AHash", HashFunction::AHash),
         ("TwoX", HashFunction::TwoX),
-        ("FNV", HashFunction::FNV),
+        ("Fnv", HashFunction::Fnv),
     ];
 
-    for (name, hash_fn) in hash_functions {
-        group.bench_with_input(BenchmarkId::new(name, 10000), &10000, |b, &size| {
-            b.iter(|| {
-                let mut filter = QuotientFilter::new(size * 2, 8, hash_fn).unwrap();
-                let mut rng = StdRng::seed_from_u64(42);
+    for (name, hash_fn) in hashes {
+        group.bench_with_input(
+            BenchmarkId::new(name, 10000usize),
+            &10000usize,
+            |b, &size| {
+                b.iter(|| {
+                    let mut filter = QuotientFilter::new(size * 2, 8, hash_fn).unwrap();
+                    let mut rng = StdRng::seed_from_u64(42);
 
-                for _ in 0..*size {
-                    let value = rng.random::<u64>();
-                    filter.insert(value).unwrap();
-                }
+                    for _ in 0..size {
+                        let value = rng.random::<u64>();
+                        filter.insert(value).unwrap();
+                    }
 
-                for _ in 0..*size {
-                    let value = rng.random::<u64>();
-                    black_box(filter.query(value));
-                }
-
-                black_box(filter)
-            })
-        });
+                    hint_black_box(filter)
+                })
+            },
+        );
     }
 
     group.finish();
@@ -200,31 +204,20 @@ fn bench_hash_functions(c: &mut Criterion) {
 fn bench_slot_finding(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
-        // Prepare filter with data
-        let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
+        // Prepare values
         let mut rng = StdRng::seed_from_u64(42);
-        let mut test_values = Vec::new();
+        let values: Vec<u64> = (0..size).map(|_| rng.random::<u64>()).collect();
 
-        for _ in 0..size {
-            let value = rng.random::<u64>();
-            filter.insert(value).unwrap();
-            test_values.push(value);
-        }
-
-        group.bench_with_input(
-            BenchmarkId::new("get_actual_slot", size),
-            &test_values,
-            |b, values| {
-                b.iter(|| {
-                    for &value in values {
-                        black_box(filter.get_actual_slot_for_fingerprint(value));
-                    }
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("get_actual_slot", size), &values, |b, vals| {
+            b.iter(|| {
+                for v in vals {
+                    let mut filter = QuotientFilter::new(vals.len() * 2, 8, HashFunction::AHash).unwrap(); hint_black_box(filter.get_actual_slot_for_fingerprint(*v));
+                }
+            })
+        });
     }
 
     group.finish();
@@ -234,26 +227,25 @@ fn bench_slot_finding(c: &mut Criterion) {
 fn bench_multiset_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("multiset_operations");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
-        group.bench_with_input(BenchmarkId::new("multiset", size), size, |b, &size| {
+        group.bench_with_input(BenchmarkId::new("multiset", size), &size, |b, &s| {
             b.iter(|| {
-                let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
+                let mut filter = QuotientFilter::new(s * 2, 8, HashFunction::AHash).unwrap();
                 let mut rng = StdRng::seed_from_u64(42);
 
                 // Insert values multiple times
-                for _ in 0..*size {
-                    let value = rng.random::<u64>() % (*size / 10) as u64; // Create some duplicates
-                    filter.insert(value).unwrap();
+                for _ in 0..s {
+                    filter.insert(rng.random_range(0..(s as u64 / 10))).unwrap();
                 }
 
                 // Count values
-                for i in 0..(*size / 10) {
-                    black_box(filter.count(i as u64));
+                for i in 0..(s / 10) {
+                    hint_black_box(filter.count(i as u64));
                 }
 
-                black_box(filter)
+                hint_black_box(filter)
             })
         });
     }
@@ -265,12 +257,12 @@ fn bench_multiset_operations(c: &mut Criterion) {
 fn bench_memory_usage(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_usage");
 
-    for size in [1000, 10000, 100000, 1000000].iter() {
-        group.bench_with_input(BenchmarkId::new("memory", size), size, |b, &size| {
+    for size in [1000usize, 10000, 100000, 1000000] {
+        group.bench_with_input(BenchmarkId::new("memory", size), &size, |b, &s| {
             b.iter(|| {
-                let filter = QuotientFilter::new(size, 8, HashFunction::AHash).unwrap();
+                let filter = QuotientFilter::new(s, 8, HashFunction::AHash).unwrap();
                 let stats = filter.stats();
-                black_box(stats.capacity)
+                hint_black_box(stats.capacity)
             })
         });
     }
@@ -278,21 +270,21 @@ fn bench_memory_usage(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark concurrent operations
+/// Benchmark concurrent operations (using Mutex for thread safety)
 fn bench_concurrent_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("concurrent_operations");
 
-    for num_threads in [1, 2, 4, 8].iter() {
+    for num_threads in [1, 2, 4, 8] {
         group.bench_with_input(
             BenchmarkId::new("concurrent", num_threads),
-            num_threads,
+            &num_threads,
             |b, &num_threads| {
                 b.iter(|| {
-                    use std::sync::Arc;
+                    use std::sync::{Arc, Mutex};
                     use std::thread;
 
                     let filter =
-                        Arc::new(QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap());
+                        Arc::new(Mutex::new(QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap()));
                     let mut handles = vec![];
 
                     for thread_id in 0..num_threads {
@@ -300,7 +292,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                         let handle = thread::spawn(move || {
                             for i in 0..1000 {
                                 let value = thread_id * 1000 + i;
-                                filter_clone.insert(value).unwrap();
+                                filter_clone.lock().unwrap().insert(value).unwrap();
                             }
                         });
                         handles.push(handle);
@@ -310,7 +302,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                         handle.join().unwrap();
                     }
 
-                    black_box(filter)
+                    hint_black_box(filter)
                 })
             },
         );
@@ -323,18 +315,18 @@ fn bench_concurrent_operations(c: &mut Criterion) {
 fn bench_false_positive_rate(c: &mut Criterion) {
     let mut group = c.benchmark_group("false_positive_rate");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in [1000usize, 10000, 100000] {
         group.bench_with_input(
             BenchmarkId::new("false_positive", size),
-            size,
-            |b, &size| {
+            &size,
+            |b, &s| {
                 b.iter(|| {
-                    let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
+                    let mut filter = QuotientFilter::new(s * 2, 8, HashFunction::AHash).unwrap();
                     let mut rng = StdRng::seed_from_u64(42);
                     let mut inserted = HashSet::new();
 
                     // Insert values
-                    for _ in 0..*size {
+                    for _ in 0..s {
                         let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                         inserted.insert(value);
@@ -344,7 +336,7 @@ fn bench_false_positive_rate(c: &mut Criterion) {
                     let mut false_positives = 0;
                     let mut total_tested = 0;
 
-                    for _ in 0..*size {
+                    for _ in 0..s {
                         let value = rng.random::<u64>();
                         if !inserted.contains(&value) {
                             total_tested += 1;
@@ -360,7 +352,7 @@ fn bench_false_positive_rate(c: &mut Criterion) {
                         0.0
                     };
 
-                    black_box(rate)
+                    hint_black_box(rate)
                 })
             },
         );
@@ -382,24 +374,24 @@ fn bench_load_factor_impact(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("load_factor", load_factor),
             &size,
-            |b, &size| {
+            |b, &s| {
                 b.iter(|| {
                     let mut filter = QuotientFilter::new(capacity, 8, HashFunction::AHash).unwrap();
                     let mut rng = StdRng::seed_from_u64(42);
 
                     // Insert values
-                    for _ in 0..*size {
+                    for _ in 0..s {
                         let value = rng.random::<u64>();
                         filter.insert(value).unwrap();
                     }
 
                     // Query values
-                    for _ in 0..*size {
+                    for _ in 0..s {
                         let value = rng.random::<u64>();
-                        black_box(filter.query(value));
+                        hint_black_box(filter.query(value));
                     }
 
-                    black_box(filter)
+                    hint_black_box(filter)
                 })
             },
         );
@@ -412,23 +404,23 @@ fn bench_load_factor_impact(c: &mut Criterion) {
 fn bench_run_detection(c: &mut Criterion) {
     let mut group = c.benchmark_group("run_detection");
 
-    for size in [1000, 10000, 100000].iter() {
-        group.throughput(Throughput::Elements(*size as u64));
+    for size in [1000usize, 10000, 100000] {
+        group.throughput(Throughput::Elements(size as u64));
 
-        group.bench_with_input(BenchmarkId::new("run_detection", size), size, |b, &size| {
+        group.bench_with_input(BenchmarkId::new("run_detection", size), &size, |b, &s| {
             b.iter(|| {
-                let mut filter = QuotientFilter::new(size, 4, HashFunction::AHash).unwrap(); // Small remainder bits to force runs
+                let mut filter = QuotientFilter::new(s, 4, HashFunction::AHash).unwrap(); // Small remainder bits to force runs
                 let mut rng = StdRng::seed_from_u64(42);
 
                 // Insert values that might create runs
-                for _ in 0..*size {
+                for _ in 0..s {
                     let value = rng.random::<u64>();
                     filter.insert(value).unwrap();
                 }
 
                 // Get statistics (which includes run detection)
                 let stats = filter.stats();
-                black_box(stats.runs)
+                hint_black_box(stats.runs)
             })
         });
     }

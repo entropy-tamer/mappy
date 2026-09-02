@@ -151,7 +151,9 @@ impl HybridStorage {
         let aof_path = self.aof_path.clone();
         let sync_interval = Duration::from_secs(self.config.sync_interval);
 
-        #[cfg(feature = "smol")]
+        // Tokio takes precedence when both features are enabled (workspace
+        // feature unification can enable both simultaneously).
+        #[cfg(all(feature = "smol", not(feature = "tokio")))]
         let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
             Box::pin(smol::spawn(async move {
                 loop {

@@ -316,7 +316,9 @@ impl TTLManager {
         let config = self.config.clone();
 
         // --- smol: race a repeating timer against the shutdown channel ---
-        #[cfg(feature = "smol")]
+        // Tokio takes precedence when both features are enabled (workspace
+        // feature unification can enable both simultaneously).
+        #[cfg(all(feature = "smol", not(feature = "tokio")))]
         let handle: CleanupHandle = {
             use futures_lite::future::FutureExt as _;
             let interval_duration = Duration::from_secs(config.cleanup_interval_secs);
