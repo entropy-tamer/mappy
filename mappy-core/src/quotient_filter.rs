@@ -10,17 +10,57 @@ use crate::{
 };
 use std::collections::HashMap;
 
+/// Largest quotient width the `u32` owner tag can represent.
+///
+/// `quotient` is masked to `quotient_bits` before it is stored, so this caps the
+/// filter at `2^32` slots rather than `usize::MAX`.
+const MAX_QUOTIENT_BITS: u32 = 32;
+
+/// `run_starts` entry meaning "this quotient has no run".
+const NO_RUN: u32 = u32::MAX;
+
+/// How many times `insert` may double the table before giving up on placement.
+const MAX_GROW_RETRIES: u32 = 8;
+
+/// Owner tag stored in a slot for members of `quotient`.
+fn tag_of(quotient: u64) -> u32 {
+    debug_assert!(quotient <= u64::from(u32::MAX), "quotient exceeds owner tag width");
+    #[allow(clippy::cast_possible_truncation)] // width enforced by MAX_QUOTIENT_BITS
+    {
+        quotient as u32
+    }
+}
+
 /// Metadata bits for quotient filter slots
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SlotMetadata {
     /// Remainder bits (the actual fingerprint data)
     pub remainder: u64,
+    /// Quotient that owns this slot; meaningful only while `occupied` is set.
+    ///
+    /// This is what identifies a run. The canonical slot cannot: `PerfectHash::slot_index`
+    /// is `hash % capacity` rather than a permutation, so distinct quotients collide onto
+    /// one slot, and a cluster shift can move a run's start past its own canonical slot.
+    /// Neither case is recoverable from `runend` and `shifted` alone.
+    pub owner: u32,
     /// Run-end bit: marks the end of a run
     pub runend: bool,
     /// Occupied bit: slot is occupied by some fingerprint
     pub occupied: bool,
     /// Shifted bit: slot has been shifted due to linear probing
     pub shifted: bool,
+}
+
+impl Default for SlotMetadata {
+    fn default() -> Self {
+        Self {
+            remainder: 0,
+            owner: NO_RUN,
+            runend: false,
+            occupied: false,
+            shifted: false,
+        }
+    }
 }
 
 /// Quotient filter implementation with multiset support
@@ -38,8 +78,12 @@ pub struct QuotientFilter {
     remainder_mask: u64,
     /// Array of slot metadata
     slots: Vec<SlotMetadata>,
+    /// Start slot of each quotient's run, indexed by quotient; `NO_RUN` when absent.
+    ///
+    /// Sized `1 << quotient_bits` rather than `capacity`, because the index is the
+    /// quotient and quotients outnumber slots.
+    run_starts: Vec<u32>,
     /// Fingerprint hasher
-    #[allow(dead_code)]
     hasher: FingerprintHasher,
     /// Perfect hash for slot mapping
     perfect_hash: PerfectHash,
@@ -53,7 +97,8 @@ impl QuotientFilter {
     /// Create a new quotient filter
     ///
     /// # Errors
-    /// Returns an error if capacity is zero or `fingerprint_bits` is invalid (0 or > 64).
+    /// Returns an error if capacity is zero, `fingerprint_bits` is invalid (0 or > 64),
+    /// or the capacity needs more quotient bits than an owner tag can carry.
     pub fn new(
         capacity: usize,
         fingerprint_bits: u32,
@@ -67,12 +112,38 @@ impl QuotientFilter {
             return Err(MapletError::InvalidErrorRate(f64::from(fingerprint_bits)));
         }
 
-        // Calculate quotient and remainder bits
-        #[allow(
-            clippy::cast_precision_loss,
-            clippy::cast_possible_truncation,
-            clippy::cast_sign_loss
-        )] // Acceptable for bit calculation
+        let (quotient_bits, remainder_bits, quotient_mask, remainder_mask) =
+            Self::slot_layout(capacity, fingerprint_bits);
+
+        if quotient_bits > MAX_QUOTIENT_BITS {
+            return Err(MapletError::InvalidCapacity(capacity));
+        }
+
+        Ok(Self {
+            capacity,
+            quotient_bits,
+            remainder_bits,
+            quotient_mask,
+            remainder_mask,
+            slots: vec![SlotMetadata::default(); capacity],
+            run_starts: vec![NO_RUN; 1 << quotient_bits],
+            hasher: FingerprintHasher::new(hash_fn, fingerprint_bits),
+            perfect_hash: PerfectHash::new(capacity, hash_fn),
+            len: 0,
+            multiset_counts: HashMap::new(),
+        })
+    }
+
+    /// Split a capacity and fingerprint width into quotient/remainder widths and masks.
+    ///
+    /// Shared by construction and growth so a grown filter is laid out identically to
+    /// one built at that capacity directly.
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )] // Acceptable for bit calculation
+    fn slot_layout(capacity: usize, fingerprint_bits: u32) -> (u32, u32, u64, u64) {
         let quotient_bits = (capacity as f64).log2().ceil() as u32;
         let remainder_bits = fingerprint_bits.saturating_sub(quotient_bits).max(1);
 
@@ -88,18 +159,7 @@ impl QuotientFilter {
             (1u64 << remainder_bits) - 1
         };
 
-        Ok(Self {
-            capacity,
-            quotient_bits,
-            remainder_bits,
-            quotient_mask,
-            remainder_mask,
-            slots: vec![SlotMetadata::default(); capacity],
-            hasher: FingerprintHasher::new(hash_fn, fingerprint_bits),
-            perfect_hash: PerfectHash::new(capacity, hash_fn),
-            len: 0,
-            multiset_counts: HashMap::new(),
-        })
+        (quotient_bits, remainder_bits, quotient_mask, remainder_mask)
     }
 
     /// Insert a fingerprint into the filter
@@ -111,26 +171,265 @@ impl QuotientFilter {
             return Err(MapletError::CapacityExceeded);
         }
 
+        // `len < capacity` holds here, so a `CapacityExceeded` from the shift path can
+        // only mean this run has no free slot after it, never that the table is full.
+        // Rehashing separates the clusters, but one doubling is not itself a guarantee:
+        // the run for this particular canonical slot can still land against the end of a
+        // fresh array. Doubling makes that exponentially less likely, so a few retries
+        // settle it; exceeding the cap means the placement path is wrong, not the load.
+        let mut retries = 0u32;
+        loop {
+            match self.place(fingerprint) {
+                Ok(()) => break,
+                Err(MapletError::CapacityExceeded) => {
+                    retries += 1;
+                    if retries > MAX_GROW_RETRIES {
+                        return Err(MapletError::CapacityExceeded);
+                    }
+                    self.grow()?;
+                }
+                Err(other) => return Err(other),
+            }
+        }
+
+        // Update multiset count
+        *self.multiset_counts.entry(fingerprint).or_insert(0) += 1;
+        self.len += 1;
+        Ok(())
+    }
+
+    /// Place a fingerprint's remainder into its run, shifting neighbours as needed.
+    ///
+    /// Leaves `len` and `multiset_counts` alone; callers own the bookkeeping.
+    fn place(&mut self, fingerprint: u64) -> MapletResult<()> {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
 
-        // Find the target slot for this quotient
-        let target_slot = self.find_target_slot(quotient);
-
-        // Insert the remainder at the target slot
-        match self.insert_remainder_at_slot(target_slot, remainder) {
-            Ok(()) => {
-                // Update multiset count
-                *self.multiset_counts.entry(fingerprint).or_insert(0) += 1;
-                self.len += 1;
-                Ok(())
-            }
-            Err(MapletError::CapacityExceeded) => {
-                // If we can't insert due to capacity issues, return capacity exceeded
-                Err(MapletError::CapacityExceeded)
-            }
-            Err(e) => Err(e),
+        match self.run_of(quotient) {
+            Some((start, end)) => self.extend_run(start, end, quotient, remainder),
+            None => self.start_run(quotient, remainder),
         }
+    }
+
+    /// Create a run for `quotient` in the first free slot at or after its canonical slot.
+    ///
+    /// # Errors
+    /// Returns an error when no slot at all is free, which the caller resolves by growing.
+    fn start_run(&mut self, quotient: u64, remainder: u64) -> MapletResult<()> {
+        let target = self.find_target_slot(quotient);
+
+        // Prefer the first free slot at or after the canonical slot so runs stay in
+        // quotient order wherever the array allows it. A packed tail is not a full table —
+        // `insert` guarantees `len < capacity` — so fall back to any free slot rather than
+        // report `CapacityExceeded` for a table that demonstrably has room.
+        let Some(slot) = (target..self.capacity)
+            .chain(0..target)
+            .find(|&s| !self.slots[s].occupied)
+        else {
+            return Err(MapletError::CapacityExceeded);
+        };
+
+        let owner = tag_of(quotient);
+        self.slots[slot] = SlotMetadata {
+            remainder,
+            owner,
+            runend: true,
+            occupied: true,
+            shifted: false,
+        };
+        #[allow(clippy::cast_possible_truncation)] // slot is bounded by capacity <= 2^32
+        {
+            self.run_starts[Self::run_index(quotient)] = slot as u32;
+        }
+        self.refresh_flags(slot);
+        Ok(())
+    }
+
+    /// Append `remainder` to the run occupying `start..=end`, pushing later runs right.
+    ///
+    /// # Errors
+    /// Returns an error when the run reaches the final slot and no free slot follows.
+    fn extend_run(
+        &mut self,
+        start: usize,
+        end: usize,
+        quotient: u64,
+        remainder: u64,
+    ) -> MapletResult<()> {
+        let mut free = end + 1;
+        while free < self.capacity && self.slots[free].occupied {
+            free += 1;
+        }
+
+        if free >= self.capacity {
+            return Err(MapletError::CapacityExceeded);
+        }
+
+        // Shift the occupied tail one slot right. Only this run's own elements keep their slots,
+        // so every run that moves has to record its new start or it becomes unreachable.
+        // Slot `i` starts a run when its predecessor belongs to another one; every run in
+        // the tail therefore gets its entry bumped exactly once, and this run's does not
+        // move at all. `free` is excluded: it absorbs the last moved element and is itself
+        // overwritten, so reading its owner would be reading an empty slot.
+        #[allow(clippy::cast_possible_truncation)] // i + 1 is bounded by capacity <= 2^32
+        for i in (end + 1..free).rev() {
+            if self.slots[i - 1].owner != self.slots[i].owner {
+                // u32 -> usize is widening; the tag indexes `run_starts` directly.
+                let moved = self.slots[i].owner as usize;
+                self.run_starts[moved] = (i + 1) as u32;
+            }
+            self.slots[i + 1] = self.slots[i];
+        }
+
+        self.slots[end + 1] = SlotMetadata {
+            remainder,
+            owner: tag_of(quotient),
+            runend: false,
+            occupied: true,
+            shifted: true,
+        };
+        self.refresh_flags(start);
+        Ok(())
+    }
+
+    /// Index into `run_starts` for a quotient, which `extract_quotient` has already masked.
+    #[allow(clippy::cast_possible_truncation)] // quotient is bounded by MAX_QUOTIENT_BITS
+    const fn run_index(quotient: u64) -> usize {
+        quotient as usize
+    }
+
+    /// The run holding `quotient`, as `(start, end)` inclusive, or `None` if it has none.
+    ///
+    /// The start comes from `run_starts` and the end from scanning consecutive slots
+    /// carrying the same owner tag. Both are exact: neither depends on the `runend` or
+    /// `shifted` bits, which cannot represent a run that starts past its canonical slot.
+    fn run_of(&self, quotient: u64) -> Option<(usize, usize)> {
+        let start = self.run_starts[Self::run_index(quotient)];
+        if start == NO_RUN {
+            return None;
+        }
+
+        let owner = tag_of(quotient);
+        #[allow(clippy::cast_possible_truncation)] // NO_RUN is filtered above
+        let start = start as usize;
+        let mut end = start;
+        while end + 1 < self.capacity
+            && self.slots[end + 1].occupied
+            && self.slots[end + 1].owner == owner
+        {
+            end += 1;
+        }
+
+        Some((start, end))
+    }
+
+    /// Recompute the `runend` and `shifted` metadata for the cluster containing `from`.
+    ///
+    /// Both are diagnostics: run membership is read from the owner tag and `run_starts`,
+    /// so a stale bit here can no longer hide a stored fingerprint.
+    fn refresh_flags(&mut self, from: usize) {
+        let mut i = from;
+
+        while i < self.capacity {
+            if !self.slots[i].occupied {
+                // `from` itself is always occupied; a gap after it ends the cluster.
+                if i > from {
+                    return;
+                }
+                i += 1;
+                continue;
+            }
+
+            let owner = self.slots[i].owner;
+            let mut j = i;
+            while j + 1 < self.capacity
+                && self.slots[j + 1].occupied
+                && self.slots[j + 1].owner == owner
+            {
+                j += 1;
+            }
+
+            for k in i..=j {
+                self.slots[k].runend = k == j;
+                self.slots[k].shifted = k != i;
+            }
+
+            if j + 1 < self.capacity && !self.slots[j + 1].occupied {
+                return;
+            }
+            i = j + 1;
+        }
+    }
+
+    /// Double the capacity, rehashing every stored fingerprint.
+    ///
+    /// # Errors
+    /// Returns an error if the capacity cannot be doubled or the replay overflows.
+    fn grow(&mut self) -> MapletResult<()> {
+        let new_capacity = self
+            .capacity
+            .checked_mul(2)
+            .ok_or(MapletError::CapacityExceeded)?;
+        self.grow_to(new_capacity)
+    }
+
+    /// Rebuild the filter at `new_capacity`, rehashing every stored fingerprint.
+    ///
+    /// Slot indices are `hash % capacity`, so growing moves every fingerprint to a new
+    /// slot. `multiset_counts` is the only record of what is present and carries the full
+    /// fingerprints, so it is replayed slot for slot rather than merely trusted.
+    ///
+    /// # Errors
+    /// Returns an error if `new_capacity` is zero or no capacity can hold the contents.
+    fn grow_to(&mut self, new_capacity: usize) -> MapletResult<()> {
+        if new_capacity == 0 {
+            return Err(MapletError::InvalidCapacity(new_capacity));
+        }
+
+        // One entry per stored instance: a repeated fingerprint occupies a slot per
+        // instance, so the replay must place it that many times.
+        let mut pending: Vec<u64> = Vec::with_capacity(self.len);
+        for (&fingerprint, &count) in &self.multiset_counts {
+            pending.extend(std::iter::repeat_n(fingerprint, count));
+        }
+
+        let mut capacity = new_capacity;
+        loop {
+            self.reset_layout(capacity)?;
+            if pending.iter().all(|&f| self.place(f).is_ok()) {
+                self.len = pending.len();
+                return Ok(());
+            }
+            // The replay hit the same edge condition; doubling eventually separates the
+            // runs, so retry from scratch rather than leaving the filter half rebuilt.
+            capacity = capacity
+                .checked_mul(2)
+                .ok_or(MapletError::CapacityExceeded)?;
+        }
+    }
+
+    /// Reallocate slots and rederive every capacity-dependent field at `capacity`.
+    ///
+    /// # Errors
+    /// Returns an error if `capacity` needs more quotient bits than an owner tag holds.
+    fn reset_layout(&mut self, capacity: usize) -> MapletResult<()> {
+        let (quotient_bits, remainder_bits, quotient_mask, remainder_mask) =
+            Self::slot_layout(capacity, self.hasher.fingerprint_bits());
+
+        if quotient_bits > MAX_QUOTIENT_BITS {
+            return Err(MapletError::InvalidCapacity(capacity));
+        }
+
+        self.capacity = capacity;
+        self.quotient_bits = quotient_bits;
+        self.remainder_bits = remainder_bits;
+        self.quotient_mask = quotient_mask;
+        self.remainder_mask = remainder_mask;
+        self.slots = vec![SlotMetadata::default(); capacity];
+        self.run_starts = vec![NO_RUN; 1 << quotient_bits];
+        self.perfect_hash = PerfectHash::new(capacity, self.hasher.hash_fn());
+        self.len = 0;
+        Ok(())
     }
 
     /// Query if a fingerprint might be in the filter
@@ -139,26 +438,10 @@ impl QuotientFilter {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
 
-        // Find the target slot for this quotient
-        let target_slot = self.find_target_slot(quotient);
-
-        // Check if the target slot is occupied
-        if !self.slots[target_slot].occupied {
-            return false;
+        match self.run_of(quotient) {
+            Some((start, end)) => (start..=end).any(|slot| self.slots[slot].remainder == remainder),
+            None => false,
         }
-
-        // Find the run for this quotient
-        let run_start = self.find_run_start(quotient);
-        let run_end = self.find_run_end(quotient);
-
-        // Search for the remainder in the run
-        for slot_idx in run_start..=run_end {
-            if self.slots[slot_idx].remainder == remainder {
-                return true;
-            }
-        }
-
-        false
     }
 
     /// Delete one instance of a fingerprint from the filter
@@ -166,41 +449,51 @@ impl QuotientFilter {
     /// # Errors
     /// Returns an error if deletion fails.
     pub fn delete(&mut self, fingerprint: u64) -> MapletResult<bool> {
-        let quotient = self.extract_quotient(fingerprint);
-        let remainder = self.extract_remainder(fingerprint);
-
-        // Find the target slot for this quotient
-        let target_slot = self.find_target_slot(quotient);
-
-        // Check if the target slot is occupied
-        if !self.slots[target_slot].occupied {
+        // The slots hold truncated remainders, so a different full fingerprint can share
+        // this one's quotient and remainder. `multiset_counts` holds full fingerprints
+        // and is the only authority on membership; without this guard a delete would
+        // remove a slot belonging to a fingerprint that was never inserted.
+        if !self.multiset_counts.contains_key(&fingerprint) {
             return Ok(false);
         }
 
-        // Find the run for this quotient
-        let run_start = self.find_run_start(quotient);
-        let run_end = self.find_run_end(quotient);
+        let quotient = self.extract_quotient(fingerprint);
+        let remainder = self.extract_remainder(fingerprint);
 
-        // Search for the remainder in the run
-        for slot_idx in run_start..=run_end {
-            if self.slots[slot_idx].remainder == remainder {
-                // Found the remainder, remove it
-                self.remove_remainder_at_slot(slot_idx)?;
+        // The multiset counts one slot per stored instance, so a present fingerprint whose
+        // slot is missing means the two disagree. Re-placing repairs the invariant rather
+        // than decrementing bookkeeping that was never matched by a slot.
+        let Some((start, end)) = self.run_of(quotient) else {
+            self.place(fingerprint)?;
+            return Ok(false);
+        };
 
-                // Update multiset count
-                if let Some(count) = self.multiset_counts.get_mut(&fingerprint) {
-                    *count -= 1;
-                    if *count == 0 {
-                        self.multiset_counts.remove(&fingerprint);
-                    }
-                }
+        let Some(offset) = (start..=end).find(|&s| self.slots[s].remainder == remainder) else {
+            self.place(fingerprint)?;
+            return Ok(false);
+        };
 
-                self.len -= 1;
-                return Ok(true);
+        // Close the gap inside this run only. Shifting across the terminator would move a
+        // later run's elements left of their own slots; the run simply ends one earlier.
+        for i in offset..end {
+            self.slots[i] = self.slots[i + 1];
+        }
+        self.slots[end] = SlotMetadata::default();
+
+        if start == end {
+            self.run_starts[Self::run_index(quotient)] = NO_RUN;
+        }
+        self.refresh_flags(start);
+
+        if let Some(count) = self.multiset_counts.get_mut(&fingerprint) {
+            *count -= 1;
+            if *count == 0 {
+                self.multiset_counts.remove(&fingerprint);
             }
         }
 
-        Ok(false)
+        self.len -= 1;
+        Ok(true)
     }
 
     /// Get the number of instances of a fingerprint
@@ -245,6 +538,7 @@ impl QuotientFilter {
     /// Clear all data from the filter
     pub fn clear(&mut self) {
         self.slots = vec![SlotMetadata::default(); self.capacity];
+        self.run_starts = vec![NO_RUN; 1 << self.quotient_bits];
         self.len = 0;
         self.multiset_counts.clear();
     }
@@ -265,117 +559,6 @@ impl QuotientFilter {
         self.perfect_hash.slot_index(quotient)
     }
 
-    /// Find the start of a run for a quotient
-    fn find_run_start(&self, quotient: u64) -> usize {
-        let mut slot = self.find_target_slot(quotient);
-
-        // Walk backwards to find the start of the run
-        while slot > 0 && self.slots[slot - 1].shifted {
-            slot -= 1;
-        }
-
-        slot
-    }
-
-    /// Find the end of a run for a quotient
-    fn find_run_end(&self, quotient: u64) -> usize {
-        let mut slot = self.find_target_slot(quotient);
-
-        // Walk forwards to find the end of the run
-        while slot < self.capacity - 1 && !self.slots[slot].runend {
-            slot += 1;
-        }
-
-        slot
-    }
-
-    /// Insert a remainder at a specific slot
-    fn insert_remainder_at_slot(&mut self, slot: usize, remainder: u64) -> MapletResult<()> {
-        if slot >= self.capacity {
-            return Err(MapletError::Internal(
-                "Slot index out of bounds".to_string(),
-            ));
-        }
-
-        // If slot is empty, just insert
-        if !self.slots[slot].occupied {
-            self.slots[slot].remainder = remainder;
-            self.slots[slot].occupied = true;
-            self.slots[slot].runend = true;
-            return Ok(());
-        }
-
-        // Slot is occupied, need to shift
-        self.shift_and_insert(slot, remainder)
-    }
-
-    /// Shift elements and insert a remainder
-    fn shift_and_insert(&mut self, start_slot: usize, remainder: u64) -> MapletResult<()> {
-        let mut slot = start_slot;
-
-        // Find the end of the current run
-        while slot < self.capacity && !self.slots[slot].runend {
-            slot += 1;
-        }
-
-        // If we're at or beyond the capacity, we can't shift
-        if slot >= self.capacity {
-            return Err(MapletError::CapacityExceeded);
-        }
-
-        // Check if we have space to shift
-        if slot + 1 >= self.capacity {
-            return Err(MapletError::CapacityExceeded);
-        }
-
-        // Shift elements to the right
-        for i in (start_slot..=slot).rev() {
-            if i + 1 < self.capacity {
-                self.slots[i + 1] = self.slots[i];
-                self.slots[i + 1].shifted = true;
-            }
-        }
-
-        // Insert the new remainder
-        self.slots[start_slot].remainder = remainder;
-        self.slots[start_slot].occupied = true;
-        self.slots[start_slot].shifted = false;
-        self.slots[start_slot].runend = false;
-
-        // Update runend bit for the last element
-        if slot + 1 < self.capacity {
-            self.slots[slot + 1].runend = true;
-        }
-
-        Ok(())
-    }
-
-    /// Remove a remainder at a specific slot
-    fn remove_remainder_at_slot(&mut self, slot: usize) -> MapletResult<()> {
-        if slot >= self.capacity {
-            return Err(MapletError::Internal(
-                "Slot index out of bounds".to_string(),
-            ));
-        }
-
-        // Shift elements to the left
-        for i in slot..self.capacity - 1 {
-            if self.slots[i + 1].occupied {
-                self.slots[i] = self.slots[i + 1];
-                self.slots[i].shifted = i > 0 && self.slots[i - 1].occupied;
-            } else {
-                break;
-            }
-        }
-
-        // Clear the last slot
-        if let Some(last_slot) = self.slots.last_mut() {
-            *last_slot = SlotMetadata::default();
-        }
-
-        Ok(())
-    }
-
     /// Get the slot index for a fingerprint (for maplet coordination)
     #[must_use]
     pub fn get_slot_for_fingerprint(&self, fingerprint: u64) -> usize {
@@ -389,16 +572,8 @@ impl QuotientFilter {
         let quotient = self.extract_quotient(fingerprint);
         let remainder = self.extract_remainder(fingerprint);
 
-        // Find the run for this quotient
-        let run_start = self.find_run_start(quotient);
-        let run_end = self.find_run_end(quotient);
-
-        // Search through the run to find the slot with the matching remainder
-        (run_start..=run_end).find(|&slot| {
-            slot < self.capacity
-                && self.slots[slot].occupied
-                && self.slots[slot].remainder == remainder
-        })
+        let (start, end) = self.run_of(quotient)?;
+        (start..=end).find(|&slot| self.slots[slot].remainder == remainder)
     }
 
     /// Get statistics about the filter
@@ -605,6 +780,7 @@ mod tests {
         let metadata = SlotMetadata::default();
 
         assert_eq!(metadata.remainder, 0);
+        assert_eq!(metadata.owner, NO_RUN);
         assert!(!metadata.runend);
         assert!(!metadata.occupied);
         assert!(!metadata.shifted);
@@ -614,6 +790,7 @@ mod tests {
     fn test_slot_metadata_clone() {
         let metadata = SlotMetadata {
             remainder: 123,
+            owner: 7,
             runend: true,
             occupied: true,
             shifted: false,
@@ -630,6 +807,7 @@ mod tests {
     fn test_slot_metadata_eq() {
         let metadata1 = SlotMetadata {
             remainder: 123,
+            owner: 7,
             runend: true,
             occupied: true,
             shifted: false,
@@ -637,6 +815,7 @@ mod tests {
 
         let metadata2 = SlotMetadata {
             remainder: 123,
+            owner: 7,
             runend: true,
             occupied: true,
             shifted: false,
@@ -708,5 +887,322 @@ mod tests {
         filter.delete(0x1234).unwrap();
 
         assert_eq!(filter.count(0x1234), 0);
+    }
+
+    /// Deterministic pseudo-random source, so any failure reproduces exactly without
+    /// pulling in a dependency.
+    fn splitmix(state: &mut u64) -> u64 {
+        *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = *state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    /// The owner tag was chosen over a `u64` because it fits the padding `SlotMetadata`
+/// already had. That is the whole reason the layout change is free, so it is pinned here:
+/// a future field that breaks the size turns the design rationale into a false claim.
+#[test]
+fn test_owner_tag_costs_no_extra_slot_bytes() {
+    assert_eq!(
+        std::mem::size_of::<SlotMetadata>(),
+        16,
+        "owner must occupy existing padding, not grow the slot"
+    );
+    // The run-start table is the one real cost: one u32 per quotient.
+    let filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+    assert_eq!(filter.run_starts.len(), 1 << filter.quotient_bits());
+    assert!(
+        filter.run_starts.len() <= 2 * filter.capacity(),
+        "run table should stay within a small constant multiple of capacity"
+    );
+}
+
+/// The premise a quotient filter needs and this implementation never had: an injective
+    /// quotient-to-canonical-slot map. `PerfectHash::slot_index` is `hash % capacity`, and
+    /// there are `2^quotient_bits` quotients over `capacity` slots, so two distinct
+    /// quotients always collide onto one canonical slot. Any scheme that reconstructs a
+    /// run by walking back from the canonical slot is therefore unsound, independently of
+    /// how it handles a run displaced past its own slot. Owner tags are the replacement.
+    #[test]
+    fn test_canonical_slot_map_is_not_injective() {
+        let filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+        let table_len = 1usize << filter.quotient_bits();
+        assert!(table_len > filter.capacity(), "quotients must outnumber slots");
+
+        let mut seen = HashMap::new();
+        let mut collided = 0usize;
+        for quotient in 0..table_len as u64 {
+            let slot = filter.find_target_slot(quotient);
+            if let Some(&other) = seen.get(&slot) {
+                assert_ne!(other, quotient);
+                collided += 1;
+            } else {
+                seen.insert(slot, quotient);
+            }
+        }
+
+        assert!(
+            collided > 0,
+            "expected canonical-slot collisions over {table_len} quotients in {} slots",
+            filter.capacity()
+        );
+    }
+
+    /// Two quotients sharing a canonical slot must keep separate runs, and each must stay
+    /// reachable after the other grows. The old layout conflated them into one run.
+    #[test]
+    fn test_runs_split_across_a_shared_canonical_slot() {
+        let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+        let table_len = 1usize << filter.quotient_bits();
+
+        let mut seen: HashMap<usize, u64> = HashMap::new();
+        let mut pair = None;
+        for quotient in 0..table_len as u64 {
+            let slot = filter.find_target_slot(quotient);
+            match seen.get(&slot) {
+                Some(&other) => {
+                    pair = Some((other, quotient));
+                    break;
+                }
+                None => {
+                    seen.insert(slot, quotient);
+                }
+            }
+        }
+
+        let (a, b) = pair.expect("canonical-slot collision is guaranteed");
+        assert_eq!(
+            filter.find_target_slot(a),
+            filter.find_target_slot(b),
+            "the pair must share a canonical slot for this test to mean anything"
+        );
+
+        // Alternate the two colliding quotients so each run grows after the other exists.
+        let mut stored = Vec::new();
+        for remainder in 1..5u64 {
+            for &quotient in &[a, b] {
+                let fingerprint = quotient | (remainder << filter.quotient_bits());
+                filter.insert(fingerprint).unwrap();
+                stored.push(fingerprint);
+            }
+        }
+
+        assert_eq!(stored.len(), 8, "expected four remainders for each quotient");
+        for &fingerprint in &stored {
+            assert!(
+                filter.query(fingerprint),
+                "lost {fingerprint:#x} (quotients {a} and {b} share a canonical slot)"
+            );
+        }
+    }
+
+    /// The boundary contract: while the filter is provably not full, an insert must never
+    /// report `CapacityExceeded`, and every accepted insert must be counted. This is
+    /// precisely what growing on boundary overflow is responsible for.
+    #[test]
+    fn test_insert_below_capacity_never_errors() {
+        let mask = (1u64 << 10) - 1;
+
+        for seed in 0..256u64 {
+            let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+            let mut attempts = 0usize;
+
+            for _ in 0..40 {
+                if filter.len() == filter.capacity() {
+                    break;
+                }
+                attempts += 1;
+                let fp = splitmix(&mut state) & mask;
+                filter.insert(fp).unwrap_or_else(|e| {
+                    panic!("seed {seed}: insert below capacity failed: {e:?}")
+                });
+            }
+
+            assert_eq!(filter.len(), attempts, "seed {seed}: accepted inserts uncounted");
+        }
+    }
+
+    /// An insert must never lose an earlier fingerprint.
+    #[test]
+    fn test_insert_below_capacity_preserves_fingerprints() {
+        let mask = (1u64 << 10) - 1;
+
+        for seed in 0..256u64 {
+            let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+            let mut inserted = Vec::new();
+
+            for _ in 0..40 {
+                if filter.len() == filter.capacity() {
+                    break;
+                }
+                let fp = splitmix(&mut state) & mask;
+                filter
+                    .insert(fp)
+                    .unwrap_or_else(|e| panic!("seed {seed}: insert below capacity failed: {e:?}"));
+                inserted.push(fp);
+            }
+
+            assert_eq!(filter.len(), inserted.len(), "seed {seed}: len drift");
+            for &fp in &inserted {
+                assert!(filter.query(fp), "seed {seed}: lost {fp:#x}");
+            }
+        }
+    }
+
+    /// Growth must rehash, not merely reallocate: every stored instance stays queryable
+    /// and `len` stays exact. Swept over enough inputs that the final-slot boundary is
+    /// actually reached, so the growth path is exercised rather than never taken.
+    #[test]
+    fn test_growth_preserves_every_stored_instance() {
+        let mask = (1u64 << 10) - 1;
+        let mut grew = 0;
+
+        for seed in 0..256u64 {
+            let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let mut filter = QuotientFilter::new(64, 10, HashFunction::AHash).unwrap();
+            let mut inserted = Vec::new();
+
+            for _ in 0..60 {
+                if filter.len() == filter.capacity() {
+                    break;
+                }
+                let fp = splitmix(&mut state) & mask;
+                filter.insert(fp).unwrap();
+                inserted.push(fp);
+            }
+
+            if filter.capacity() > 64 {
+                grew += 1;
+            }
+            assert_eq!(filter.len(), inserted.len(), "seed {seed}: len drift");
+            for &fp in &inserted {
+                assert!(filter.query(fp), "seed {seed}: growth lost {fp:#x}");
+            }
+        }
+
+        assert!(
+            grew > 0,
+            "no seed reached the final-slot boundary; the growth path is untested"
+        );
+    }
+
+    /// Model-based property test: for any interleaving of inserts and deletes the filter
+    /// must have no false negatives and `len` must equal the stored instance count.
+    #[test]
+    fn test_filter_matches_reference_under_mixed_operations() {
+        let mask = (1u64 << 10) - 1;
+
+        for seed in 0..64u64 {
+            let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+            let mut model: HashMap<u64, usize> = HashMap::new();
+            let mut total = 0usize;
+
+            for step in 0..300 {
+                let fp = splitmix(&mut state) & mask;
+
+                if splitmix(&mut state) % 2 == 0 {
+                    let present = model.contains_key(&fp);
+                    let deleted = filter.delete(fp).unwrap();
+                    assert_eq!(deleted, present, "seed {seed} step {step}: delete disagreed");
+
+                    if present {
+                        let count = model.get_mut(&fp).unwrap();
+                        *count -= 1;
+                        if *count == 0 {
+                            model.remove(&fp);
+                        }
+                        total -= 1;
+                    }
+                } else {
+                    if filter.len() == filter.capacity() {
+                        continue;
+                    }
+                    filter.insert(fp).unwrap();
+                    *model.entry(fp).or_insert(0) += 1;
+                    total += 1;
+                }
+
+                assert_eq!(filter.len(), total, "seed {seed} step {step}: len drift");
+                for (&stored, &count) in &model {
+                    assert!(
+                        filter.query(stored),
+                        "seed {seed} step {step}: false negative for {stored:#x}"
+                    );
+                    assert_eq!(
+                        filter.count(stored),
+                        count,
+                        "seed {seed} step {step}: count drift for {stored:#x}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Regression: removal used to clear the final slot of the array unconditionally,
+    /// destroying an unrelated fingerprint. Every surviving fingerprint must stay
+    /// queryable after any deletion.
+    #[test]
+    fn test_delete_preserves_unrelated_fingerprints() {
+        let mask = (1u64 << 10) - 1;
+
+        for seed in 0..128u64 {
+            let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+            let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+            let mut live = Vec::new();
+
+            for _ in 0..30 {
+                if filter.len() == filter.capacity() {
+                    break;
+                }
+                let fp = splitmix(&mut state) & mask;
+                filter.insert(fp).unwrap();
+                live.push(fp);
+            }
+
+            let victim = live[live.len() / 2];
+            assert!(filter.delete(victim).unwrap(), "seed {seed}: victim not deleted");
+
+            live.retain(|&fp| fp != victim);
+            for &fp in &live {
+                assert!(filter.query(fp), "seed {seed}: delete destroyed {fp:#x}");
+            }
+        }
+    }
+
+    /// A full drain and refill must be indistinguishable from a fresh filter: no stale
+    /// `run_starts` entry may survive to make an absent fingerprint look present.
+    #[test]
+    fn test_clear_resets_every_run() {
+        let mask = (1u64 << 10) - 1;
+        let mut filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+
+        let mut state = 7u64;
+        let mut populated = Vec::new();
+        for _ in 0..40 {
+            let fp = splitmix(&mut state) & mask;
+            filter.insert(fp).unwrap();
+            populated.push(fp);
+        }
+        assert_eq!(filter.len(), 40);
+
+        filter.clear();
+        assert!(filter.is_empty());
+
+        for fp in &populated {
+            assert!(!filter.query(*fp), "cleared filter still holds {fp:#x}");
+            assert!(!filter.delete(*fp).unwrap(), "deleted from an empty filter");
+        }
+
+        for fp in populated.iter().take(20) {
+            filter.insert(*fp).unwrap();
+        }
+        assert_eq!(filter.len(), 20);
+        for fp in populated.iter().take(20) {
+            assert!(filter.query(*fp), "refill lost {fp:#x}");
+        }
     }
 }
