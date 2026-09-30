@@ -52,10 +52,11 @@ fn bench_insert(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Maplet-Counter", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet =
-                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet = Arc::new(
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
+                    );
                     for (key, value) in &test_data {
-                        maplet.insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
                     }
                     black_box(maplet);
                 });
@@ -66,16 +67,17 @@ fn bench_insert(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Maplet-Set", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet =
+                    let maplet = Arc::new(
                         Maplet::<String, std::collections::HashSet<u64>, SetOperator>::new(
                             *size * 8,
                             0.01,
                         )
-                        .unwrap();
+                        .unwrap(),
+                    );
                     for (key, value) in &test_data {
                         let mut set = std::collections::HashSet::new();
                         set.insert(*value);
-                        maplet.insert(key.clone(), set).await.unwrap();
+                        Arc::clone(&maplet).insert(key.clone(), set).await.unwrap();
                     }
                     black_box(maplet);
                 });
@@ -109,9 +111,10 @@ fn bench_query(c: &mut Criterion) {
 
         // Prepare Maplet
         let maplet = rt.block_on(async {
-            let maplet = Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap();
+            let maplet =
+                Arc::new(Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap());
             for (key, value) in &test_data {
-                maplet.insert(key.clone(), *value).await.unwrap();
+                Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
             }
             maplet
         });
@@ -139,7 +142,7 @@ fn bench_query(c: &mut Criterion) {
             b.iter(|| {
                 rt.block_on(async {
                     for key in &query_keys {
-                        black_box(maplet.query(key).await);
+                        black_box(Arc::clone(&maplet).query(key.clone()).await);
                     }
                 });
             });
@@ -173,13 +176,14 @@ fn bench_memory_usage(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Maplet", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet =
-                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet = Arc::new(
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
+                    );
                     for (key, value) in &test_data {
-                        maplet.insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
                     }
                     // Get stats to measure memory
-                    let stats = maplet.stats().await;
+                    let stats = Arc::clone(&maplet).stats().await;
                     black_box(stats);
                 });
             });
@@ -212,10 +216,11 @@ fn bench_merge_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Maplet-Merge", size), size, |b, _| {
             b.iter(|| {
                 rt.block_on(async {
-                    let maplet =
-                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap();
+                    let maplet = Arc::new(
+                        Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
+                    );
                     for (key, value) in &test_data {
-                        maplet.insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
                     }
                     black_box(maplet);
                 });
@@ -282,7 +287,7 @@ fn bench_concurrent(c: &mut Criterion) {
                             let chunk = chunk.to_vec();
                             tokio::spawn(async move {
                                 for (key, value) in chunk {
-                                    maplet.insert(key, value).await.unwrap();
+                                    Arc::clone(&maplet).insert(key, value).await.unwrap();
                                 }
                             })
                         })

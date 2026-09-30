@@ -75,6 +75,12 @@ impl FingerprintHasher {
         }
     }
 
+    /// Get the configured hash function
+    #[must_use]
+    pub const fn hash_fn(&self) -> HashFunction {
+        self.hash_fn
+    }
+
     /// Get the fingerprint size in bits
     #[must_use]
     pub const fn fingerprint_bits(&self) -> u32 {

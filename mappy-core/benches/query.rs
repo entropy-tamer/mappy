@@ -15,18 +15,22 @@ fn bench_query_operations(c: &mut Criterion) {
         let size = *size;
         // Prepare maplet
         let maplet = rt.block_on(async {
-            let maplet = Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
+            let maplet =
+                Arc::new(Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap());
             for i in 0..size {
-                maplet.insert(format!("key_{i}"), i as u64).await.unwrap();
+                Arc::clone(&maplet)
+                    .insert(format!("key_{i}"), i as u64)
+                    .await
+                    .unwrap();
             }
-            Arc::new(maplet)
+            maplet
         });
         let maplet_clone = maplet.clone();
 
         group.bench_with_input(BenchmarkId::new("maplet", size), &size, |b, &size| {
             b.to_async(&rt).iter(|| async {
                 for i in 0..size {
-                    black_box(maplet_clone.query(&format!("key_{i}")).await);
+                    black_box(Arc::clone(&maplet_clone).query(format!("key_{i}")).await);
                 }
             });
         });

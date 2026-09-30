@@ -15,7 +15,7 @@ fn generate_test_data(size: usize) -> Vec<(String, Vec<u8>)> {
         .map(|i| {
             let key = format!("key_{:08x}", i);
             let value_size = rng.random_range(10..=1000);
-            let value = (0..value_size).map(|_| rng.random::<u64>()).collect();
+            let value = (0..value_size).map(|_| rng.random::<u8>()).collect();
             (key, value)
         })
         .collect()
@@ -292,12 +292,12 @@ fn bench_concurrent_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Concurrent_Write", size), size, |b, _| {
             b.to_async(&rt).iter(|| async {
                 let config = EngineConfig::default();
-                let engine = Engine::new(config).await.unwrap();
+                let engine = std::sync::Arc::new(Engine::new(config).await.unwrap());
 
                 let handles: Vec<_> = test_data
                     .chunks(100)
                     .map(|chunk| {
-                        let engine = engine.clone();
+                        let engine = std::sync::Arc::clone(&engine);
                         let chunk = chunk.to_vec();
                         tokio::spawn(async move {
                             for (key, value) in chunk {
@@ -318,7 +318,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Concurrent_Read", size), size, |b, _| {
             b.to_async(&rt).iter(|| async {
                 let config = EngineConfig::default();
-                let engine = Engine::new(config).await.unwrap();
+                let engine = std::sync::Arc::new(Engine::new(config).await.unwrap());
 
                 // Pre-populate
                 for (key, value) in &test_data {
@@ -329,7 +329,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                 let handles: Vec<_> = read_keys
                     .chunks(100)
                     .map(|chunk| {
-                        let engine = engine.clone();
+                        let engine = std::sync::Arc::clone(&engine);
                         let chunk = chunk.to_vec();
                         tokio::spawn(async move {
                             for key in chunk {

@@ -1037,7 +1037,7 @@ mod tests {
 
         let maplet_clone = Arc::clone(&maplet);
         let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).get("key1".to_string()).await
+            Arc::clone(&maplet_clone).query("key1".to_string()).await
         });
         assert!(handle.await.unwrap().is_some());
 
@@ -1073,24 +1073,25 @@ mod tests {
             enable_merging: false,
         };
 
-        let maplet = Maplet::<String, u64, CounterOperator>::with_config(config).unwrap();
+        let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::with_config(config).unwrap());
         assert_eq!(maplet.error_rate(), 0.05);
-        assert_eq!(maplet.len().await, 0);
+        assert_eq!(Arc::clone(&maplet).len().await, 0);
     }
 
     #[tokio::test]
     async fn test_maplet_with_operator() {
         use crate::operators::MaxOperator;
 
-        let maplet =
-            Maplet::<String, u64, MaxOperator>::with_operator(100, 0.01, MaxOperator).unwrap();
+        let maplet = Arc::new(
+            Maplet::<String, u64, MaxOperator>::with_operator(100, 0.01, MaxOperator).unwrap(),
+        );
         assert_eq!(maplet.error_rate(), 0.01);
-        assert_eq!(maplet.len().await, 0);
+        assert_eq!(Arc::clone(&maplet).len().await, 0);
 
         // Test with MaxOperator
-        maplet.insert("key1".to_string(), 5).await.unwrap();
-        maplet.insert("key1".to_string(), 10).await.unwrap();
-        let value = maplet.query(&"key1".to_string()).await;
+        Arc::clone(&maplet).insert("key1".to_string(), 5).await.unwrap();
+        Arc::clone(&maplet).insert("key1".to_string(), 10).await.unwrap();
+        let value = Arc::clone(&maplet).query("key1".to_string()).await;
         assert!(value.is_some());
         // With MaxOperator, value should be max(5, 10) = 10
         // But due to hash collisions, exact value might vary

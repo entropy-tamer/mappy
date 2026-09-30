@@ -224,14 +224,20 @@ impl Default for Client {
 #[cfg(test)]
 mod tests {
     use super::prelude::*;
-    use super::{Client, ClientConfig, SetRequest, GetResponse, HealthResponse};
+    use super::{Client, ClientConfig, GetResponse, SetRequest};
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_client_basic_usage() {
-        let maplet = Maplet::<String, u64, CounterOperator>::new(100, 0.01).expect("Failed to create maplet");
+        // Maplet's mutating/reading methods take `self: Arc<Self>`, so the handle
+        // is an Arc and every call clones it. See mappy-core/src/maplet.rs:120.
+        let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).expect("Failed to create maplet"));
 
-        maplet.insert("test".to_string(), 42).await.expect("Failed to insert test key");
-        assert_eq!(maplet.query(&"test".to_string()).await, Some(42));
+        Arc::clone(&maplet)
+            .insert("test".to_string(), 42)
+            .await
+            .expect("Failed to insert test key");
+        assert_eq!(Arc::clone(&maplet).query("test".to_string()).await, Some(42));
     }
 
     #[test]

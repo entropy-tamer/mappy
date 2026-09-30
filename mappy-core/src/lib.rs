@@ -29,7 +29,12 @@ pub use operators::{
 };
 pub use storage::{PersistenceMode, Storage, StorageConfig, StorageStats};
 pub use ttl::{TTLConfig, TTLEntry, TTLManager, TTLStats};
-pub use types::{MapletError, MapletResult, MapletStats};
+// `MapletConfig` lives in `types` and is part of the primary configuration surface:
+// `EngineConfig` has a `maplet: MapletConfig` field, so a consumer that cannot name the
+// type cannot construct an `EngineConfig` literal. It was reachable only as
+// `mappy_core::types::MapletConfig`, which is why mappy-client's own `prelude` had to
+// re-export it by path. Re-exported here alongside its siblings.
+pub use types::{MapletConfig, MapletError, MapletResult, MapletStats};
 
 /// Common result type for maplet operations
 pub type Result<T> = std::result::Result<T, MapletError>;

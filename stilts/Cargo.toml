@@ -68,4 +68,13 @@ harness = false
 [[bench]]
 name = "ml_performance_benchmarks"
 harness = false
+# Every benchmark in this file is `#[cfg(feature = "mappy-integration")]`, and
+# `criterion_group!` with no functions is a macro error rather than an empty bench.
+# Declaring the requirement lets cargo skip the target instead of failing to build it.
+required-features = ["mappy-integration"]
 
+[[bench]]
+name = "storage_benchmarks"
+harness = false
+# Uses `stilts::benchmark::mappy_comparison`, which is `#[cfg(feature = "mappy-integration")]`.
+required-features = ["mappy-integration"]

@@ -199,6 +199,13 @@ impl HybridStorage {
                 .await;
             });
 
+        // Neither runtime feature enabled: no executor to spawn the sync task onto.
+        // The handle is still produced so the assignment below stays unconditional;
+        // the future never runs.
+        #[cfg(not(any(feature = "smol", feature = "tokio")))]
+        let handle: std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>> =
+            Box::pin(async {});
+
         self.sync_handle = Some(handle);
     }
 

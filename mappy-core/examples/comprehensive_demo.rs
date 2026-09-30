@@ -102,7 +102,7 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
     engine
         .set("cache:data".to_string(), b"cached_data".to_vec())
         .await?;
-    let result = Arc::clone(&engine).expire("nonexistent", 60).await.unwrap(); // Expires in 10 seconds
+    let result = engine.expire("nonexistent", 60).await.unwrap(); // Expires in 10 seconds
 
     // Wait for first key to expire
     println!("  Waiting for session:abc123 to expire...");

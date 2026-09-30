@@ -47,7 +47,15 @@ tracing = { git = "https://git.sly.so/kade/tracing", package = "tracing" }
 tracing-subscriber = { git = "https://git.sly.so/kade/tracing", package = "tracing-subscriber", features = ["env-filter"] }
 
 # Testing
-criterion = { git = "https://git.sly.so/kade/criterion", features = ["html_reports"] }
+# criterion 0.8 moved async support behind opt-in features: its `default` is
+# ["rayon", "plotters", "cargo_bench_support", "alloca"] and no longer implies
+# `async_tokio`/`async_smol`/`async_futures`. Without them, `Bencher::to_async`
+# exists in the source but every `impl AsyncExecutor for tokio::runtime::Runtime`
+# is `#[cfg(feature = "async_tokio")]`-gated, so the method is not applicable and
+# rustc reports E0599 "no method named `to_async`" rather than a missing feature.
+# Both runtimes are enabled because mappy-core's default features are smol and its
+# dev-dependency tests are tokio.
+criterion = { git = "https://git.sly.so/kade/criterion", features = ["html_reports", "async_tokio", "async_smol", "async_futures"] }
 proptest = { git = "https://git.sly.so/kade/proptest" }
 quickcheck = { git = "https://git.sly.so/kade/quickcheck"}
 

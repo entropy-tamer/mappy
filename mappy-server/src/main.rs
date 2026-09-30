@@ -766,6 +766,7 @@ mod tests {
             engine: Arc::new(RwLock::new(None)),
             error_log: Arc::new(RwLock::new(Vec::new())),
             error_broadcast: Arc::new(error_broadcast),
+            start_time: Arc::new(Instant::now()),
         };
 
         Router::new()

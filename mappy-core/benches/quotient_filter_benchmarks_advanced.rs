@@ -1,7 +1,14 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use mappy_core::maplet::{CounterOperator, Maplet};
-use mappy_core::quotient_filter::{HashFunction, QuotientFilter};
+use std::hint::black_box;
+use std::sync::Arc;
+
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+// `CounterOperator` is defined in `operators`, not `maplet`; only `Maplet` is
+// re-exported from `maplet`. `HashFunction` is `pub` in `hash`, but
+// `quotient_filter` only re-imports it privately, so naming it there is E0603.
+use mappy_core::hash::HashFunction;
+use mappy_core::quotient_filter::QuotientFilter;
+use mappy_core::{CounterOperator, Maplet};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use tokio::runtime::Runtime;
@@ -58,23 +65,26 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
             |b, &size| {
                 b.to_async(&rt).iter(|| async {
                     let maplet =
-                        Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
+                        Arc::new(Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap());
                     let mut rng = StdRng::seed_from_u64(42);
                     let mut test_keys = Vec::new();
 
                     // Insert keys
                     for _ in 0..size {
                         let key = format!("key_{}", rng.random::<u64>());
-                        maplet
+                        Arc::clone(&maplet)
                             .insert(key.clone(), rng.random::<u64>())
                             .await
                             .unwrap();
                         test_keys.push(key);
                     }
 
-                    // Test slot finding
+                    // Test slot finding. `Maplet::find_slot_for_key` is itself
+                    // `#[cfg(feature = "quotient-filter")]`, so this loop only exists
+                    // when that feature is on.
+                    #[cfg(feature = "quotient-filter")]
                     for key in &test_keys {
-                        black_box(maplet.find_slot_for_key(key).await);
+                        black_box(Arc::clone(&maplet).find_slot_for_key(key.clone()).await);
                     }
 
                     black_box(maplet)
@@ -121,7 +131,7 @@ fn bench_slot_finding_hash_functions(c: &mut Criterion) {
     let hash_functions = vec![
         ("AHash", HashFunction::AHash),
         ("TwoX", HashFunction::TwoX),
-        ("FNV", HashFunction::FNV),
+        ("FNV", HashFunction::Fnv),
     ];
 
     for (name, hash_fn) in hash_functions {
@@ -241,7 +251,7 @@ fn bench_slot_finding_multiset(c: &mut Criterion) {
 
                 // Insert values multiple times
                 for _ in 0..size {
-                    let value = rng.random::<u64>() % (size / 10); // Create some duplicates
+                    let value = rng.random::<u64>() % (size / 10) as u64; // Create some duplicates
                     filter.insert(value).unwrap();
                     test_values.push(value);
                 }
@@ -270,11 +280,17 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
             num_threads,
             |b, &num_threads| {
                 b.to_async(&rt).iter(|| async {
-                    use std::sync::Arc;
+                    use std::sync::{Arc, Mutex};
                     use tokio::task;
 
-                    let filter =
-                        Arc::new(QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap());
+                    // `QuotientFilter::insert` is `&mut self` and the type has no
+                    // `Sync` impl, so it cannot be shared mutably across tasks as a
+                    // bare `Arc`. The previous version tried, which is E0596. The
+                    // filter is guarded instead -- note this means the benchmark now
+                    // measures lock contention as well as slot finding.
+                    let filter = Arc::new(Mutex::new(
+                        QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap(),
+                    ));
                     let mut handles = vec![];
 
                     // Spawn multiple tasks that insert values and find slots
@@ -282,11 +298,16 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
                         let filter_clone = Arc::clone(&filter);
                         let handle = task::spawn(async move {
                             for i in 0..1000 {
-                                let value = thread_id * 1000 + i;
-                                filter_clone.insert(value).unwrap();
+                                let value = (thread_id * 1000 + i) as u64;
+                                filter_clone.lock().unwrap().insert(value).unwrap();
 
                                 // Test slot finding
-                                black_box(filter_clone.get_actual_slot_for_fingerprint(value));
+                                black_box(
+                                    filter_clone
+                                        .lock()
+                                        .unwrap()
+                                        .get_actual_slot_for_fingerprint(value),
+                                );
                             }
                         });
                         handles.push(handle);

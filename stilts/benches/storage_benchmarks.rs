@@ -1,8 +1,12 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Storage benchmarks: mappy vs other data structures
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::black_box;
 use stilts::benchmark::mappy_comparison::MappyComparisonRunner;
+use stilts::compression::{
+    ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor,
+};
 
 fn generate_large_tag_set() -> Vec<String> {
     MappyComparisonRunner::generate_test_tags(1000)
@@ -22,11 +26,9 @@ fn benchmark_compression_methods(c: &mut Criterion) {
 
     c.bench_function("compression_comparison", |b| {
         b.iter(|| {
-            // Test all compression methods
-            use stilts::compression::{
-                ArithmeticCompressor, DictionaryCompressor, HuffmanCompressor,
-            };
-
+            // Test all compression methods. `compress` comes from the `Compressor`
+            // trait, so the trait must be in scope -- importing only the structs
+            // gives E0599, not a missing-method-on-struct hint.
             let mut huffman = HuffmanCompressor::new();
             huffman.build_from_corpus(black_box(&tags)).unwrap();
             let _ = huffman.compress(black_box(&tags));

@@ -1,21 +1,34 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Benchmark comparison between maplets and traditional data structures
+//!
+//! These are async benchmarks. `Maplet::insert`/`query` are async and take
+//! `self: Arc<Self>`, so every measured loop runs under `b.to_async(&rt)` and every
+//! call clones the handle. The previous version called them from a sync `b.iter`
+//! and discarded the returned futures, so it timed future construction rather than
+//! the insert itself — it compiled to a number, but that number meant nothing.
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mappy_core::{CounterOperator, Maplet};
 use std::collections::HashMap;
 use std::hint::black_box;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 fn bench_insert_comparison(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("insert_comparison");
 
     for size in &[100, 1000, 10000] {
         // Benchmark maplet insertions
         group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
-            b.iter(|| {
-                let maplet = Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
+            b.to_async(&rt).iter(|| async {
+                let maplet =
+                    Arc::new(Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap());
                 for i in 0..*size {
-                    let _ = maplet.insert(format!("key_{i}"), i as u64);
+                    Arc::clone(&maplet)
+                        .insert(format!("key_{i}"), i as u64)
+                        .await
+                        .unwrap();
                 }
                 black_box(maplet);
             });
@@ -37,14 +50,22 @@ fn bench_insert_comparison(c: &mut Criterion) {
 }
 
 fn bench_query_comparison(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("query_comparison");
 
     for size in &[100, 1000, 10000] {
         // Prepare maplet
-        let mut maplet = Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap();
-        for i in 0..*size {
-            let _ = maplet.insert(format!("key_{i}"), i as u64);
-        }
+        let maplet = rt.block_on(async {
+            let maplet =
+                Arc::new(Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap());
+            for i in 0..*size {
+                Arc::clone(&maplet)
+                    .insert(format!("key_{i}"), i as u64)
+                    .await
+                    .unwrap();
+            }
+            maplet
+        });
 
         // Prepare HashMap
         let mut hashmap = HashMap::new();
@@ -53,16 +74,16 @@ fn bench_query_comparison(c: &mut Criterion) {
         }
 
         // Benchmark maplet queries
-        group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
-            b.iter(|| {
+        group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, _size| {
+            b.to_async(&rt).iter(|| async {
                 for i in 0..*size {
-                    black_box(maplet.query(&format!("key_{i}")));
+                    black_box(Arc::clone(&maplet).query(format!("key_{i}")).await);
                 }
             });
         });
 
         // Benchmark HashMap queries
-        group.bench_with_input(BenchmarkId::new("hashmap", size), size, |b, size| {
+        group.bench_with_input(BenchmarkId::new("hashmap", size), size, |b, _size| {
             b.iter(|| {
                 for i in 0..*size {
                     black_box(hashmap.get(&format!("key_{i}")));
@@ -75,18 +96,23 @@ fn bench_query_comparison(c: &mut Criterion) {
 }
 
 fn bench_memory_usage(c: &mut Criterion) {
+    let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
 
     for size in &[100, 1000, 10000] {
         // Measure maplet memory usage
         group.bench_with_input(BenchmarkId::new("maplet", size), size, |b, size| {
-            b.iter(|| {
-                let maplet = Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap();
+            b.to_async(&rt).iter(|| async {
+                let maplet =
+                    Arc::new(Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap());
                 for i in 0..*size {
-                    let _ = maplet.insert(format!("key_{i}"), i as u64);
+                    Arc::clone(&maplet)
+                        .insert(format!("key_{i}"), i as u64)
+                        .await
+                        .unwrap();
                 }
                 // Skip memory usage measurement for now
-                black_box(0);
+                black_box(maplet);
             });
         });
 

@@ -170,20 +170,21 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving value fails.
-    pub async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>
-    {
+    pub async fn get(&self, key: impl Into<String>) -> MapletResult<Option<Vec<u8>>> {
+        let key = key.into();
+
         // Check if key has expired
-        if Arc::clone(&self.ttl_manager).is_expired(key.to_string()).await? {
+        if Arc::clone(&self.ttl_manager).is_expired(key.clone()).await? {
             // Remove expired key
-            Arc::clone(&self.ttl_manager).remove_ttl(key.to_string()).await?;
-            if let Err(delete_error) = self.storage.delete(&key.to_string()).await {
+            Arc::clone(&self.ttl_manager).remove_ttl(key.clone()).await?;
+            if let Err(delete_error) = self.storage.delete(&key).await {
                 tracing::warn!("Failed to delete expired key: {}", delete_error);
             }
             return Ok(None);
         }
 
         // First check the maplet for approximate membership
-        if !Arc::clone(&self.maplet).contains(key.to_string()).await {
+        if !Arc::clone(&self.maplet).contains(key.clone()).await {
             return Ok(None);
         }
 
@@ -203,8 +204,9 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>
-    {
+    pub async fn set(&self, key: impl Into<String>, value: Vec<u8>) -> MapletResult<()> {
+        let key = key.into();
+
         // Store in the maplet for approximate membership
         Arc::clone(&self.maplet).insert(key.clone(), value.clone()).await?;
 
@@ -224,8 +226,9 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn delete(&self, key: String) -> MapletResult<bool>
-    {
+    pub async fn delete(&self, key: impl Into<String>) -> MapletResult<bool> {
+        let key = key.into();
+
         // Remove from storage
         let result = self.storage.delete(&key).await?;
 
@@ -246,10 +249,11 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if the operation fails.
-    pub async fn exists(&self, key: String) -> MapletResult<bool>
-    {
+    pub async fn exists(&self, key: impl Into<String>) -> MapletResult<bool> {
+        let key = key.into();
+
         // Check maplet first for fast approximate membership
-        if !Arc::clone(&self.maplet).contains(key.to_string()).await {
+        if !Arc::clone(&self.maplet).contains(key.clone()).await {
             return Ok(false);
         }
 
@@ -380,16 +384,17 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if checking key existence or setting TTL fails.
-    pub async fn expire(&self, key: &str, ttl_seconds: u64) -> MapletResult<bool>
-    {
+    pub async fn expire(&self, key: impl Into<String>, ttl_seconds: u64) -> MapletResult<bool> {
+        let key = key.into();
+
         // Check if key exists
-        if !self.exists(key.to_string()).await? {
+        if !self.exists(key.clone()).await? {
             return Ok(false);
         }
 
         // Set TTL
         Arc::clone(&self.ttl_manager)
-            .set_ttl(key.to_string(), 0, ttl_seconds)
+            .set_ttl(key.clone(), 0, ttl_seconds)
             .await?;
 
         // Increment operation counter
@@ -405,9 +410,9 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving TTL fails.
-    pub async fn ttl(&self, key: &str) -> MapletResult<Option<i64>>
-    {
-        let result = Arc::clone(&self.ttl_manager).get_ttl(key.to_string()).await?;
+    pub async fn ttl(&self, key: impl Into<String>) -> MapletResult<Option<i64>> {
+        let key = key.into();
+        let result = Arc::clone(&self.ttl_manager).get_ttl(key).await?;
 
         // Increment operation counter
         {
@@ -422,8 +427,8 @@ impl Engine {
     ///
     /// # Errors
     /// Returns an error if retrieving or removing TTL fails.
-    pub async fn persist(&self, key: String) -> MapletResult<bool>
-    {
+    pub async fn persist(&self, key: impl Into<String>) -> MapletResult<bool> {
+        let key = key.into();
         let had_ttl = Arc::clone(&self.ttl_manager).get_ttl(key.clone()).await?.is_some();
         Arc::clone(&self.ttl_manager).remove_ttl(key.clone()).await?;
 
@@ -441,9 +446,9 @@ impl Engine {
     /// # Errors
     /// Returns an error if the operation fails.
     #[cfg(feature = "quotient-filter")]
-    pub async fn find_slot_for_key(&self, key: String) -> MapletResult<Option<usize>>
-    {
-        let result = Arc::clone(&self.maplet).find_slot_for_key(key.clone()).await;
+    pub async fn find_slot_for_key(&self, key: impl Into<String>) -> MapletResult<Option<usize>> {
+        let key = key.into();
+        let result = Arc::clone(&self.maplet).find_slot_for_key(key).await;
         Ok(result)
     }
 }

@@ -374,6 +374,12 @@ impl TTLManager {
             })
         };
 
+        // With neither runtime feature enabled there is no executor to spawn the
+        // cleanup task onto. The handle is still produced so the unconditional
+        // `cleanup_handle` assignment below keeps compiling; the future never runs.
+        #[cfg(not(any(feature = "smol", feature = "tokio")))]
+        let handle: CleanupHandle = Box::pin(async {});
+
         // Store cleanup handle and shutdown sender
         {
             let mut cleanup_handle = self.cleanup_handle.write().await;

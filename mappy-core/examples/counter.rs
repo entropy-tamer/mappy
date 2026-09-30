@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for j in 0..=sequence.len() - k {
             let kmer = &sequence[j..j + k];
-            kmer_counter.insert(kmer.to_string(), 1).await?;
+            Arc::clone(&kmer_counter).insert(kmer.to_string(), 1).await?;
         }
     }
 
@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nK-mer counts:");
     for kmer in &test_kmers {
-        let count = kmer_counter.query(&(*kmer).to_string()).await;
+        let count = Arc::clone(&kmer_counter).query((*kmer).to_string()).await;
         println!("  {kmer}: {count:?}");
     }
 
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nComparison with HashMap:");
     for kmer in &test_kmers {
         let count = Arc::clone(&kmer_counter).query(kmer.to_string()).await;
-        let hashmap_count = hashmap_counter.get(kmer);
+        let hashmap_count = hashmap_counter.get(*kmer);
         println!("  {kmer}: Maplet={count:?}, HashMap={hashmap_count:?}");
     }
 

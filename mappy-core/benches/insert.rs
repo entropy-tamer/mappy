@@ -4,6 +4,7 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mappy_core::{CounterOperator, Maplet};
 use std::hint::black_box;
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 fn bench_insert_operations(c: &mut Criterion) {
@@ -14,9 +15,13 @@ fn bench_insert_operations(c: &mut Criterion) {
         let size = *size;
         group.bench_with_input(BenchmarkId::new("maplet", size), &size, |b, &size| {
             b.to_async(&rt).iter(|| async {
-                let maplet = Maplet::<String, u64, CounterOperator>::new(size, 0.01).unwrap();
+                let maplet =
+                    Arc::new(Maplet::<String, u64, CounterOperator>::new(size, 0.01).unwrap());
                 for i in 0..size {
-                    maplet.insert(format!("key_{i}"), i as u64).await.unwrap();
+                    Arc::clone(&maplet)
+                        .insert(format!("key_{i}"), i as u64)
+                        .await
+                        .unwrap();
                 }
                 black_box(maplet);
             });

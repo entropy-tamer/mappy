@@ -10,6 +10,7 @@ use crate::benchmark::ml_tasks::{
 use crate::mappy_integration::MappyTagStorage;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::time::Instant;
 
 use mappy_core::MapletResult;
@@ -116,15 +117,15 @@ impl MLBenchmarkRunner {
         let mut storage = MappyTagStorage::with_huffman();
         storage.build_corpus(&all_tags_for_corpus)?;
 
-        let mappy_maplet = Maplet::<String, Vec<u8>, BytesOperator>::new(
+        let mappy_maplet = Arc::new(Maplet::<String, Vec<u8>, BytesOperator>::new(
             tag_sets.len() * 3, // Extra capacity to avoid overflow
             0.01,               // 1% false positive rate
-        )?;
+        )?);
 
         // Store all tag sets
         for (idx, tags) in tag_sets.iter().enumerate() {
             let compressed = storage.compress_tags(tags)?;
-            mappy_maplet
+            Arc::clone(&mappy_maplet)
                 .insert(format!("item_{}", idx), compressed)
                 .await?;
         }
@@ -133,7 +134,7 @@ impl MLBenchmarkRunner {
         // This moves mappy queries out of the hot path
         let mut cached_tag_sets: Vec<Vec<String>> = Vec::with_capacity(tag_sets.len());
         for (idx, original_tags) in tag_sets.iter().enumerate() {
-            if let Some(compressed) = mappy_maplet.query(&format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 cached_tag_sets.push(decompressed);
             } else {
@@ -208,16 +209,16 @@ impl MLBenchmarkRunner {
         let mut storage = MappyTagStorage::with_huffman();
         storage.build_corpus(&all_tags_for_corpus)?;
 
-        let mappy_maplet = Maplet::<String, Vec<u8>, BytesOperator>::new(
+        let mappy_maplet = Arc::new(Maplet::<String, Vec<u8>, BytesOperator>::new(
             training_data.len() * 3, // Extra capacity to avoid overflow
             0.01,
-        )?;
+        )?);
 
         // Store training data with proper indexed keys
         for (idx, (_class, tags)) in training_data.iter().enumerate() {
             let compressed = storage.compress_tags(tags)?;
             let key = format!("train_{}", idx);
-            mappy_maplet.insert(key, compressed).await?;
+            Arc::clone(&mappy_maplet).insert(key, compressed).await?;
         }
 
         // Approximate classification - optimized: cache decompressed training data
@@ -225,7 +226,7 @@ impl MLBenchmarkRunner {
         let mut cached_training: Vec<(String, Vec<String>)> = Vec::new();
         for (idx, (class, _)) in training_data.iter().enumerate() {
             let key = format!("train_{}", idx);
-            if let Some(compressed) = mappy_maplet.query(&key).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet).query(key).await {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 cached_training.push((class.clone(), decompressed));
             }
@@ -293,14 +294,14 @@ impl MLBenchmarkRunner {
         let mut storage = MappyTagStorage::with_huffman();
         storage.build_corpus(&all_tags)?;
 
-        let mappy_maplet = Maplet::<String, Vec<u8>, BytesOperator>::new(
+        let mappy_maplet = Arc::new(Maplet::<String, Vec<u8>, BytesOperator>::new(
             tag_sets.len() * 3, // Extra capacity to avoid overflow
             0.01,
-        )?;
+        )?);
 
         for (idx, tags) in tag_sets.iter().enumerate() {
             let compressed = storage.compress_tags(tags)?;
-            mappy_maplet
+            Arc::clone(&mappy_maplet)
                 .insert(format!("item_{}", idx), compressed)
                 .await?;
         }
@@ -309,7 +310,7 @@ impl MLBenchmarkRunner {
         let mut retrieved_sets = Vec::new();
 
         for idx in 0..tag_sets.len() {
-            if let Some(compressed) = mappy_maplet.query(&format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 retrieved_sets.push(decompressed);
             }
@@ -364,15 +365,15 @@ impl MLBenchmarkRunner {
         let mut storage = MappyTagStorage::with_huffman();
         storage.build_corpus(&all_tags)?;
 
-        let mappy_maplet = Maplet::<String, Vec<u8>, BytesOperator>::new(
+        let mappy_maplet = Arc::new(Maplet::<String, Vec<u8>, BytesOperator>::new(
             tag_sets.len() * 3, // Extra capacity to avoid overflow
             0.01,
-        )?;
+        )?);
 
         // Batch insert all tag sets
         for (idx, tags) in tag_sets.iter().enumerate() {
             let compressed = storage.compress_tags(tags)?;
-            mappy_maplet
+            Arc::clone(&mappy_maplet)
                 .insert(format!("item_{}", idx), compressed)
                 .await?;
         }
@@ -381,7 +382,7 @@ impl MLBenchmarkRunner {
         // This moves mappy queries out of the hot path
         let mut cached_tag_sets: Vec<Vec<String>> = Vec::with_capacity(tag_sets.len());
         for (idx, original_tags) in tag_sets.iter().enumerate() {
-            if let Some(compressed) = mappy_maplet.query(&format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 cached_tag_sets.push(decompressed);
             } else {
