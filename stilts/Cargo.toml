@@ -8,6 +8,7 @@ description = "Tag compression library with multiple algorithms (Huffman, Arithm
 repository = "https://github.com/entropy-tamer/mappy"
 keywords = ["compression", "huffman", "arithmetic", "dictionary", "tags"]
 categories = ["compression", "algorithms"]
+rust-version = "1.98.1"
 
 [dependencies]
 # Error handling

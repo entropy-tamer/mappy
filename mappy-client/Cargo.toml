@@ -9,6 +9,7 @@ description = "Client library for mappy maplet data structures"
 readme = "../README.md"
 keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets"]
 categories = ["data-structures", "algorithms"]
+rust-version = "1.98.1"
 
 [dependencies]
 # Workspace dependencies

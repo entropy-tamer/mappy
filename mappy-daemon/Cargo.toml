@@ -10,6 +10,7 @@ description = "Smol socket-only KV daemon backed by mappy-core (silly, fast, sem
 [[bin]]
 name = "mappy-daemon"
 path = "src/main.rs"
+rust-version = "1.98.1"
 
 [dependencies]
 mappy-core = { path = "../mappy-core" }
