@@ -14,6 +14,7 @@
 //! DEL <key>                         -> OK <n>            (n = 0 or 1)
 //! KEYS <pattern>                    -> KEYS <n>\n + n frames "<len>\n<bytes>\n"
 //! STATS                             -> <json line>
+//! HEALTH                            -> OK\n
 //! QUIT                              -> close
 //! ```
 //!
@@ -211,7 +212,9 @@ async fn handle_command(
                 write_line(writer, &json.to_string()).await;
             }
             Err(e) => write_line(writer, &format!("ERR {e}")).await,
-        },
+        }
+
+        "HEALTH" => write_line(writer, "OK").await,
 
         "QUIT" => return false,
 
