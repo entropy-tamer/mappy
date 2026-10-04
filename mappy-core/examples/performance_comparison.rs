@@ -150,9 +150,7 @@ async fn test_mappy(
     let start = Instant::now();
 
     for (key, value) in test_data {
-        engine
-            .set(key.clone(), value.as_bytes().to_vec())
-            .await?;
+        engine.set(key.clone(), value.as_bytes().to_vec()).await?;
     }
 
     let insert_time = start.elapsed();

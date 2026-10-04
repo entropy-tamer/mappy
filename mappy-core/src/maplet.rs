@@ -10,10 +10,10 @@ use crate::{
     quotient_filter::QuotientFilter,
     types::MapletConfig,
 };
+use async_lock::RwLock;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use async_lock::RwLock;
 
 /// Core maplet data structure
 ///
@@ -618,8 +618,18 @@ mod tests {
         let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
         // Insert some key-value pairs
-        assert!(Arc::clone(&maplet).insert("key1".to_string(), 5).await.is_ok());
-        assert!(Arc::clone(&maplet).insert("key2".to_string(), 10).await.is_ok());
+        assert!(
+            Arc::clone(&maplet)
+                .insert("key1".to_string(), 5)
+                .await
+                .is_ok()
+        );
+        assert!(
+            Arc::clone(&maplet)
+                .insert("key2".to_string(), 10)
+                .await
+                .is_ok()
+        );
 
         assert_eq!(Arc::clone(&maplet).len().await, 2);
         assert!(!Arc::clone(&maplet).is_empty().await);
@@ -637,8 +647,18 @@ mod tests {
         let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
         // Insert same key multiple times
-        assert!(Arc::clone(&maplet).insert("key1".to_string(), 5).await.is_ok());
-        assert!(Arc::clone(&maplet).insert("key1".to_string(), 3).await.is_ok());
+        assert!(
+            Arc::clone(&maplet)
+                .insert("key1".to_string(), 5)
+                .await
+                .is_ok()
+        );
+        assert!(
+            Arc::clone(&maplet)
+                .insert("key1".to_string(), 3)
+                .await
+                .is_ok()
+        );
 
         assert_eq!(Arc::clone(&maplet).len().await, 1); // Still only one unique key
 
@@ -653,8 +673,14 @@ mod tests {
     async fn test_maplet_stats() {
         let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
-        Arc::clone(&maplet).insert("key1".to_string(), 5).await.unwrap();
-        Arc::clone(&maplet).insert("key2".to_string(), 10).await.unwrap();
+        Arc::clone(&maplet)
+            .insert("key1".to_string(), 5)
+            .await
+            .unwrap();
+        Arc::clone(&maplet)
+            .insert("key2".to_string(), 10)
+            .await
+            .unwrap();
 
         let stats = Arc::clone(&maplet).stats().await;
         assert_eq!(stats.capacity, 100);
@@ -739,7 +765,10 @@ mod tests {
 
         // Insert some items
         let test_key = "test_key".to_string();
-        Arc::clone(&maplet).insert(test_key.clone(), 42).await.unwrap();
+        Arc::clone(&maplet)
+            .insert(test_key.clone(), 42)
+            .await
+            .unwrap();
 
         // Find the slot for the key
         let slot = Arc::clone(&maplet).find_slot_for_key(test_key).await;
@@ -749,7 +778,9 @@ mod tests {
         // Note: Due to false positives, the quotient filter might return a slot
         // even for non-existing keys. This is expected behavior.
         let non_existing_key = "non_existing".to_string();
-        let _non_existing_slot = Arc::clone(&maplet).find_slot_for_key(non_existing_key).await;
+        let _non_existing_slot = Arc::clone(&maplet)
+            .find_slot_for_key(non_existing_key)
+            .await;
         // The slot might or might not be found due to false positives
         // This is acceptable behavior for a probabilistic data structure
     }
@@ -761,14 +792,20 @@ mod tests {
         // Insert a key-value pair
         let key = "test_key".to_string();
         let value = 42u64;
-        Arc::clone(&maplet).insert(key.clone(), value).await.unwrap();
+        Arc::clone(&maplet)
+            .insert(key.clone(), value)
+            .await
+            .unwrap();
 
         assert_eq!(Arc::clone(&maplet).len().await, 1);
         assert!(Arc::clone(&maplet).contains(key.clone()).await);
         assert!(Arc::clone(&maplet).query(key.clone()).await.is_some());
 
         // Delete the key-value pair
-        let deleted = Arc::clone(&maplet).delete(key.clone(), value).await.unwrap();
+        let deleted = Arc::clone(&maplet)
+            .delete(key.clone(), value)
+            .await
+            .unwrap();
         assert!(
             deleted,
             "Should successfully delete existing key-value pair"
@@ -794,7 +831,10 @@ mod tests {
         Arc::clone(&maplet).insert(key.clone(), 42).await.unwrap();
 
         // Try to delete with wrong value
-        let deleted = Arc::clone(&maplet).delete(key.clone(), 99u64).await.unwrap();
+        let deleted = Arc::clone(&maplet)
+            .delete(key.clone(), 99u64)
+            .await
+            .unwrap();
         assert!(!deleted, "Should return false when value doesn't match");
         assert_eq!(Arc::clone(&maplet).len().await, 1, "Key should still exist");
     }
@@ -833,7 +873,10 @@ mod tests {
 
         for i in 0..20 {
             let key = format!("key_{i}");
-            Arc::clone(&maplet).insert(key, i as u64).await.expect("Failed to insert item during resize test");
+            Arc::clone(&maplet)
+                .insert(key, i as u64)
+                .await
+                .expect("Failed to insert item during resize test");
         }
 
         assert_eq!(Arc::clone(&maplet).len().await, 20);
@@ -950,7 +993,10 @@ mod tests {
 
         // Verify we inserted items (some might have been merged due to hash collisions)
         assert!(inserted > 0, "Should have inserted some items");
-        assert!(Arc::clone(&maplet).len().await > 0, "Maplet should have some items");
+        assert!(
+            Arc::clone(&maplet).len().await > 0,
+            "Maplet should have some items"
+        );
     }
 
     #[tokio::test]
@@ -986,7 +1032,8 @@ mod tests {
             enable_merging: false, // Merging disabled
         };
 
-        let maplet1 = Arc::new(Maplet::<String, u64, CounterOperator>::with_config(config).unwrap());
+        let maplet1 =
+            Arc::new(Maplet::<String, u64, CounterOperator>::with_config(config).unwrap());
         let maplet2 = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
         // Try to merge when merging is disabled
@@ -1013,12 +1060,16 @@ mod tests {
             enable_merging: true,
         };
 
-        let maplet1 = Arc::new(Maplet::<String, u64, CounterOperator>::with_config(config).unwrap());
+        let maplet1 =
+            Arc::new(Maplet::<String, u64, CounterOperator>::with_config(config).unwrap());
         let maplet2 = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
         // Try to merge when merging is not fully implemented
         let result = maplet1.merge(&maplet2);
-        assert!(result.is_err(), "Should return error when merge is not fully implemented");
+        assert!(
+            result.is_err(),
+            "Should return error when merge is not fully implemented"
+        );
         if let Err(e) = result {
             assert!(e.to_string().contains("Merge not fully implemented"));
         }
@@ -1031,32 +1082,34 @@ mod tests {
         // Test that Maplet futures are Send by spawning them in tokio tasks
         let maplet_clone = Arc::clone(&maplet);
         let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).insert("key1".to_string(), 5).await
+            Arc::clone(&maplet_clone)
+                .insert("key1".to_string(), 5)
+                .await
         });
         assert!(handle.await.unwrap().is_ok());
 
         let maplet_clone = Arc::clone(&maplet);
-        let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).query("key1".to_string()).await
-        });
+        let handle =
+            tokio::spawn(async move { Arc::clone(&maplet_clone).query("key1".to_string()).await });
         assert!(handle.await.unwrap().is_some());
 
         let maplet_clone = Arc::clone(&maplet);
-        let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).contains("key1".to_string()).await
-        });
+        let handle =
+            tokio::spawn(
+                async move { Arc::clone(&maplet_clone).contains("key1".to_string()).await },
+            );
         assert!(handle.await.unwrap());
 
         let maplet_clone = Arc::clone(&maplet);
         let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).delete("key1".to_string(), 5).await
+            Arc::clone(&maplet_clone)
+                .delete("key1".to_string(), 5)
+                .await
         });
         assert!(handle.await.unwrap().is_ok());
 
         let maplet_clone = Arc::clone(&maplet);
-        let handle = tokio::spawn(async move {
-            Arc::clone(&maplet_clone).stats().await
-        });
+        let handle = tokio::spawn(async move { Arc::clone(&maplet_clone).stats().await });
         assert!(handle.await.unwrap().len == 0);
     }
 
@@ -1089,8 +1142,14 @@ mod tests {
         assert_eq!(Arc::clone(&maplet).len().await, 0);
 
         // Test with MaxOperator
-        Arc::clone(&maplet).insert("key1".to_string(), 5).await.unwrap();
-        Arc::clone(&maplet).insert("key1".to_string(), 10).await.unwrap();
+        Arc::clone(&maplet)
+            .insert("key1".to_string(), 5)
+            .await
+            .unwrap();
+        Arc::clone(&maplet)
+            .insert("key1".to_string(), 10)
+            .await
+            .unwrap();
         let value = Arc::clone(&maplet).query("key1".to_string()).await;
         assert!(value.is_some());
         // With MaxOperator, value should be max(5, 10) = 10
@@ -1120,7 +1179,10 @@ mod tests {
         let key = "test_key".to_string();
         let value = 42u64;
 
-        Arc::clone(&maplet).insert(key.clone(), value).await.unwrap();
+        Arc::clone(&maplet)
+            .insert(key.clone(), value)
+            .await
+            .unwrap();
         assert!(Arc::clone(&maplet).query(key.clone()).await.is_some());
 
         Arc::clone(&maplet).delete(key, value).await.unwrap();

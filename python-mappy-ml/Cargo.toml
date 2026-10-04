@@ -15,27 +15,7 @@ name = "python_mappy_ml"
 crate-type = ["cdylib"]
 
 [dependencies]
-# Workspace dependencies
-mappy-core = { path = "../mappy-core" }
-pyo3 = { workspace = true, features = ["extension-module"] }
-serde.workspace = true
-rayon.workspace = true
-
-# Image processing
-image = { path = "../../../vendor/image" }
-imageproc = "0.25.0"
-memmap2 = "0.9.9"
-
-# NumPy integration
-numpy = "0.27.0"
-ndarray = "0.16.1"  # Must match numpy-rs's ndarray version
-
-# Tensor export
-tch = "0.22.0"
-
-# Error handling
-anyhow.workspace = true
-thiserror.workspace = true
+image = { git = "https://git.sly.so/kade/image" }
 
 [dev-dependencies]
 criterion.workspace = true

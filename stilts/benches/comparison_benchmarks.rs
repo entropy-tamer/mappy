@@ -1,7 +1,8 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Comparison benchmarks with external libraries
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use stilts::benchmark::{BenchmarkRunner, ComparisonRunner};
 
 fn generate_test_data() -> Vec<u8> {

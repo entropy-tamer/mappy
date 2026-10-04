@@ -2,7 +2,7 @@
 //! Storage benchmarks: mappy vs other data structures
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use criterion::black_box;
+use std::hint::black_box;
 use stilts::benchmark::mappy_comparison::MappyComparisonRunner;
 use stilts::compression::{
     ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor,

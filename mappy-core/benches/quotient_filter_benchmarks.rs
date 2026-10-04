@@ -1,6 +1,6 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use mappy_core::hash::HashFunction;
 use mappy_core::quotient_filter::QuotientFilter;
 use rand::rngs::StdRng;
@@ -140,28 +140,24 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
         );
 
         // Benchmark HashSet
-        group.bench_with_input(
-            BenchmarkId::new("HashSet", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    let mut set = HashSet::new();
-                    let mut rng = StdRng::seed_from_u64(42);
+        group.bench_with_input(BenchmarkId::new("HashSet", size), &size, |b, &size| {
+            b.iter(|| {
+                let mut set = HashSet::new();
+                let mut rng = StdRng::seed_from_u64(42);
 
-                    for _ in 0..size {
-                        let value = rng.random::<u64>();
-                        set.insert(value);
-                    }
+                for _ in 0..size {
+                    let value = rng.random::<u64>();
+                    set.insert(value);
+                }
 
-                    for _ in 0..size {
-                        let value = rng.random::<u64>();
-                        hint_black_box(set.contains(&value));
-                    }
+                for _ in 0..size {
+                    let value = rng.random::<u64>();
+                    hint_black_box(set.contains(&value));
+                }
 
-                    hint_black_box(set)
-                })
-            },
-        );
+                hint_black_box(set)
+            })
+        });
     }
 
     group.finish();
@@ -211,13 +207,19 @@ fn bench_slot_finding(c: &mut Criterion) {
         let mut rng = StdRng::seed_from_u64(42);
         let values: Vec<u64> = (0..size).map(|_| rng.random::<u64>()).collect();
 
-        group.bench_with_input(BenchmarkId::new("get_actual_slot", size), &values, |b, vals| {
-            b.iter(|| {
-                for v in vals {
-                    let mut filter = QuotientFilter::new(vals.len() * 2, 8, HashFunction::AHash).unwrap(); hint_black_box(filter.get_actual_slot_for_fingerprint(*v));
-                }
-            })
-        });
+        group.bench_with_input(
+            BenchmarkId::new("get_actual_slot", size),
+            &values,
+            |b, vals| {
+                b.iter(|| {
+                    for v in vals {
+                        let filter =
+                            QuotientFilter::new(vals.len() * 2, 8, HashFunction::AHash).unwrap();
+                        hint_black_box(filter.get_actual_slot_for_fingerprint(*v));
+                    }
+                })
+            },
+        );
     }
 
     group.finish();
@@ -283,8 +285,9 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                     use std::sync::{Arc, Mutex};
                     use std::thread;
 
-                    let filter =
-                        Arc::new(Mutex::new(QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap()));
+                    let filter = Arc::new(Mutex::new(
+                        QuotientFilter::new(10000, 8, HashFunction::AHash).unwrap(),
+                    ));
                     let mut handles = vec![];
 
                     for thread_id in 0..num_threads {
@@ -316,46 +319,42 @@ fn bench_false_positive_rate(c: &mut Criterion) {
     let mut group = c.benchmark_group("false_positive_rate");
 
     for size in [1000usize, 10000, 100000] {
-        group.bench_with_input(
-            BenchmarkId::new("false_positive", size),
-            &size,
-            |b, &s| {
-                b.iter(|| {
-                    let mut filter = QuotientFilter::new(s * 2, 8, HashFunction::AHash).unwrap();
-                    let mut rng = StdRng::seed_from_u64(42);
-                    let mut inserted = HashSet::new();
+        group.bench_with_input(BenchmarkId::new("false_positive", size), &size, |b, &s| {
+            b.iter(|| {
+                let mut filter = QuotientFilter::new(s * 2, 8, HashFunction::AHash).unwrap();
+                let mut rng = StdRng::seed_from_u64(42);
+                let mut inserted = HashSet::new();
 
-                    // Insert values
-                    for _ in 0..s {
-                        let value = rng.random::<u64>();
-                        filter.insert(value).unwrap();
-                        inserted.insert(value);
-                    }
+                // Insert values
+                for _ in 0..s {
+                    let value = rng.random::<u64>();
+                    filter.insert(value).unwrap();
+                    inserted.insert(value);
+                }
 
-                    // Test for false positives
-                    let mut false_positives = 0;
-                    let mut total_tested = 0;
+                // Test for false positives
+                let mut false_positives = 0;
+                let mut total_tested = 0;
 
-                    for _ in 0..s {
-                        let value = rng.random::<u64>();
-                        if !inserted.contains(&value) {
-                            total_tested += 1;
-                            if filter.query(value) {
-                                false_positives += 1;
-                            }
+                for _ in 0..s {
+                    let value = rng.random::<u64>();
+                    if !inserted.contains(&value) {
+                        total_tested += 1;
+                        if filter.query(value) {
+                            false_positives += 1;
                         }
                     }
+                }
 
-                    let rate = if total_tested > 0 {
-                        false_positives as f64 / total_tested as f64
-                    } else {
-                        0.0
-                    };
+                let rate = if total_tested > 0 {
+                    false_positives as f64 / total_tested as f64
+                } else {
+                    0.0
+                };
 
-                    hint_black_box(rate)
-                })
-            },
-        );
+                hint_black_box(rate)
+            })
+        });
     }
 
     group.finish();

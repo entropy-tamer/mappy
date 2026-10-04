@@ -673,7 +673,9 @@ mod tests {
         let op = StringOperator;
         let cloned = op;
         assert_eq!(
-            cloned.merge("left".to_string(), "right".to_string()).unwrap(),
+            cloned
+                .merge("left".to_string(), "right".to_string())
+                .unwrap(),
             "right"
         );
     }
@@ -683,7 +685,9 @@ mod tests {
         let op = StringConcatOperator;
         let cloned = op;
         assert_eq!(
-            cloned.merge("hello".to_string(), "world".to_string()).unwrap(),
+            cloned
+                .merge("hello".to_string(), "world".to_string())
+                .unwrap(),
             "helloworld"
         );
     }

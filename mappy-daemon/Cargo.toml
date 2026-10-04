@@ -6,11 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Smol socket-only KV daemon backed by mappy-core (silly, fast, semi-unreliable)"
+rust-version = "1.98.1"
 
 [[bin]]
 name = "mappy-daemon"
 path = "src/main.rs"
-rust-version = "1.98.1"
 
 [dependencies]
 mappy-core = { path = "../mappy-core" }

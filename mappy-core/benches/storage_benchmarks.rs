@@ -1,11 +1,11 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Storage backend performance benchmarks
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
-use std::time::Duration;
+use std::hint::black_box;
 use tokio::runtime::Runtime;
 
 /// Generate random test data

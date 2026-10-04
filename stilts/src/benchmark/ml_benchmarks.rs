@@ -134,7 +134,10 @@ impl MLBenchmarkRunner {
         // This moves mappy queries out of the hot path
         let mut cached_tag_sets: Vec<Vec<String>> = Vec::with_capacity(tag_sets.len());
         for (idx, original_tags) in tag_sets.iter().enumerate() {
-            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet)
+                .query(format!("item_{}", idx))
+                .await
+            {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 cached_tag_sets.push(decompressed);
             } else {
@@ -310,7 +313,10 @@ impl MLBenchmarkRunner {
         let mut retrieved_sets = Vec::new();
 
         for idx in 0..tag_sets.len() {
-            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet)
+                .query(format!("item_{}", idx))
+                .await
+            {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 retrieved_sets.push(decompressed);
             }
@@ -382,7 +388,10 @@ impl MLBenchmarkRunner {
         // This moves mappy queries out of the hot path
         let mut cached_tag_sets: Vec<Vec<String>> = Vec::with_capacity(tag_sets.len());
         for (idx, original_tags) in tag_sets.iter().enumerate() {
-            if let Some(compressed) = Arc::clone(&mappy_maplet).query(format!("item_{}", idx)).await {
+            if let Some(compressed) = Arc::clone(&mappy_maplet)
+                .query(format!("item_{}", idx))
+                .await
+            {
                 let decompressed = storage.decompress_tags(&compressed)?;
                 cached_tag_sets.push(decompressed);
             } else {

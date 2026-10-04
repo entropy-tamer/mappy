@@ -226,7 +226,10 @@ mod tests {
     #[test]
     fn test_json_serializer_special_characters() {
         let serializer = JsonSerializer::new();
-        let tags = vec!["tag with spaces".to_string(), "tag\"with\"quotes".to_string()];
+        let tags = vec![
+            "tag with spaces".to_string(),
+            "tag\"with\"quotes".to_string(),
+        ];
         let result = serializer.serialize(&tags);
         assert!(result.is_ok());
         let json_str = result.unwrap();

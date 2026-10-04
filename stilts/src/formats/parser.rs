@@ -223,22 +223,34 @@ mod tests {
     #[test]
     fn test_json_with_special_chars() {
         let parser = JsonParser::new();
-        let tags = parser.parse(r#"["tag-with-dash","tag_with_underscore"]"#).unwrap();
+        let tags = parser
+            .parse(r#"["tag-with-dash","tag_with_underscore"]"#)
+            .unwrap();
         assert_eq!(tags, vec!["tag-with-dash", "tag_with_underscore"]);
     }
 
     #[test]
     fn test_space_separated_with_special_chars() {
         let parser = SpaceSeparatedParser::new();
-        let tags = parser.parse("tag-with-dash tag_with_underscore tag.with.dots").unwrap();
-        assert_eq!(tags, vec!["tag-with-dash", "tag_with_underscore", "tag.with.dots"]);
+        let tags = parser
+            .parse("tag-with-dash tag_with_underscore tag.with.dots")
+            .unwrap();
+        assert_eq!(
+            tags,
+            vec!["tag-with-dash", "tag_with_underscore", "tag.with.dots"]
+        );
     }
 
     #[test]
     fn test_comma_separated_with_special_chars() {
         let parser = CommaSeparatedParser::new();
-        let tags = parser.parse("tag-with-dash,tag_with_underscore,tag.with.dots").unwrap();
-        assert_eq!(tags, vec!["tag-with-dash", "tag_with_underscore", "tag.with.dots"]);
+        let tags = parser
+            .parse("tag-with-dash,tag_with_underscore,tag.with.dots")
+            .unwrap();
+        assert_eq!(
+            tags,
+            vec!["tag-with-dash", "tag_with_underscore", "tag.with.dots"]
+        );
     }
 
     #[test]

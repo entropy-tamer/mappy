@@ -14,8 +14,8 @@
 //! directly (PING, SET, GET, DEL, KEYS, STATS).
 
 use anyhow::Context as _;
-use async_net::unix::UnixStream;
 use async_net::TcpListener;
+use async_net::unix::UnixStream;
 use futures_lite::io::copy;
 use std::net::SocketAddr;
 
@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     let socket_path = unix_socket_path();
 
     smol::block_on(async {
-                let listener = TcpListener::bind(addr)
+        let listener = TcpListener::bind(addr)
             .await
             .with_context(|| format!("failed to bind TCP listener on {addr}"))?;
 

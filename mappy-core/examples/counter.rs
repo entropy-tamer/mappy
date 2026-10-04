@@ -5,8 +5,8 @@
 //! as described in Section 4 of the research paper.
 
 use mappy_core::{Maplet, MapletConfig, operators::CounterOperator};
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Simulate k-mer counting using a maplet
 #[tokio::main]
@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for j in 0..=sequence.len() - k {
             let kmer = &sequence[j..j + k];
-            Arc::clone(&kmer_counter).insert(kmer.to_string(), 1).await?;
+            Arc::clone(&kmer_counter)
+                .insert(kmer.to_string(), 1)
+                .await?;
         }
     }
 

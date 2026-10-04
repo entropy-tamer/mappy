@@ -4,12 +4,12 @@
 
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
+use async_lock::RwLock;
 use async_trait::async_trait;
 use sled::{Db, Tree};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use async_lock::RwLock;
 
 const LEAF_FANOUT: usize = 1024;
 
@@ -88,7 +88,8 @@ impl Storage for DiskStorage {
                 .map_err(|e| MapletError::Internal(format!("Failed to get key: {e}")))?
                 .map(|ivec| ivec.to_vec())
         };
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
 
         self.update_stats(|stats| {
             stats.operations_count += 1;
@@ -105,15 +106,18 @@ impl Storage for DiskStorage {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
             tree.insert(&key, value)
                 .map_err(|e| MapletError::Internal(format!("Failed to set key: {e}")))?;
-            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+            tree.len()
+                .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
         };
-        
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
-        
+
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
+
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
+            stats.total_keys =
+                u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         })
         .await;
 
@@ -140,13 +144,15 @@ impl Storage for DiskStorage {
                 .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?;
             (existed, tree_len)
         };
-        
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
-        
+
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
+
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
-            stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
+            stats.total_keys =
+                u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         })
         .await;
 
@@ -167,7 +173,8 @@ impl Storage for DiskStorage {
             tree.contains_key(key)
                 .map_err(|e| MapletError::Internal(format!("Failed to check key existence: {e}")))?
         };
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
 
         self.update_stats(|stats| {
             stats.operations_count += 1;
@@ -185,16 +192,17 @@ impl Storage for DiskStorage {
             let keys: Result<Vec<String>, _> = tree
                 .iter()
                 .map(|result| {
-                    let (key, _) =
-                        result.map_err(|e| MapletError::Internal(format!("Failed to iterate: {e}")))?;
+                    let (key, _) = result
+                        .map_err(|e| MapletError::Internal(format!("Failed to iterate: {e}")))?;
                     String::from_utf8(key.to_vec())
                         .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {e}")))
                 })
                 .collect();
             keys?
         };
-        
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
+
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
 
         self.update_stats(|stats| {
             stats.operations_count += 1;
@@ -212,9 +220,10 @@ impl Storage for DiskStorage {
             tree.clear()
                 .map_err(|e| MapletError::Internal(format!("Failed to clear database: {e}")))?;
         }
-        
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
-        
+
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
+
         self.update_stats(|stats| {
             stats.operations_count += 1;
             stats.avg_latency_us = u64::midpoint(stats.avg_latency_us, latency);
@@ -239,8 +248,9 @@ impl Storage for DiskStorage {
             db.flush()
                 .map_err(|e| MapletError::Internal(format!("Failed to flush: {e}")))?;
         }
-        
-        let latency = u64::try_from(start.elapsed().as_micros()).expect("Failed to convert microseconds to u64");
+
+        let latency = u64::try_from(start.elapsed().as_micros())
+            .expect("Failed to convert microseconds to u64");
 
         self.update_stats(|stats| {
             stats.operations_count += 1;
@@ -262,10 +272,11 @@ impl Storage for DiskStorage {
         let mut stats = self.stats.read().await.clone();
         let tree_len = {
             let tree = self.tree.lock().expect("Failed to acquire tree lock");
-            tree.len().map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
+            tree.len()
+                .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
         };
         let disk_usage = self.calculate_disk_usage().await;
-        
+
         stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         stats.disk_usage = disk_usage;
         Ok(stats)
@@ -304,13 +315,28 @@ mod tests {
         assert_eq!(value, Some(b"value1".to_vec()));
 
         // Test exists
-        assert!(storage.exists("key1").await.expect("Failed to check key1 existence"));
-        assert!(!storage.exists("key2").await.expect("Failed to check key2 existence"));
+        assert!(
+            storage
+                .exists("key1")
+                .await
+                .expect("Failed to check key1 existence")
+        );
+        assert!(
+            !storage
+                .exists("key2")
+                .await
+                .expect("Failed to check key2 existence")
+        );
 
         // Test delete
         let deleted = storage.delete("key1").await.expect("Failed to delete key1");
         assert!(deleted);
-        assert!(!storage.exists("key1").await.expect("Failed to check key1 existence after delete"));
+        assert!(
+            !storage
+                .exists("key1")
+                .await
+                .expect("Failed to check key1 existence after delete")
+        );
     }
 
     #[tokio::test]
@@ -390,7 +416,10 @@ mod tests {
             .await
             .expect("Failed to set key1");
 
-        storage.clear_database().await.expect("Failed to clear database");
+        storage
+            .clear_database()
+            .await
+            .expect("Failed to clear database");
 
         assert_eq!(storage.get("key1").await.expect("Failed to get key1"), None);
     }
@@ -460,7 +489,10 @@ mod tests {
         };
         let storage = DiskStorage::new(config).expect("Failed to create disk storage");
 
-        let deleted = storage.delete("nonexistent").await.expect("Failed to delete");
+        let deleted = storage
+            .delete("nonexistent")
+            .await
+            .expect("Failed to delete");
         assert!(!deleted);
     }
 

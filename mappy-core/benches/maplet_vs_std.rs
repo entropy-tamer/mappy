@@ -56,7 +56,10 @@ fn bench_insert(c: &mut Criterion) {
                         Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
                     );
                     for (key, value) in &test_data {
-                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet)
+                            .insert(key.clone(), *value)
+                            .await
+                            .unwrap();
                     }
                     black_box(maplet);
                 });
@@ -114,7 +117,10 @@ fn bench_query(c: &mut Criterion) {
             let maplet =
                 Arc::new(Maplet::<String, u64, CounterOperator>::new(*size, 0.01).unwrap());
             for (key, value) in &test_data {
-                Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
+                Arc::clone(&maplet)
+                    .insert(key.clone(), *value)
+                    .await
+                    .unwrap();
             }
             maplet
         });
@@ -180,7 +186,10 @@ fn bench_memory_usage(c: &mut Criterion) {
                         Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
                     );
                     for (key, value) in &test_data {
-                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet)
+                            .insert(key.clone(), *value)
+                            .await
+                            .unwrap();
                     }
                     // Get stats to measure memory
                     let stats = Arc::clone(&maplet).stats().await;
@@ -220,7 +229,10 @@ fn bench_merge_operations(c: &mut Criterion) {
                         Maplet::<String, u64, CounterOperator>::new(*size * 8, 0.01).unwrap(),
                     );
                     for (key, value) in &test_data {
-                        Arc::clone(&maplet).insert(key.clone(), *value).await.unwrap();
+                        Arc::clone(&maplet)
+                            .insert(key.clone(), *value)
+                            .await
+                            .unwrap();
                     }
                     black_box(maplet);
                 });

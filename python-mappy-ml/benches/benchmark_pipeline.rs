@@ -1,6 +1,7 @@
 //! Benchmark pipeline performance
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+use criterion::{criterion_group, criterion_main, Criterion};
 use image::{DynamicImage, RgbImage};
 use std::time::Instant;
 

@@ -4,7 +4,10 @@ use axum::{
     Router,
     extract::{Path, Query, State},
     http::StatusCode,
-    response::{sse::{Event, Sse}, Json},
+    response::{
+        Json,
+        sse::{Event, Sse},
+    },
     routing::{delete, get as get_route, post},
 };
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
@@ -17,7 +20,7 @@ use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, UnixListener};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tower::Service;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
@@ -274,10 +277,16 @@ async fn get_errors(
 
             let severity_match = if let Some(ref sf) = severity_filter {
                 match e {
-                    MappyError::CapacityExceeded { severity, .. } => format!("{:?}", severity) == *sf,
-                    MappyError::CollisionLimitExceeded { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::CapacityExceeded { severity, .. } => {
+                        format!("{:?}", severity) == *sf
+                    }
+                    MappyError::CollisionLimitExceeded { severity, .. } => {
+                        format!("{:?}", severity) == *sf
+                    }
                     MappyError::ResizeFailed { severity, .. } => format!("{:?}", severity) == *sf,
-                    MappyError::SerializationError { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::SerializationError { severity, .. } => {
+                        format!("{:?}", severity) == *sf
+                    }
                     MappyError::Internal { severity, .. } => format!("{:?}", severity) == *sf,
                     MappyError::OneSidedError { severity, .. } => format!("{:?}", severity) == *sf,
                 }
@@ -321,8 +330,14 @@ async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsRespon
             MappyError::CapacityExceeded { .. } => {
                 *by_type.entry("CapacityExceeded".to_string()).or_insert(0) += 1;
             }
-            MappyError::CollisionLimitExceeded { chain_length, severity, .. } => {
-                *by_type.entry("CollisionLimitExceeded".to_string()).or_insert(0) += 1;
+            MappyError::CollisionLimitExceeded {
+                chain_length,
+                severity,
+                ..
+            } => {
+                *by_type
+                    .entry("CollisionLimitExceeded".to_string())
+                    .or_insert(0) += 1;
                 collision_count += 1;
                 max_chain_length = max_chain_length.max(*chain_length);
                 *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
@@ -348,7 +363,8 @@ async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsRespon
 
     let total_errors = error_log.len();
     let error_rate = if total_errors > 0 {
-        (by_type.get("CollisionLimitExceeded").unwrap_or(&0) + by_type.get("CapacityExceeded").unwrap_or(&0)) as f64
+        (by_type.get("CollisionLimitExceeded").unwrap_or(&0)
+            + by_type.get("CapacityExceeded").unwrap_or(&0)) as f64
             / total_errors as f64
     } else {
         0.0
@@ -400,7 +416,11 @@ async fn get_metrics(State(state): State<AppState>) -> Json<MetricsResponse> {
 
     let (total_keys, memory_usage, load_factor) = if let Some(engine) = &*engine_guard {
         let stats = engine.stats().await.unwrap();
-        (stats.maplet_stats.len, stats.maplet_stats.memory_usage, stats.maplet_stats.load_factor)
+        (
+            stats.maplet_stats.len,
+            stats.maplet_stats.memory_usage,
+            stats.maplet_stats.load_factor,
+        )
     } else {
         (0, 0, 0.0)
     };
@@ -636,7 +656,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/errors/one-sided", get_route(get_one_sided_errors))
         .route("/api/metrics", get_route(get_metrics))
         .route("/api/errors/stream", get_route(errors_stream))
-        .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
         .with_state(state);
 
     // Start servers based on configuration
@@ -664,9 +689,7 @@ async fn main() -> anyhow::Result<()> {
         let socket_handle =
             tokio::spawn(async move { serve_unix_socket(unix_listener, app_clone).await });
 
-        let http_handle = tokio::spawn(async move {
-            serve_http_socket(http_listener, app).await
-        });
+        let http_handle = tokio::spawn(async move { serve_http_socket(http_listener, app).await });
 
         tokio::select! {
             result = socket_handle => {
@@ -787,12 +810,19 @@ mod tests {
     async fn test_health_endpoint() {
         let app = create_test_app().await;
         let response = app
-            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let health: HealthResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(health.status, "healthy");
         assert_eq!(health.service, "Mappy");
@@ -802,12 +832,19 @@ mod tests {
     async fn test_status_endpoint_with_engine() {
         let app = create_test_app().await;
         let response = app
-            .oneshot(Request::builder().uri("/status").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/status")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let status: StatusResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(status.status, "running");
         assert!(status.engine_ready);
@@ -817,12 +854,19 @@ mod tests {
     async fn test_status_endpoint_without_engine() {
         let app = create_test_app_no_engine().await;
         let response = app
-            .oneshot(Request::builder().uri("/status").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/status")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let status: StatusResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(status.status, "running");
         assert!(!status.engine_ready);
@@ -908,7 +952,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(get_response.key, "test_key");
         assert!(get_response.found);
@@ -930,7 +976,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(get_response.key, "nonexistent_key");
         assert!(!get_response.found);
@@ -959,11 +1007,7 @@ mod tests {
         let app = create_test_app().await;
 
         // Set multiple values
-        let keys_values = vec![
-            ("key1", "value1"),
-            ("key2", "value2"),
-            ("key3", "value3"),
-        ];
+        let keys_values = vec![("key1", "value1"), ("key2", "value2"), ("key3", "value3")];
 
         for (key, value) in &keys_values {
             let request_body = serde_json::json!({
@@ -1001,7 +1045,9 @@ mod tests {
                 .unwrap();
 
             assert_eq!(response.status(), StatusCode::OK);
-            let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
             let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
             assert_eq!(get_response.key, *key);
             assert!(get_response.found);
@@ -1046,7 +1092,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert!(get_response.found);
         assert_eq!(
@@ -1091,7 +1139,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert!(get_response.found);
         assert_eq!(get_response.value, Some("".to_string()));

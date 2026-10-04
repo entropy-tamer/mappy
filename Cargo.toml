@@ -29,7 +29,11 @@ serde_json = { git = "https://git.sly.so/kade/serde_json" }
 bitcode = { git = "https://git.sly.so/kade/bitcode" }
 
 # Hashing and bit operations
-ahash = { git = "https://git.sly.so/kade/ahash", rev = "999fd53" }  # Latest commit with SIMD fixes
+# kade/ahash default branch is master. This tracked `rev = "999fd53"` (SIMD fixes),
+# which was HEAD at the time -- so the pin froze the crate at the branch tip rather
+# than pointing behind it, and cost nothing to resolve. Un-pinned 2026-10-02: same
+# commit today, but the crate now follows its default branch as the pact requires.
+ahash = { git = "https://git.sly.so/kade/ahash" }
 fnv = { git = "https://git.sly.so/kade/fnv" }  # Fallback hash without SIMD
 bitvec = { git = "https://git.sly.so/kade/bitvec" }
 twox-hash = { git = "https://git.sly.so/kade/twox-hash" }
@@ -113,7 +117,6 @@ quote = { git = "https://git.sly.so/kade/quote" }
 bytes = { git = "https://git.sly.so/kade/bytes" }
 tokio = { git = "https://git.sly.so/kade/tokio", package = "tokio" }
 tokio-util = { git = "https://git.sly.so/kade/tokio", package = "tokio-util" }
-tokio-test = { git = "https://git.sly.so/kade/tokio", package = "tokio-test" }
 serde = { git = "https://git.sly.so/kade/serde", package = "serde" }
 serde_core = { git = "https://git.sly.so/kade/serde", package = "serde_core" }
 serde_derive = { git = "https://git.sly.so/kade/serde", package = "serde_derive" }

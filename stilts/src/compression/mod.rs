@@ -43,7 +43,8 @@ mod tests {
         }
 
         fn decompress(&self, data: &[u8]) -> anyhow::Result<Vec<String>> {
-            let str_data = std::str::from_utf8(data).map_err(|e| anyhow::anyhow!("Invalid UTF-8: {}", e))?;
+            let str_data =
+                std::str::from_utf8(data).map_err(|e| anyhow::anyhow!("Invalid UTF-8: {}", e))?;
             Ok(str_data.split(',').map(|s| s.to_string()).collect())
         }
 

@@ -16,7 +16,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create a maplet for routing table (prefix -> set of next hops)
     let config = mappy_core::types::MapletConfig::new(1000, 0.01);
-    let routing_table = Arc::new(Maplet::<String, HashSet<String>, SetOperator>::with_config(config)?);
+    let routing_table = Arc::new(Maplet::<String, HashSet<String>, SetOperator>::with_config(
+        config,
+    )?);
 
     // Simulate network topology
     let routes = vec![
@@ -95,7 +97,10 @@ async fn find_best_route(
     for prefix_len in (0..=4).rev() {
         if prefix_len == 0 {
             // Try default route
-            if let Some(routes) = Arc::clone(routing_table).query("0.0.0.0/0".to_string()).await {
+            if let Some(routes) = Arc::clone(routing_table)
+                .query("0.0.0.0/0".to_string())
+                .await
+            {
                 return Some(routes);
             }
         } else {

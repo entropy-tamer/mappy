@@ -159,7 +159,9 @@ async fn handle_command(
             };
             match engine.get(key).await {
                 Ok(Some(v)) => {
-                    let _ = writer.write_all(format!("VAL {}\n", v.len()).as_bytes()).await;
+                    let _ = writer
+                        .write_all(format!("VAL {}\n", v.len()).as_bytes())
+                        .await;
                     let _ = writer.write_all(&v).await;
                     let _ = writer.write_all(b"\n").await;
                 }
@@ -187,7 +189,9 @@ async fn handle_command(
                 Ok(keys) => {
                     let matched: Vec<&String> =
                         keys.iter().filter(|k| glob_match(pattern, k)).collect();
-                    let _ = writer.write_all(format!("KEYS {}\n", matched.len()).as_bytes()).await;
+                    let _ = writer
+                        .write_all(format!("KEYS {}\n", matched.len()).as_bytes())
+                        .await;
                     for k in matched {
                         let _ = writer.write_all(format!("{}\n", k.len()).as_bytes()).await;
                         let _ = writer.write_all(k.as_bytes()).await;
@@ -212,7 +216,7 @@ async fn handle_command(
                 write_line(writer, &json.to_string()).await;
             }
             Err(e) => write_line(writer, &format!("ERR {e}")).await,
-        }
+        },
 
         "HEALTH" => write_line(writer, "OK").await,
 

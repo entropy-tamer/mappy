@@ -1,7 +1,8 @@
 #![allow(clippy::cast_precision_loss)] // Acceptable for benchmark/example calculations
 //! Compression algorithm benchmarks
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use stilts::compression::{
     ArithmeticCompressor, Compressor, DictionaryCompressor, HuffmanCompressor,
 };

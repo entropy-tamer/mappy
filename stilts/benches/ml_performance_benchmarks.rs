@@ -4,7 +4,8 @@
 //! These benchmarks prove that there are no speed hits when using approximate
 //! mappy storage for ML tasks compared to exact storage.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
 use stilts::benchmark::ml_benchmarks::MLBenchmarkRunner;
 use stilts::benchmark::ml_tasks::{TagClustering, TagEmbedding, TagSimilarity};
 

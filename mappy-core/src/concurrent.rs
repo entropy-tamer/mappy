@@ -58,7 +58,9 @@ where
     /// # Errors
     /// Returns an error if the deletion fails.
     pub async fn delete(&self, key: &K, value: &V) -> MapletResult<bool> {
-        Arc::clone(&self.inner).delete(key.clone(), value.clone()).await
+        Arc::clone(&self.inner)
+            .delete(key.clone(), value.clone())
+            .await
     }
 
     /// Get length

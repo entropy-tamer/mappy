@@ -4,11 +4,11 @@
 
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
+use async_lock::RwLock;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use async_lock::RwLock;
 
 /// In-memory storage using `DashMap`
 pub struct MemoryStorage {

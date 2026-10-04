@@ -300,9 +300,7 @@ mod tests {
     #[test]
     fn test_build_from_corpus_single_tag() {
         let mut compressor = DictionaryCompressor::new();
-        compressor
-            .build_from_corpus(&["tag1".to_string()])
-            .unwrap();
+        compressor.build_from_corpus(&["tag1".to_string()]).unwrap();
         assert_eq!(compressor.dictionary.len(), 1);
         assert_eq!(compressor.next_code, 1);
     }
@@ -311,11 +309,7 @@ mod tests {
     fn test_build_from_corpus_multiple_tags() {
         let mut compressor = DictionaryCompressor::new();
         compressor
-            .build_from_corpus(&[
-                "tag1".to_string(),
-                "tag2".to_string(),
-                "tag3".to_string(),
-            ])
+            .build_from_corpus(&["tag1".to_string(), "tag2".to_string(), "tag3".to_string()])
             .unwrap();
         assert_eq!(compressor.dictionary.len(), 3);
         assert_eq!(compressor.next_code, 3);
@@ -325,11 +319,7 @@ mod tests {
     fn test_build_from_corpus_with_duplicates() {
         let mut compressor = DictionaryCompressor::new();
         compressor
-            .build_from_corpus(&[
-                "tag1".to_string(),
-                "tag1".to_string(),
-                "tag2".to_string(),
-            ])
+            .build_from_corpus(&["tag1".to_string(), "tag1".to_string(), "tag2".to_string()])
             .unwrap();
         assert_eq!(compressor.dictionary.len(), 2);
     }
@@ -371,9 +361,7 @@ mod tests {
     #[test]
     fn test_compress_empty_tags() {
         let mut compressor = DictionaryCompressor::new();
-        compressor
-            .build_from_corpus(&["tag1".to_string()])
-            .unwrap();
+        compressor.build_from_corpus(&["tag1".to_string()]).unwrap();
         let result = compressor.compress(&[]);
         assert!(result.is_ok());
     }

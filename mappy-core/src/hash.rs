@@ -255,7 +255,20 @@ mod tests {
         let key = "test_key";
 
         let fingerprint = hasher.fingerprint(&key);
-        assert!(fingerprint <= u64::MAX);
+
+        // This asserted `fingerprint <= u64::MAX` on a `u64`, which cannot
+        // fail. What makes "64 bits" a claim worth testing is that the hasher
+        // reaches past the width the sibling 12-bit test pins, and that it is
+        // deterministic for a fixed key.
+        assert!(
+            fingerprint >= (1u64 << 12),
+            "a 64-bit hasher must be able to exceed 12 bits, got {fingerprint}"
+        );
+        assert_eq!(
+            fingerprint,
+            hasher.fingerprint(&key),
+            "fingerprinting must be deterministic for a fixed key"
+        );
     }
 
     #[test]
@@ -314,7 +327,10 @@ mod tests {
         let cloned = perfect_hash.clone();
 
         let fingerprint = 12345u64;
-        assert_eq!(perfect_hash.slot_index(fingerprint), cloned.slot_index(fingerprint));
+        assert_eq!(
+            perfect_hash.slot_index(fingerprint),
+            cloned.slot_index(fingerprint)
+        );
     }
 
     #[test]

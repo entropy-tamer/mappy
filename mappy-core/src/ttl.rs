@@ -161,7 +161,12 @@ impl TTLManager {
     ///
     /// # Errors
     /// Returns an error if removing the old TTL or setting the new TTL fails.
-    pub async fn set_ttl(self: Arc<Self>, key: String, db_id: u8, ttl_seconds: u64) -> MapletResult<()>
+    pub async fn set_ttl(
+        self: Arc<Self>,
+        key: String,
+        db_id: u8,
+        ttl_seconds: u64,
+    ) -> MapletResult<()>
     where
         Self: Send + Sync,
     {
@@ -497,16 +502,36 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 60)
+            .await
+            .unwrap();
 
-        let ttl = Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap();
+        let ttl = Arc::clone(&manager)
+            .get_ttl("key1".to_string())
+            .await
+            .unwrap();
         assert!(ttl.is_some());
         assert!(ttl.unwrap() <= 60);
 
-        assert!(!Arc::clone(&manager).is_expired("key1".to_string()).await.unwrap());
+        assert!(
+            !Arc::clone(&manager)
+                .is_expired("key1".to_string())
+                .await
+                .unwrap()
+        );
 
-        Arc::clone(&manager).remove_ttl("key1".to_string()).await.unwrap();
-        assert!(Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap().is_none());
+        Arc::clone(&manager)
+            .remove_ttl("key1".to_string())
+            .await
+            .unwrap();
+        assert!(
+            Arc::clone(&manager)
+                .get_ttl("key1".to_string())
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -514,11 +539,19 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 1).await.unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 1)
+            .await
+            .unwrap();
 
         tokio::time::sleep(Duration::from_millis(1100)).await;
 
-        assert!(Arc::clone(&manager).is_expired("key1".to_string()).await.unwrap());
+        assert!(
+            Arc::clone(&manager)
+                .is_expired("key1".to_string())
+                .await
+                .unwrap()
+        );
 
         let expired = Arc::clone(&manager).get_expired_keys().await.unwrap();
         assert!(!expired.is_empty());
@@ -530,8 +563,14 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        Arc::clone(&manager).set_ttl("key2".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 60)
+            .await
+            .unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key2".to_string(), 0, 120)
+            .await
+            .unwrap();
 
         let stats = Arc::clone(&manager).get_stats().await.unwrap();
         assert_eq!(stats.total_keys_with_ttl, 2);
@@ -544,8 +583,14 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        Arc::clone(&manager).set_ttl("key2".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 60)
+            .await
+            .unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key2".to_string(), 0, 120)
+            .await
+            .unwrap();
 
         Arc::clone(&manager).clear_all().await.unwrap();
 
@@ -627,7 +672,10 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        let ttl = Arc::clone(&manager).get_ttl("nonexistent".to_string()).await.unwrap();
+        let ttl = Arc::clone(&manager)
+            .get_ttl("nonexistent".to_string())
+            .await
+            .unwrap();
         assert!(ttl.is_none());
     }
 
@@ -636,7 +684,10 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        let expired = Arc::clone(&manager).is_expired("nonexistent".to_string()).await.unwrap();
+        let expired = Arc::clone(&manager)
+            .is_expired("nonexistent".to_string())
+            .await
+            .unwrap();
         assert!(!expired);
     }
 
@@ -645,7 +696,12 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        assert!(Arc::clone(&manager).remove_ttl("nonexistent".to_string()).await.is_ok());
+        assert!(
+            Arc::clone(&manager)
+                .remove_ttl("nonexistent".to_string())
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -653,10 +709,19 @@ mod tests {
         let config = TTLConfig::default();
         let manager = Arc::new(TTLManager::new(config));
 
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 60).await.unwrap();
-        Arc::clone(&manager).set_ttl("key1".to_string(), 0, 120).await.unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 60)
+            .await
+            .unwrap();
+        Arc::clone(&manager)
+            .set_ttl("key1".to_string(), 0, 120)
+            .await
+            .unwrap();
 
-        let ttl = Arc::clone(&manager).get_ttl("key1".to_string()).await.unwrap();
+        let ttl = Arc::clone(&manager)
+            .get_ttl("key1".to_string())
+            .await
+            .unwrap();
         assert!(ttl.is_some());
         assert!(ttl.unwrap() <= 120);
     }
@@ -667,7 +732,10 @@ mod tests {
         let manager = Arc::new(TTLManager::new(config));
 
         for i in 0..10 {
-            Arc::clone(&manager).set_ttl(format!("key{}", i), 0, 60).await.unwrap();
+            Arc::clone(&manager)
+                .set_ttl(format!("key{}", i), 0, 60)
+                .await
+                .unwrap();
         }
 
         let stats = Arc::clone(&manager).get_stats().await.unwrap();
@@ -690,32 +758,37 @@ mod tests {
 
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
-            Arc::clone(&manager_clone).set_ttl("key1".to_string(), 0, 60).await
+            Arc::clone(&manager_clone)
+                .set_ttl("key1".to_string(), 0, 60)
+                .await
         });
         assert!(handle.await.unwrap().is_ok());
 
         let manager_clone = Arc::clone(&manager);
-        let handle = tokio::spawn(async move {
-            Arc::clone(&manager_clone).get_ttl("key1".to_string()).await
-        });
+        let handle =
+            tokio::spawn(
+                async move { Arc::clone(&manager_clone).get_ttl("key1".to_string()).await },
+            );
         assert!(handle.await.unwrap().unwrap().is_some());
 
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
-            Arc::clone(&manager_clone).is_expired("key1".to_string()).await
+            Arc::clone(&manager_clone)
+                .is_expired("key1".to_string())
+                .await
         });
         assert!(!handle.await.unwrap().unwrap());
 
         let manager_clone = Arc::clone(&manager);
         let handle = tokio::spawn(async move {
-            Arc::clone(&manager_clone).remove_ttl("key1".to_string()).await
+            Arc::clone(&manager_clone)
+                .remove_ttl("key1".to_string())
+                .await
         });
         assert!(handle.await.unwrap().is_ok());
 
         let manager_clone = Arc::clone(&manager);
-        let handle = tokio::spawn(async move {
-            Arc::clone(&manager_clone).get_stats().await
-        });
+        let handle = tokio::spawn(async move { Arc::clone(&manager_clone).get_stats().await });
         assert!(handle.await.unwrap().is_ok());
     }
 

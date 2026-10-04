@@ -57,7 +57,15 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get values
     let user1 = engine.get("user:1".to_string()).await?;
-    println!("  user:1 = {:?}", String::from_utf8_lossy(user1.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]")));
+    println!(
+        "  user:1 = {:?}",
+        String::from_utf8_lossy(
+            user1
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
+    );
 
     // Check existence
     let exists = engine.exists("user:2".to_string()).await?;
@@ -102,7 +110,7 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
     engine
         .set("cache:data".to_string(), b"cached_data".to_vec())
         .await?;
-    let result = engine.expire("nonexistent", 60).await.unwrap(); // Expires in 10 seconds
+    let _result = engine.expire("nonexistent", 60).await.unwrap(); // Expires in 10 seconds
 
     // Wait for first key to expire
     println!("  Waiting for session:abc123 to expire...");
@@ -145,7 +153,12 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let memory_value = memory_engine.get("memory_key".to_string()).await?;
     println!(
         "  Memory storage: {:?}",
-        String::from_utf8_lossy(memory_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            memory_value
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
     memory_engine.close().await?;
 
@@ -165,7 +178,12 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let disk_value = disk_engine.get("disk_key".to_string()).await?;
     println!(
         "  Disk storage: {:?}",
-        String::from_utf8_lossy(disk_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            disk_value
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
     disk_engine.close().await?;
 
@@ -185,7 +203,12 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let aof_value = aof_engine.get("aof_key".to_string()).await?;
     println!(
         "  AOF storage: {:?}",
-        String::from_utf8_lossy(aof_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            aof_value
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
     aof_engine.close().await?;
 
@@ -319,7 +342,12 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let cache_value = engine.get("cache:expensive_calculation").await?;
     println!(
         "    Cache hit: {:?}",
-        String::from_utf8_lossy(cache_value.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            cache_value
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
 
     // Use case 3: Rate limiting
@@ -360,11 +388,21 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let beta_feature = engine.get("feature:beta_feature").await?;
     println!(
         "    New UI: {:?}",
-        String::from_utf8_lossy(new_ui.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            new_ui
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
     println!(
         "    Beta Feature: {:?}",
-        String::from_utf8_lossy(beta_feature.as_ref().map(|v| v.as_slice()).unwrap_or(b"[not found]"))
+        String::from_utf8_lossy(
+            beta_feature
+                .as_ref()
+                .map(|v| v.as_slice())
+                .unwrap_or(b"[not found]")
+        )
     );
 
     engine.close().await?;

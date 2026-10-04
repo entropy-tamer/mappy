@@ -3,6 +3,7 @@
 //! Combines in-memory cache with AOF logging for optimal performance and durability.
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
+use async_lock::RwLock;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use serde_json;
@@ -10,9 +11,8 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Instant;
-use async_lock::RwLock;
 use std::time::Duration;
+use std::time::Instant;
 
 /// Hybrid storage backend combining memory and AOF
 pub struct HybridStorage {
@@ -161,7 +161,8 @@ impl HybridStorage {
                     {
                         let mut buffer = write_buffer.write().await;
                         if !buffer.is_empty()
-                            && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path)
+                            && let Err(e) =
+                                Self::flush_buffer_internal_static(&mut buffer, &aof_path)
                         {
                             eprintln!("Failed to flush AOF buffer: {e}");
                         }
@@ -184,13 +185,16 @@ impl HybridStorage {
                         {
                             let mut buffer = write_buffer.write().await;
                             if !buffer.is_empty()
-                                && let Err(e) = Self::flush_buffer_internal_static(&mut buffer, &aof_path)
+                                && let Err(e) =
+                                    Self::flush_buffer_internal_static(&mut buffer, &aof_path)
                             {
                                 eprintln!("Failed to flush AOF buffer: {e}");
                             }
                         }
                         if aof_path.exists() {
-                            if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                            if let Err(e) =
+                                std::fs::File::open(&aof_path).and_then(|f| f.sync_all())
+                            {
                                 eprintln!("Failed to sync AOF file: {e}");
                             }
                         }
@@ -417,7 +421,7 @@ impl Storage for HybridStorage {
 
     async fn close(&self) -> MapletResult<()> {
         // Cancel background sync task
-        if let Some(handle) = &self.sync_handle {
+        if let Some(_handle) = &self.sync_handle {
             // Task is cancelled when the storage is dropped.
         }
 

@@ -64,8 +64,9 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
             size,
             |b, &size| {
                 b.to_async(&rt).iter(|| async {
-                    let maplet =
-                        Arc::new(Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap());
+                    let maplet = Arc::new(
+                        Maplet::<String, u64, CounterOperator>::new(size * 2, 0.01).unwrap(),
+                    );
                     let mut rng = StdRng::seed_from_u64(42);
                     let mut test_keys = Vec::new();
 

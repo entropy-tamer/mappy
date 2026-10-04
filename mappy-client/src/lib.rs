@@ -110,7 +110,12 @@ impl Client {
     }
 
     /// Send a request via Unix socket
-    async fn request_unix(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
+    async fn request_unix(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&[u8]>,
+    ) -> anyhow::Result<Vec<u8>> {
         let socket_path = self
             .config
             .socket_path
@@ -150,7 +155,12 @@ impl Client {
     }
 
     /// Send a request via HTTP
-    async fn request_http(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
+    async fn request_http(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&[u8]>,
+    ) -> anyhow::Result<Vec<u8>> {
         let url = self
             .config
             .http_url
@@ -177,7 +187,12 @@ impl Client {
     }
 
     /// Send a request (auto-detects socket vs HTTP)
-    pub async fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> anyhow::Result<Vec<u8>> {
+    pub async fn request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&[u8]>,
+    ) -> anyhow::Result<Vec<u8>> {
         if self.config.socket_path.is_some() {
             self.request_unix(method, path, body).await
         } else if self.config.http_url.is_some() {
@@ -195,7 +210,11 @@ impl Client {
     }
 
     /// Set a key-value pair
-    pub async fn set(&self, key: impl Into<String>, value: impl Into<String>) -> anyhow::Result<()> {
+    pub async fn set(
+        &self,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> anyhow::Result<()> {
         let request = SetRequest {
             key: key.into(),
             value: value.into(),
@@ -231,19 +250,28 @@ mod tests {
     async fn test_client_basic_usage() {
         // Maplet's mutating/reading methods take `self: Arc<Self>`, so the handle
         // is an Arc and every call clones it. See mappy-core/src/maplet.rs:120.
-        let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).expect("Failed to create maplet"));
+        let maplet = Arc::new(
+            Maplet::<String, u64, CounterOperator>::new(100, 0.01)
+                .expect("Failed to create maplet"),
+        );
 
         Arc::clone(&maplet)
             .insert("test".to_string(), 42)
             .await
             .expect("Failed to insert test key");
-        assert_eq!(Arc::clone(&maplet).query("test".to_string()).await, Some(42));
+        assert_eq!(
+            Arc::clone(&maplet).query("test".to_string()).await,
+            Some(42)
+        );
     }
 
     #[test]
     fn test_client_config_default() {
         let config = ClientConfig::default();
-        assert_eq!(config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(
+            config.socket_path,
+            Some("/var/run/reynard/mappy.sock".to_string())
+        );
         assert_eq!(config.http_url, None);
     }
 
@@ -252,7 +280,10 @@ mod tests {
         unsafe { std::env::set_var("MAPPY_SOCKET_PATH", "") };
         unsafe { std::env::set_var("MAPPY_HTTP_URL", "") };
         let config = ClientConfig::from_env();
-        assert_eq!(config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(
+            config.socket_path,
+            Some("/var/run/reynard/mappy.sock".to_string())
+        );
         assert_eq!(config.http_url, None);
         unsafe { std::env::remove_var("MAPPY_SOCKET_PATH") };
         unsafe { std::env::remove_var("MAPPY_HTTP_URL") };
@@ -275,7 +306,10 @@ mod tests {
     #[test]
     fn test_client_new() {
         let client = Client::new();
-        assert_eq!(client.config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(
+            client.config.socket_path,
+            Some("/var/run/reynard/mappy.sock".to_string())
+        );
         assert_eq!(client.config.http_url, None);
     }
 
@@ -283,13 +317,19 @@ mod tests {
     fn test_client_with_config() {
         let config = ClientConfig::with_socket("/tmp/test.sock");
         let client = Client::with_config(config);
-        assert_eq!(client.config.socket_path, Some("/tmp/test.sock".to_string()));
+        assert_eq!(
+            client.config.socket_path,
+            Some("/tmp/test.sock".to_string())
+        );
     }
 
     #[test]
     fn test_client_default() {
         let client = Client::default();
-        assert_eq!(client.config.socket_path, Some("/var/run/reynard/mappy.sock".to_string()));
+        assert_eq!(
+            client.config.socket_path,
+            Some("/var/run/reynard/mappy.sock".to_string())
+        );
     }
 
     #[test]
@@ -326,7 +366,12 @@ mod tests {
         let client = Client::with_config(config);
         let result = client.request_unix("GET", "/health", None).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unix socket path not configured"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unix socket path not configured")
+        );
     }
 
     #[tokio::test]
@@ -338,7 +383,12 @@ mod tests {
         let client = Client::with_config(config);
         let result = client.request_http("GET", "/health", None).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("HTTP URL not configured"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("HTTP URL not configured")
+        );
     }
 
     #[tokio::test]
@@ -350,7 +400,12 @@ mod tests {
         let client = Client::with_config(config);
         let result = client.request("GET", "/health", None).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No connection method configured"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No connection method configured")
+        );
     }
 
     #[tokio::test]
@@ -362,6 +417,11 @@ mod tests {
         let client = Client::with_config(config);
         let result = client.request_http("DELETE", "/health", None).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported method"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Unsupported method")
+        );
     }
 }

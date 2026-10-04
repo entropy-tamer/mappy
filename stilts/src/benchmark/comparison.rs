@@ -288,10 +288,16 @@ mod tests {
         assert!(result.is_ok());
         let metrics = result.unwrap();
 
-        let dict_metrics = metrics.iter().find(|m| m.algorithm == "dict").expect("dict not found");
+        let dict_metrics = metrics
+            .iter()
+            .find(|m| m.algorithm == "dict")
+            .expect("dict not found");
         assert_eq!(dict_metrics.stats.compression_ratio, 1.0);
 
-        let zlib_metrics = metrics.iter().find(|m| m.algorithm == "zlib").expect("zlib not found");
+        let zlib_metrics = metrics
+            .iter()
+            .find(|m| m.algorithm == "zlib")
+            .expect("zlib not found");
         assert!(zlib_metrics.stats.compression_ratio < 1.0);
     }
 }

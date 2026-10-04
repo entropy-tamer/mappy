@@ -114,7 +114,8 @@ mod tests {
     fn test_compression_stats_serialization() {
         let stats = CompressionStats::new(1000, 500, 100.0, 50.0, 128);
         let serialized = serde_json::to_string(&stats).expect("Failed to serialize");
-        let deserialized: CompressionStats = serde_json::from_str(&serialized).expect("Failed to deserialize");
+        let deserialized: CompressionStats =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
         assert_eq!(deserialized.original_size, 1000);
         assert_eq!(deserialized.compressed_size, 500);
     }
@@ -128,7 +129,8 @@ mod tests {
             memory_usage_bytes: 500,
         };
         let serialized = serde_json::to_string(&metrics).expect("Failed to serialize");
-        let deserialized: BenchmarkMetrics = serde_json::from_str(&serialized).expect("Failed to deserialize");
+        let deserialized: BenchmarkMetrics =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
         assert_eq!(deserialized.algorithm, "test");
         assert_eq!(deserialized.memory_usage_bytes, 500);
     }

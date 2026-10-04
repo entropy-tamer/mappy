@@ -110,8 +110,7 @@ impl ArithmeticCompressor {
         if data.len() < 12 + prob_len {
             anyhow::bail!("Insufficient data for probabilities");
         }
-        let probabilities: HashMap<String, f64> =
-            bitcode::decode(&data[12..12 + prob_len])?;
+        let probabilities: HashMap<String, f64> = bitcode::decode(&data[12..12 + prob_len])?;
 
         // Decode tags (simplified - in practice, need proper arithmetic decoding)
         // For now, return empty as this is a simplified implementation
@@ -217,9 +216,7 @@ mod tests {
     #[test]
     fn test_build_from_corpus_single_tag() {
         let mut compressor = ArithmeticCompressor::new();
-        compressor
-            .build_from_corpus(&["tag1".to_string()])
-            .unwrap();
+        compressor.build_from_corpus(&["tag1".to_string()]).unwrap();
         assert_eq!(compressor.probabilities.len(), 1);
     }
 
@@ -227,11 +224,7 @@ mod tests {
     fn test_build_from_corpus_multiple_tags() {
         let mut compressor = ArithmeticCompressor::new();
         compressor
-            .build_from_corpus(&[
-                "tag1".to_string(),
-                "tag2".to_string(),
-                "tag3".to_string(),
-            ])
+            .build_from_corpus(&["tag1".to_string(), "tag2".to_string(), "tag3".to_string()])
             .unwrap();
         assert_eq!(compressor.probabilities.len(), 3);
     }
@@ -240,11 +233,7 @@ mod tests {
     fn test_build_from_corpus_with_duplicates() {
         let mut compressor = ArithmeticCompressor::new();
         compressor
-            .build_from_corpus(&[
-                "tag1".to_string(),
-                "tag1".to_string(),
-                "tag2".to_string(),
-            ])
+            .build_from_corpus(&["tag1".to_string(), "tag1".to_string(), "tag2".to_string()])
             .unwrap();
         assert_eq!(compressor.probabilities.len(), 2);
     }

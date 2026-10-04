@@ -224,7 +224,8 @@ mod tests {
     #[test]
     fn test_ratio_vs_speed_chart_empty_metrics() {
         let metrics: Vec<BenchmarkMetrics> = vec![];
-        let result = ChartGenerator::ratio_vs_speed_chart(&metrics, "/tmp/test_empty_ratio_speed.png");
+        let result =
+            ChartGenerator::ratio_vs_speed_chart(&metrics, "/tmp/test_empty_ratio_speed.png");
         assert!(result.is_ok());
     }
 

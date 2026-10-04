@@ -5,7 +5,6 @@
 //! It includes cache invalidation, TTL management, and performance monitoring.
 
 use mappy_core::{Engine, EngineConfig, PersistenceMode};
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

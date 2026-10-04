@@ -24,7 +24,10 @@ const MAX_GROW_RETRIES: u32 = 8;
 
 /// Owner tag stored in a slot for members of `quotient`.
 fn tag_of(quotient: u64) -> u32 {
-    debug_assert!(quotient <= u64::from(u32::MAX), "quotient exceeds owner tag width");
+    debug_assert!(
+        quotient <= u64::from(u32::MAX),
+        "quotient exceeds owner tag width"
+    );
     #[allow(clippy::cast_possible_truncation)] // width enforced by MAX_QUOTIENT_BITS
     {
         quotient as u32
@@ -900,25 +903,25 @@ mod tests {
     }
 
     /// The owner tag was chosen over a `u64` because it fits the padding `SlotMetadata`
-/// already had. That is the whole reason the layout change is free, so it is pinned here:
-/// a future field that breaks the size turns the design rationale into a false claim.
-#[test]
-fn test_owner_tag_costs_no_extra_slot_bytes() {
-    assert_eq!(
-        std::mem::size_of::<SlotMetadata>(),
-        16,
-        "owner must occupy existing padding, not grow the slot"
-    );
-    // The run-start table is the one real cost: one u32 per quotient.
-    let filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
-    assert_eq!(filter.run_starts.len(), 1 << filter.quotient_bits());
-    assert!(
-        filter.run_starts.len() <= 2 * filter.capacity(),
-        "run table should stay within a small constant multiple of capacity"
-    );
-}
+    /// already had. That is the whole reason the layout change is free, so it is pinned here:
+    /// a future field that breaks the size turns the design rationale into a false claim.
+    #[test]
+    fn test_owner_tag_costs_no_extra_slot_bytes() {
+        assert_eq!(
+            std::mem::size_of::<SlotMetadata>(),
+            16,
+            "owner must occupy existing padding, not grow the slot"
+        );
+        // The run-start table is the one real cost: one u32 per quotient.
+        let filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
+        assert_eq!(filter.run_starts.len(), 1 << filter.quotient_bits());
+        assert!(
+            filter.run_starts.len() <= 2 * filter.capacity(),
+            "run table should stay within a small constant multiple of capacity"
+        );
+    }
 
-/// The premise a quotient filter needs and this implementation never had: an injective
+    /// The premise a quotient filter needs and this implementation never had: an injective
     /// quotient-to-canonical-slot map. `PerfectHash::slot_index` is `hash % capacity`, and
     /// there are `2^quotient_bits` quotients over `capacity` slots, so two distinct
     /// quotients always collide onto one canonical slot. Any scheme that reconstructs a
@@ -928,7 +931,10 @@ fn test_owner_tag_costs_no_extra_slot_bytes() {
     fn test_canonical_slot_map_is_not_injective() {
         let filter = QuotientFilter::new(100, 10, HashFunction::AHash).unwrap();
         let table_len = 1usize << filter.quotient_bits();
-        assert!(table_len > filter.capacity(), "quotients must outnumber slots");
+        assert!(
+            table_len > filter.capacity(),
+            "quotients must outnumber slots"
+        );
 
         let mut seen = HashMap::new();
         let mut collided = 0usize;
@@ -988,7 +994,11 @@ fn test_owner_tag_costs_no_extra_slot_bytes() {
             }
         }
 
-        assert_eq!(stored.len(), 8, "expected four remainders for each quotient");
+        assert_eq!(
+            stored.len(),
+            8,
+            "expected four remainders for each quotient"
+        );
         for &fingerprint in &stored {
             assert!(
                 filter.query(fingerprint),
@@ -1015,12 +1025,16 @@ fn test_owner_tag_costs_no_extra_slot_bytes() {
                 }
                 attempts += 1;
                 let fp = splitmix(&mut state) & mask;
-                filter.insert(fp).unwrap_or_else(|e| {
-                    panic!("seed {seed}: insert below capacity failed: {e:?}")
-                });
+                filter
+                    .insert(fp)
+                    .unwrap_or_else(|e| panic!("seed {seed}: insert below capacity failed: {e:?}"));
             }
 
-            assert_eq!(filter.len(), attempts, "seed {seed}: accepted inserts uncounted");
+            assert_eq!(
+                filter.len(),
+                attempts,
+                "seed {seed}: accepted inserts uncounted"
+            );
         }
     }
 
@@ -1107,7 +1121,10 @@ fn test_owner_tag_costs_no_extra_slot_bytes() {
                 if splitmix(&mut state) % 2 == 0 {
                     let present = model.contains_key(&fp);
                     let deleted = filter.delete(fp).unwrap();
-                    assert_eq!(deleted, present, "seed {seed} step {step}: delete disagreed");
+                    assert_eq!(
+                        deleted, present,
+                        "seed {seed} step {step}: delete disagreed"
+                    );
 
                     if present {
                         let count = model.get_mut(&fp).unwrap();
@@ -1164,7 +1181,10 @@ fn test_owner_tag_costs_no_extra_slot_bytes() {
             }
 
             let victim = live[live.len() / 2];
-            assert!(filter.delete(victim).unwrap(), "seed {seed}: victim not deleted");
+            assert!(
+                filter.delete(victim).unwrap(),
+                "seed {seed}: victim not deleted"
+            );
 
             live.retain(|&fp| fp != victim);
             for &fp in &live {

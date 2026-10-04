@@ -3,6 +3,7 @@
 //! Provides durability through append-only logging with periodic sync.
 use super::{Storage, StorageConfig, StorageStats};
 use crate::{MapletError, MapletResult};
+use async_lock::RwLock;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use serde_json;
@@ -10,9 +11,8 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Instant;
-use async_lock::RwLock;
 use std::time::Duration;
+use std::time::Instant;
 
 /// AOF storage backend
 pub struct AOFStorage {
@@ -148,7 +148,9 @@ impl AOFStorage {
                     loop {
                         interval.tick().await;
                         if aof_path.exists() {
-                            if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
+                            if let Err(e) =
+                                std::fs::File::open(&aof_path).and_then(|f| f.sync_all())
+                            {
                                 eprintln!("Failed to sync AOF file: {e}");
                             }
                         }
@@ -341,7 +343,7 @@ impl Storage for AOFStorage {
 
     async fn close(&self) -> MapletResult<()> {
         // Cancel background sync task
-        if let Some(handle) = &self.sync_handle {
+        if let Some(_handle) = &self.sync_handle {
             // Task is cancelled when the storage is dropped.
         }
 
