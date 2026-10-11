@@ -89,7 +89,7 @@ impl MappyError {
             .as_secs()
     }
 
-    fn severity_from_error(error: &mappy_core::MapletError) -> ErrorSeverity {
+    const fn severity_from_error(error: &mappy_core::MapletError) -> ErrorSeverity {
         match error {
             mappy_core::MapletError::CapacityExceeded => ErrorSeverity::High,
             mappy_core::MapletError::CollisionLimitExceeded => ErrorSeverity::Critical,
@@ -111,14 +111,13 @@ fn set_socket_permissions(socket_path: &StdPath) -> anyhow::Result<()> {
     if let Ok(group_file) = fs::read_to_string("/etc/group") {
         for line in group_file.lines() {
             let parts: Vec<&str> = line.split(':').collect();
-            if parts.len() >= 3 && parts[0] == "reynard" {
-                if let Ok(gid) = parts[2].parse::<u32>() {
+            if parts.len() >= 3 && parts[0] == "reynard"
+                && let Ok(gid) = parts[2].parse::<u32>() {
                     // chown can fail if user doesn't have permission, but that's ok
                     // The socket will still be accessible to group members
                     let _ = chown(socket_path, None, Some(gid));
                     break;
                 }
-            }
         }
     }
     Ok(())
@@ -278,17 +277,17 @@ async fn get_errors(
             let severity_match = if let Some(ref sf) = severity_filter {
                 match e {
                     MappyError::CapacityExceeded { severity, .. } => {
-                        format!("{:?}", severity) == *sf
+                        format!("{severity:?}") == *sf
                     }
                     MappyError::CollisionLimitExceeded { severity, .. } => {
-                        format!("{:?}", severity) == *sf
+                        format!("{severity:?}") == *sf
                     }
-                    MappyError::ResizeFailed { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::ResizeFailed { severity, .. } => format!("{severity:?}") == *sf,
                     MappyError::SerializationError { severity, .. } => {
-                        format!("{:?}", severity) == *sf
+                        format!("{severity:?}") == *sf
                     }
-                    MappyError::Internal { severity, .. } => format!("{:?}", severity) == *sf,
-                    MappyError::OneSidedError { severity, .. } => format!("{:?}", severity) == *sf,
+                    MappyError::Internal { severity, .. } => format!("{severity:?}") == *sf,
+                    MappyError::OneSidedError { severity, .. } => format!("{severity:?}") == *sf,
                 }
             } else {
                 true
@@ -340,23 +339,23 @@ async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsRespon
                     .or_insert(0) += 1;
                 collision_count += 1;
                 max_chain_length = max_chain_length.max(*chain_length);
-                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+                *by_severity.entry(format!("{severity:?}")).or_insert(0) += 1;
             }
             MappyError::ResizeFailed { severity, .. } => {
                 *by_type.entry("ResizeFailed".to_string()).or_insert(0) += 1;
-                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+                *by_severity.entry(format!("{severity:?}")).or_insert(0) += 1;
             }
             MappyError::SerializationError { severity, .. } => {
                 *by_type.entry("SerializationError".to_string()).or_insert(0) += 1;
-                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+                *by_severity.entry(format!("{severity:?}")).or_insert(0) += 1;
             }
             MappyError::Internal { severity, .. } => {
                 *by_type.entry("Internal".to_string()).or_insert(0) += 1;
-                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+                *by_severity.entry(format!("{severity:?}")).or_insert(0) += 1;
             }
             MappyError::OneSidedError { severity, .. } => {
                 *by_type.entry("OneSidedError".to_string()).or_insert(0) += 1;
-                *by_severity.entry(format!("{:?}", severity)).or_insert(0) += 1;
+                *by_severity.entry(format!("{severity:?}")).or_insert(0) += 1;
             }
         }
     }
@@ -520,7 +519,7 @@ async fn serve_unix_socket(listener: UnixListener, app: Router) -> anyhow::Resul
                 let mut app = app.clone();
                 async move {
                     app.call(req).await.map_err(|e| {
-                        std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                        std::io::Error::other(format!("{e}"))
                     })
                 }
             });
@@ -550,7 +549,7 @@ async fn serve_http_socket(listener: TcpListener, app: Router) -> anyhow::Result
                 let mut app = app.clone();
                 async move {
                     app.call(req).await.map_err(|e| {
-                        std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                        std::io::Error::other(format!("{e}"))
                     })
                 }
             });
@@ -679,10 +678,10 @@ async fn main() -> anyhow::Result<()> {
         }
 
         let unix_listener = UnixListener::bind(socket_path_std)?;
-        set_socket_permissions(&socket_path_std)?;
+        set_socket_permissions(socket_path_std)?;
         info!("Mappy Server Unix socket listening on {}", socket_path);
 
-        let http_listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
+        let http_listener = TcpListener::bind(format!("{host}:{port}")).await?;
         info!("Mappy Server HTTP listening on {}:{}", host, port);
 
         let app_clone = app.clone();
@@ -694,18 +693,18 @@ async fn main() -> anyhow::Result<()> {
         tokio::select! {
             result = socket_handle => {
                 if let Err(e) = result? {
-                    return Err(anyhow::anyhow!("Unix socket server error: {}", e));
+                    return Err(anyhow::anyhow!("Unix socket server error: {e}"));
                 }
             }
             result = http_handle => {
                 if let Err(e) = result? {
-                    return Err(anyhow::anyhow!("HTTP server error: {}", e));
+                    return Err(anyhow::anyhow!("HTTP server error: {e}"));
                 }
             }
         }
     } else if enable_http {
         // HTTP only
-        let http_listener = TcpListener::bind(format!("{}:{}", host, port)).await?;
+        let http_listener = TcpListener::bind(format!("{host}:{port}")).await?;
         info!("Mappy Server HTTP listening on {}:{}", host, port);
         serve_http_socket(http_listener, app).await?;
     } else if enable_socket {
@@ -722,7 +721,7 @@ async fn main() -> anyhow::Result<()> {
         }
 
         let unix_listener = UnixListener::bind(socket_path_std)?;
-        set_socket_permissions(&socket_path_std)?;
+        set_socket_permissions(socket_path_std)?;
         info!("Mappy Server Unix socket listening on {}", socket_path);
         serve_unix_socket(unix_listener, app).await?;
     } else {
