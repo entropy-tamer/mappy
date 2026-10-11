@@ -140,7 +140,6 @@ once_cell = { git = "https://git.sly.so/kade/once_cell" }
 memchr = { git = "https://git.sly.so/kade/memchr" }
 log = { git = "https://git.sly.so/kade/log" }
 smallvec = { git = "https://git.sly.so/kade/smallvec" }
-cfg-if = { git = "https://git.sly.so/kade/cfg-if" }
 regex-automata = { git = "https://git.sly.so/kade/regex" }
 matchers = { git = "https://git.sly.so/kade/matchers" }
 nu-ansi-term = { git = "https://git.sly.so/kade/nu-ansi-term" }
