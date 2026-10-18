@@ -19,7 +19,7 @@ clone:
 
 steps:
   pact:
-    image: localhost/kade-rust:1.102
+    image: localhost/kade-rust:1.103
     pull: false
     commands:
       - |
@@ -38,7 +38,7 @@ steps:
       SLY_PACT_MAX_REGISTRY: "211"
 
   build:
-    image: localhost/kade-rust:1.102
+    image: localhost/kade-rust:1.103
     pull: false
     depends_on: [pact]
     commands:
@@ -51,7 +51,7 @@ steps:
       CARGO_UNSTABLE_HEADSTART: "true"
 
   test:
-    image: localhost/kade-rust:1.102
+    image: localhost/kade-rust:1.103
     pull: false
     depends_on: [build]
     commands:
@@ -62,7 +62,7 @@ steps:
       CARGO_UNSTABLE_HEADSTART: "true"
 
   clippy:
-    image: localhost/kade-rust:1.102
+    image: localhost/kade-rust:1.103
     pull: false
     depends_on: [test]
     # The forks are mid-migration to edition 2024; -D warnings turns that debt
@@ -78,7 +78,7 @@ steps:
   # A fork's formatting drifts from the toolchain's rustfmt; report it without
   # hiding the build and test result.
   fmt:
-    image: localhost/kade-rust:1.102
+    image: localhost/kade-rust:1.103
     pull: false
     depends_on: [clippy]
     failure: ignore
