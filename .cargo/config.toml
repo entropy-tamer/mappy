@@ -1,0 +1,5 @@
+[unstable]
+headstart = true
+
+# Optional: Enable additional lints for clippy pedantic/nursery
+# These can be overridden per-package in Cargo.toml if needed
