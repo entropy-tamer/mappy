@@ -53,43 +53,8 @@ steps:
     image: localhost/kade-rust:1.101
     pull: never
     commands:
-      - |
-        set -euo pipefail
-        echo "=== Sly Pact Compliance Check ==="
-        echo "Checking that all dependencies use git.sly.so sources..."
-        
-        # Check Cargo.lock for crates.io sources
-        CRATES_IO_DEPS=$(grep -E '^name = ' Cargo.lock | while read line; do
-          # This is a simplified check - in reality we'd parse the lock file properly
-          echo "Checking lock file..."
-        done)
-        
-        # Better: use cargo metadata to check all dependencies
-        cargo metadata --format-version=1 --no-deps 2>/dev/null | python3 << 'EOF'
-        import json, sys
-        
-        data = json.load(sys.stdin)
-        violations = []
-        
-        for pkg in data.get('packages', []):
-            name = pkg['name']
-            version = pkg['version']
-            source = pkg.get('source', '')
-            
-            # Check if source is from crates.io
-            if source and 'crates.io' in source:
-                # Allow some known exceptions if needed
-                violations.append(f"  {name} {version}: {source}")
-        
-        if violations:
-            print("VIOLATIONS FOUND - Dependencies from crates.io:")
-            for v in violations:
-                print(v)
-            print("\nAll dependencies MUST use git.sly.so per the Sly Pact.")
-            sys.exit(1)
-        else:
-            print("✓ All dependencies use git.sly.so sources (Sly Pact compliant)")
-EOF
+      - curl -fsSL https://raw.githubusercontent.com/kade/rust-distribution/main/sly-pact-check.py -o sly-pact-check.py
+      - python3 sly-pact-check.py
     environment:
       CARGO_NET_OFFLINE: "true"
       CARGO_UNSTABLE_HEADSTART: "true"
