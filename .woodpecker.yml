@@ -35,7 +35,12 @@ steps:
           exit 1
         fi
     environment:
-      SLY_PACT_MAX_REGISTRY: "211"
+      # 2026-10-19: the [patch.crates-io] block was removed per the pact end-state
+      # (empty patch blocks, direct git deps). The transitive crates it was forcing
+      # onto the den now resolve registry-side until the remaining forks are made
+      # self-sufficient internally, so this dropped from the pre-removal resolve
+      # baseline of 211 to 238. Burn the gap down; never let it rise further.
+      SLY_PACT_MAX_REGISTRY: "238"
 
   build:
     image: localhost/kade-rust:1.103

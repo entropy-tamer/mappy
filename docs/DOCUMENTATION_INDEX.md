@@ -151,7 +151,7 @@ This document provides a comprehensive index of all documentation for the Mappy 
 - **Performance Results**: Similarity search (0.72x, faster than exact!), Embeddings (1.13x), Classification (1.08x), Clustering (2.42x)
 - **Comprehensive Testing**: Proves Mappy's approximate nature does NOT hurt ML performance
 
-For detailed ML benchmark results, see [stilts/README.md](../stilts/README.md#ml-benchmarks).
+For detailed ML benchmark results, see [the Stilts ML Benchmarks](https://git.sly.so/kade/stilts#ml-benchmarks).
 
 ### Advanced Quotient Filter Features
 

@@ -248,7 +248,7 @@ The critical optimization was **moving mappy operations out of the hot path**:
 - **Memory usage:** 8.74% of original size
 - **Compression ratio:** 0.0977 (9.77% of original)
 
-For detailed ML benchmark results and optimization techniques, see the [Stilts ML Benchmarks documentation](https://github.com/entropy-tamer/mappy/tree/main/stilts#ml-benchmarks).
+For detailed ML benchmark results and optimization techniques, see the [Stilts ML Benchmarks documentation](https://git.sly.so/kade/stilts#ml-benchmarks).
 
 ### Running Benchmarks
 
@@ -257,8 +257,8 @@ For detailed ML benchmark results and optimization techniques, see the [Stilts M
 cd mappy-core
 cargo bench --bench redis_comparison
 
-# Run ML benchmarks (requires stilts package)
-cd ../stilts
+# Run ML benchmarks (in the stilts repo, https://git.sly.so/kade/stilts)
+cd ~/src/stilts
 cargo run --example ml_benchmark_demo --features mappy-integration
 
 # Run all benchmarks
