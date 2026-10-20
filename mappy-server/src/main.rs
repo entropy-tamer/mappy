@@ -17,7 +17,7 @@ use std::fs;
 use std::os::unix::fs::{PermissionsExt, chown};
 use std::path::Path as StdPath;
 use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::{RwLock, broadcast};
@@ -79,26 +79,6 @@ pub enum ErrorSeverity {
     Medium,
     High,
     Critical,
-}
-
-impl MappyError {
-    fn timestamp() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    }
-
-    const fn severity_from_error(error: &mappy_core::MapletError) -> ErrorSeverity {
-        match error {
-            mappy_core::MapletError::CapacityExceeded => ErrorSeverity::High,
-            mappy_core::MapletError::CollisionLimitExceeded => ErrorSeverity::Critical,
-            mappy_core::MapletError::ResizeFailed(_) => ErrorSeverity::High,
-            mappy_core::MapletError::SerializationError(_) => ErrorSeverity::Medium,
-            mappy_core::MapletError::Internal(_) => ErrorSeverity::Critical,
-            _ => ErrorSeverity::Low,
-        }
-    }
 }
 
 /// Set socket permissions with group ownership for shared access

@@ -6,7 +6,7 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Smol TCP-to-Unix bridge for mappy-daemon (remote mesh access)"
-rust-version = "1.98.1"
+rust-version = "1.101"
 
 [[bin]]
 name = "mappy-proxy"

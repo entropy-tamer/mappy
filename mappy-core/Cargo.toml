@@ -9,7 +9,7 @@ description = "Core maplet data structure implementation"
 readme = "README.md"
 keywords = ["data-structures", "filters", "approximate", "space-efficient", "maplets"]
 categories = ["data-structures", "algorithms"]
-rust-version = "1.98.1"
+rust-version = "1.101"
 
 [features]
 default = ["quotient-filter", "smol"]
@@ -22,20 +22,14 @@ tokio = ["dep:tokio"]
 [dependencies]
 # Core dependencies with explicit versions
 ahash.workspace = true
-fnv.workspace = true
-bitvec.workspace = true
 twox-hash.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-anyhow.workspace = true
 thiserror.workspace = true
-parking_lot.workspace = true
 rayon.workspace = true
 tracing.workspace = true
 
 # Additional dependencies
-num-traits.workspace = true
-smallvec.workspace = true
 bytemuck.workspace = true
 
 # Runtime-agnostic async primitives (always used)

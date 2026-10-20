@@ -11,8 +11,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-const LEAF_FANOUT: usize = 1024;
-
 /// Disk-based storage using Sled
 pub struct DiskStorage {
     /// The Sled database wrapped in Arc<Mutex> for thread safety

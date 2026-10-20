@@ -15,7 +15,6 @@ edition = "2024"
 authors = ["Balazs Horvath"]
 license = "MIT"
 repository = "https://git.sly.so/kade/mappy"
-description = "Space-efficient maplet data structures for approximate key-value mappings"
 
 [workspace.dependencies]
 # Async runtime
@@ -25,7 +24,6 @@ async-trait = { git = "https://git.sly.so/kade/async-trait" }
 # Serialization
 serde = { git = "https://git.sly.so/kade/serde", package = "serde", features = ["derive"] }
 serde_json = { git = "https://git.sly.so/kade/serde_json" }
-bitcode = { git = "https://git.sly.so/kade/bitcode" }
 
 # Hashing and bit operations
 # kade/ahash default branch is master. This tracked `rev = "999fd53"` (SIMD fixes),
@@ -33,8 +31,6 @@ bitcode = { git = "https://git.sly.so/kade/bitcode" }
 # than pointing behind it, and cost nothing to resolve. Un-pinned 2026-10-02: same
 # commit today, but the crate now follows its default branch as the pact requires.
 ahash = { git = "https://git.sly.so/kade/ahash" }
-fnv = { git = "https://git.sly.so/kade/fnv" }  # Fallback hash without SIMD
-bitvec = { git = "https://git.sly.so/kade/bitvec" }
 twox-hash = { git = "https://git.sly.so/kade/twox-hash" }
 
 # Error handling
@@ -42,7 +38,6 @@ anyhow = { git = "https://git.sly.so/kade/anyhow" }
 thiserror = { git = "https://git.sly.so/kade/thiserror" }
 
 # Concurrency
-parking_lot = { git = "https://git.sly.so/kade/parking_lot" }
 rayon = { git = "https://git.sly.so/kade/rayon" }
 
 # Logging
@@ -73,26 +68,16 @@ async-lock = { git = "https://git.sly.so/kade/async-lock" }
 async-channel = { git = "https://git.sly.so/kade/async-channel" }
 
 # Additional dependencies
-getrandom = { git = "https://git.sly.so/kade/getrandom" }
 rand = { git = "https://git.sly.so/kade/rand" }
-rand_core = { git = "https://git.sly.so/kade/rand_core" }
 tempfile = { git = "https://git.sly.so/kade/tempfile" }
 futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
-futures-core = { git = "https://git.sly.so/kade/futures-rs", package = "futures-core", default-features = false }
-futures-util = { git = "https://git.sly.so/kade/futures-rs", package = "futures-util", default-features = false, features = ["alloc"] }
-futures-sink = { git = "https://git.sly.so/kade/futures-rs", package = "futures-sink" }
 
 # Web server dependencies
 axum = { git = "https://git.sly.so/kade/axum", package = "axum", features = ["macros"] }
-tokio-tungstenite = { git = "https://git.sly.so/kade/tokio-tungstenite" }
 tower = { git = "https://git.sly.so/kade/tower", package = "tower", features = ["util"] }
 tower-http = { git = "https://git.sly.so/kade/tower-http", package = "tower-http", features = ["cors", "trace", "fs"] }
 hyper = { git = "https://git.sly.so/kade/hyper", features = ["full", "http1", "http2"] }
 hyper-util = { git = "https://git.sly.so/kade/hyper-util", features = ["full"] }
-http-body-util = { git = "https://git.sly.so/kade/http-body", package = "http-body-util" }
-tokio-rustls = { git = "https://git.sly.so/kade/tokio-rustls" }
-rustls-ring = { git = "https://git.sly.so/kade/rustls", package = "rustls-ring" }
-config = { git = "https://git.sly.so/kade/config-rs" }
 dotenvy = { git = "https://git.sly.so/kade/dotenvy", package = "dotenvy" }
 
 # HTTP client dependencies
@@ -102,8 +87,4 @@ urlencoding = { git = "https://git.sly.so/kade/urlencoding" }
 # Storage dependencies
 sled = { git = "https://git.sly.so/kade/sled" }
 dashmap = { git = "https://git.sly.so/kade/dashmap" }
-num-traits = { git = "https://git.sly.so/kade/num-traits" }
 bytemuck = { git = "https://git.sly.so/kade/bytemuck" }
-smallvec = { git = "https://git.sly.so/kade/smallvec" }
-
-

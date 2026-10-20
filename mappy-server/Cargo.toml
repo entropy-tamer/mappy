@@ -9,7 +9,7 @@ description = "Network server for Mappy service"
 readme = "README.md"
 keywords = ["mappy", "maplet", "data-structures", "server", "api"]
 categories = ["data-structures", "web-programming::http-server"]
-rust-version = "1.98.1"
+rust-version = "1.101"
 
 [features]
 default = ["tokio-runtime"]
@@ -26,12 +26,10 @@ tower = { workspace = true }
 tower-http = { workspace = true, features = ["cors"] }
 hyper.workspace = true
 hyper-util.workspace = true
-tokio-rustls.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-config.workspace = true
 dotenvy.workspace = true
 
 # Local dependencies
@@ -40,8 +38,8 @@ mappy-core = { path = "../mappy-core" }
 # Additional dependencies
 bytes = { git = "https://git.sly.so/kade/bytes" }
 tokio-util = { git = "https://git.sly.so/kade/tokio", package = "tokio-util", features = ["codec"] }
-futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
 async-stream = { git = "https://git.sly.so/kade/async-stream" }
+futures.workspace = true
 
 # Binary target
 [[bin]]
