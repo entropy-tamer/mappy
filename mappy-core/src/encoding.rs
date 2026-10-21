@@ -239,8 +239,8 @@ mod tests {
     #[test]
     fn test_exponential_encode_zero() {
         let encoder = ExponentialEncoder::new(2.0, 16);
-        let encoded = encoder.encode_counter(0);
-        assert_eq!(encoded, vec![0]);
+        let payload = encoder.encode_counter(0);
+        assert_eq!(payload, vec![0]);
     }
 
     #[test]

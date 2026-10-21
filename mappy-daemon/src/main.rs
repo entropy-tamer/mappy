@@ -91,11 +91,17 @@ async fn handle_conn(stream: async_net::unix::UnixStream, engine: Arc<Engine>) {
     }
 }
 
+/// The buffered reader half of a client connection.
+type ClientReader = BufReader<async_net::unix::UnixStream>;
+
+/// The raw writer half of a client connection.
+type ClientWriter = async_net::unix::UnixStream;
+
 /// Returns `false` to close the connection (QUIT).
 async fn handle_command(
     cmd: &str,
-    reader: &mut BufReader<async_net::unix::UnixStream>,
-    writer: &mut async_net::unix::UnixStream,
+    reader: &mut ClientReader,
+    writer: &mut ClientWriter,
     engine: &Arc<Engine>,
 ) -> bool {
     let mut parts = cmd.split(' ');
@@ -104,119 +110,17 @@ async fn handle_command(
     match verb {
         "PING" => write_line(writer, "PONG").await,
 
-        "SET" => {
-            let Some((key, len)) = next_key_len(&mut parts) else {
-                write_line(writer, "ERR usage: SET <key> <len>").await;
-                return true;
-            };
-            let val = match read_value(reader, len).await {
-                Ok(v) => v,
-                Err(e) => {
-                    write_line(writer, &format!("ERR read value: {e}")).await;
-                    return true;
-                }
-            };
-            match engine.set(key.to_string(), val).await {
-                Ok(()) => write_line(writer, "OK").await,
-                Err(e) => write_line(writer, &format!("ERR {e}")).await,
-            }
-        }
+        "SET" => handle_set(&mut parts, reader, writer, engine).await,
 
-        "SETEX" => {
-            let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
-                write_line(writer, "ERR usage: SETEX <key> <ttl> <len>").await;
-                return true;
-            };
-            let Some(ttl) = parts.next().and_then(|s| s.parse::<u64>().ok()) else {
-                write_line(writer, "ERR bad ttl").await;
-                return true;
-            };
-            let Some(len) = parts.next().and_then(|s| s.parse::<usize>().ok()) else {
-                write_line(writer, "ERR bad len").await;
-                return true;
-            };
-            let val = match read_value(reader, len).await {
-                Ok(v) => v,
-                Err(e) => {
-                    write_line(writer, &format!("ERR read value: {e}")).await;
-                    return true;
-                }
-            };
-            match engine.set(key.to_string(), val).await {
-                Ok(()) => {
-                    // Best-effort TTL; ignore expiry failures.
-                    let _ = engine.expire(key, ttl).await;
-                    write_line(writer, "OK").await;
-                }
-                Err(e) => write_line(writer, &format!("ERR {e}")).await,
-            }
-        }
+        "SETEX" => handle_setex(&mut parts, reader, writer, engine).await,
 
-        "GET" => {
-            let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
-                write_line(writer, "ERR usage: GET <key>").await;
-                return true;
-            };
-            match engine.get(key).await {
-                Ok(Some(v)) => {
-                    let _ = writer
-                        .write_all(format!("VAL {}\n", v.len()).as_bytes())
-                        .await;
-                    let _ = writer.write_all(&v).await;
-                    let _ = writer.write_all(b"\n").await;
-                }
-                Ok(None) => write_line(writer, "NIL").await,
-                Err(e) => write_line(writer, &format!("ERR {e}")).await,
-            }
-        }
+        "GET" => handle_get(&mut parts, writer, engine).await,
 
-        "DEL" => {
-            let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
-                write_line(writer, "ERR usage: DEL <key>").await;
-                return true;
-            };
-            match engine.delete(key.to_string()).await {
-                Ok(removed) => {
-                    write_line(writer, if removed { "OK 1" } else { "OK 0" }).await;
-                }
-                Err(e) => write_line(writer, &format!("ERR {e}")).await,
-            }
-        }
+        "DEL" => handle_del(&mut parts, writer, engine).await,
 
-        "KEYS" => {
-            let pattern = parts.next().unwrap_or("*");
-            match engine.keys().await {
-                Ok(keys) => {
-                    let matched: Vec<&String> =
-                        keys.iter().filter(|k| glob_match(pattern, k)).collect();
-                    let _ = writer
-                        .write_all(format!("KEYS {}\n", matched.len()).as_bytes())
-                        .await;
-                    for k in matched {
-                        let _ = writer.write_all(format!("{}\n", k.len()).as_bytes()).await;
-                        let _ = writer.write_all(k.as_bytes()).await;
-                        let _ = writer.write_all(b"\n").await;
-                    }
-                }
-                Err(e) => write_line(writer, &format!("ERR {e}")).await,
-            }
-        }
+        "KEYS" => handle_keys(&mut parts, writer, engine).await,
 
-        "STATS" => match engine.stats().await {
-            Ok(st) => {
-                let json = serde_json::json!({
-                    "keys": st.maplet_stats.len,
-                    "capacity": st.maplet_stats.capacity,
-                    "false_positive_rate": st.maplet_stats.false_positive_rate,
-                    "memory_usage": st.storage_stats.memory_usage,
-                    "uptime_seconds": st.uptime_seconds,
-                    "total_operations": st.total_operations,
-                    "persistence": format!("{:?}", engine.persistence_mode()),
-                });
-                write_line(writer, &json.to_string()).await;
-            }
-            Err(e) => write_line(writer, &format!("ERR {e}")).await,
-        },
+        "STATS" => handle_stats(writer, engine).await,
 
         "HEALTH" => write_line(writer, "OK").await,
 
@@ -225,6 +129,149 @@ async fn handle_command(
         _ => write_line(writer, "ERR unknown command").await,
     }
     true
+}
+
+/// `SET <key> <len>` followed by `<len>` value bytes.
+async fn handle_set(
+    parts: &mut impl Iterator<Item = &str>,
+    reader: &mut ClientReader,
+    writer: &mut ClientWriter,
+    engine: &Arc<Engine>,
+) {
+    let Some((key, len)) = next_key_len(parts) else {
+        write_line(writer, "ERR usage: SET <key> <len>").await;
+        return;
+    };
+    let val = match read_value(reader, len).await {
+        Ok(v) => v,
+        Err(e) => {
+            write_line(writer, &format!("ERR read value: {e}")).await;
+            return;
+        }
+    };
+    match engine.set(key.to_string(), val).await {
+        Ok(()) => write_line(writer, "OK").await,
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
+}
+
+/// `SETEX <key> <ttl> <len>` followed by `<len>` value bytes.
+async fn handle_setex(
+    parts: &mut impl Iterator<Item = &str>,
+    reader: &mut ClientReader,
+    writer: &mut ClientWriter,
+    engine: &Arc<Engine>,
+) {
+    let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
+        write_line(writer, "ERR usage: SETEX <key> <ttl> <len>").await;
+        return;
+    };
+    let Some(ttl) = parts.next().and_then(|s| s.parse::<u64>().ok()) else {
+        write_line(writer, "ERR bad ttl").await;
+        return;
+    };
+    let Some(len) = parts.next().and_then(|s| s.parse::<usize>().ok()) else {
+        write_line(writer, "ERR bad len").await;
+        return;
+    };
+    let val = match read_value(reader, len).await {
+        Ok(v) => v,
+        Err(e) => {
+            write_line(writer, &format!("ERR read value: {e}")).await;
+            return;
+        }
+    };
+    match engine.set(key.to_string(), val).await {
+        Ok(()) => {
+            // Best-effort TTL; ignore expiry failures.
+            let _ = engine.expire(key, ttl).await;
+            write_line(writer, "OK").await;
+        }
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
+}
+
+/// `GET <key>`
+async fn handle_get(
+    parts: &mut impl Iterator<Item = &str>,
+    writer: &mut ClientWriter,
+    engine: &Arc<Engine>,
+) {
+    let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
+        write_line(writer, "ERR usage: GET <key>").await;
+        return;
+    };
+    match engine.get(key).await {
+        Ok(Some(v)) => {
+            let _ = writer
+                .write_all(format!("VAL {}\n", v.len()).as_bytes())
+                .await;
+            let _ = writer.write_all(&v).await;
+            let _ = writer.write_all(b"\n").await;
+        }
+        Ok(None) => write_line(writer, "NIL").await,
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
+}
+
+/// `DEL <key>`
+async fn handle_del(
+    parts: &mut impl Iterator<Item = &str>,
+    writer: &mut ClientWriter,
+    engine: &Arc<Engine>,
+) {
+    let Some(key) = parts.next().filter(|k| !k.is_empty()) else {
+        write_line(writer, "ERR usage: DEL <key>").await;
+        return;
+    };
+    match engine.delete(key.to_string()).await {
+        Ok(removed) => {
+            write_line(writer, if removed { "OK 1" } else { "OK 0" }).await;
+        }
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
+}
+
+/// `KEYS [pattern]`
+async fn handle_keys(
+    parts: &mut impl Iterator<Item = &str>,
+    writer: &mut ClientWriter,
+    engine: &Arc<Engine>,
+) {
+    let pattern = parts.next().unwrap_or("*");
+    match engine.keys().await {
+        Ok(keys) => {
+            let matched: Vec<&String> = keys.iter().filter(|k| glob_match(pattern, k)).collect();
+            let _ = writer
+                .write_all(format!("KEYS {}\n", matched.len()).as_bytes())
+                .await;
+            for k in matched {
+                let _ = writer.write_all(format!("{}\n", k.len()).as_bytes()).await;
+                let _ = writer.write_all(k.as_bytes()).await;
+                let _ = writer.write_all(b"\n").await;
+            }
+        }
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
+}
+
+/// `STATS` — the engine counters as a JSON object.
+async fn handle_stats(writer: &mut ClientWriter, engine: &Arc<Engine>) {
+    match engine.stats().await {
+        Ok(st) => {
+            let json = serde_json::json!({
+                "keys": st.maplet_stats.len,
+                "capacity": st.maplet_stats.capacity,
+                "false_positive_rate": st.maplet_stats.false_positive_rate,
+                "memory_usage": st.storage_stats.memory_usage,
+                "uptime_seconds": st.uptime_seconds,
+                "total_operations": st.total_operations,
+                "persistence": format!("{:?}", engine.persistence_mode()),
+            });
+            write_line(writer, &json.to_string()).await;
+        }
+        Err(e) => write_line(writer, &format!("ERR {e}")).await,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -237,10 +284,7 @@ async fn write_line(w: &mut async_net::unix::UnixStream, s: &str) {
 }
 
 /// Read `<len>` value bytes followed by a trailing `\n`.
-async fn read_value(
-    reader: &mut BufReader<async_net::unix::UnixStream>,
-    len: usize,
-) -> std::io::Result<Vec<u8>> {
+async fn read_value(reader: &mut ClientReader, len: usize) -> std::io::Result<Vec<u8>> {
     let mut buf = vec![0u8; len];
     reader.read_exact(&mut buf).await?;
     // Consume the trailing newline (best-effort).

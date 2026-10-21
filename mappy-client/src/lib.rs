@@ -6,6 +6,7 @@ pub use mappy_core::*;
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
+use std::fmt::Write as _;
 use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
@@ -24,7 +25,7 @@ pub mod prelude {
 pub struct ClientConfig {
     /// Unix socket path (default: /var/run/reynard/mappy.sock)
     pub socket_path: Option<String>,
-    /// HTTP URL (e.g., http://localhost:8003)
+    /// HTTP URL (e.g. `<http://localhost:8003>`)
     pub http_url: Option<String>,
 }
 
@@ -39,6 +40,7 @@ impl Default for ClientConfig {
 
 impl ClientConfig {
     /// Create config from environment variables
+    #[must_use]
     pub fn from_env() -> Self {
         let socket_path = std::env::var("MAPPY_SOCKET_PATH")
             .ok()
@@ -91,6 +93,7 @@ pub struct HealthResponse;
 
 impl Client {
     /// Create a new client with default configuration
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: ClientConfig::default(),
@@ -98,11 +101,13 @@ impl Client {
     }
 
     /// Create a new client with custom configuration
-    pub fn with_config(config: ClientConfig) -> Self {
+    #[must_use]
+    pub const fn with_config(config: ClientConfig) -> Self {
         Self { config }
     }
 
     /// Create a client from environment variables
+    #[must_use]
     pub fn from_env() -> Self {
         Self {
             config: ClientConfig::from_env(),
@@ -124,15 +129,17 @@ impl Client {
 
         let mut stream = UnixStream::connect(socket_path)
             .await
-            .with_context(|| format!("Failed to connect to Unix socket: {}", socket_path))?;
+            .with_context(|| format!("Failed to connect to Unix socket: {socket_path}"))?;
 
         // Build HTTP request
-        let mut request = format!("{} {} HTTP/1.1\r\n", method, path);
+        let mut request = format!("{method} {path} HTTP/1.1\r\n");
         request.push_str("Host: localhost\r\n");
         request.push_str("Content-Type: application/json\r\n");
 
         if let Some(body) = body {
-            request.push_str(&format!("Content-Length: {}\r\n", body.len()));
+            // Writing into a `String` is infallible, so the `fmt::Result` has
+            // no error case to handle here.
+            let _ = write!(request, "Content-Length: {}\r\n", body.len());
         }
         request.push_str("\r\n");
 
@@ -149,7 +156,7 @@ impl Client {
 
         // Parse HTTP response (simple parser)
         let response_str = String::from_utf8_lossy(&response);
-        let body_start = response_str.find("\r\n\r\n").map(|i| i + 4).unwrap_or(0);
+        let body_start = response_str.find("\r\n\r\n").map_or(0, |i| i + 4);
 
         Ok(response[body_start..].to_vec())
     }
@@ -179,7 +186,7 @@ impl Client {
                 }
                 req.send().await?
             }
-            _ => return Err(anyhow::anyhow!("Unsupported method: {}", method)),
+            _ => return Err(anyhow::anyhow!("Unsupported method: {method}")),
         };
 
         let bytes = response.bytes().await?;
@@ -187,6 +194,11 @@ impl Client {
     }
 
     /// Send a request (auto-detects socket vs HTTP)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when no connection method is configured, when the
+    /// transport fails, or when the response body is not valid JSON.
     pub async fn request(
         &self,
         method: &str,
@@ -203,6 +215,11 @@ impl Client {
     }
 
     /// Check server health
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the server is unreachable or the health payload
+    /// cannot be deserialized.
     pub async fn health(&self) -> anyhow::Result<HealthResponse> {
         let response = self.request("GET", "/health", None).await?;
         let health: HealthResponse = serde_json::from_slice(&response)?;
@@ -210,6 +227,11 @@ impl Client {
     }
 
     /// Set a key-value pair
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request cannot be serialised, sent, or when
+    /// the server rejects it.
     pub async fn set(
         &self,
         key: impl Into<String>,
@@ -225,6 +247,11 @@ impl Client {
     }
 
     /// Get a value by key
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request fails or the response body is not
+    /// valid JSON.
     pub async fn get(&self, key: impl Into<String>) -> anyhow::Result<Option<String>> {
         let key = key.into();
         let path = format!("/get/{}", urlencoding::encode(&key));

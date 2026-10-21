@@ -1,8 +1,6 @@
 //! # Mappy Python Bindings
 //!
-//! Python bindings for mappy maplet data structures using PyO3.
-
-#![allow(clippy::cast_precision_loss, clippy::cast_sign_loss)] // Acceptable for Python type conversions
+//! Python bindings for mappy maplet data structures using `PyO3`.
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -15,7 +13,6 @@ use mappy_core::{
     PersistenceMode, VectorOperator,
 };
 // use mappy_core::operators::MergeOperator;  // Not needed yet
-use serde::{Deserialize, Serialize};
 use std::ffi::CString;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -24,13 +21,14 @@ use tokio::runtime::Runtime;
 // Operator Classes
 // ============================================================================
 
-/// Python wrapper for CounterOperator
+/// Python wrapper for `CounterOperator`
 // `from_py_object` generates the `FromPyObject` impl whose body clones the
-// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
-// is not ours to rewrite, so the lint is silenced at the derive site.
-#[allow(clippy::clone_on_copy)]
+// wrapper. The wrapper is deliberately not `Copy`: a `Copy` type would make
+// that generated clone a `clippy::clone_on_copy` site, and the honest way to
+// keep the lint quiet is to not ask for `Copy` in the first place. The
+// operator itself is a unit struct, so the clone is a memcpy either way.
 #[pyclass(from_py_object)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PyCounterOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: CounterOperator,
@@ -39,20 +37,16 @@ pub struct PyCounterOperator {
 #[pymethods]
 impl PyCounterOperator {
     #[new]
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             inner: CounterOperator,
         }
     }
 }
 
-/// Python wrapper for MaxOperator
-// `from_py_object` generates the `FromPyObject` impl whose body clones the
-// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
-// is not ours to rewrite, so the lint is silenced at the derive site.
-#[allow(clippy::clone_on_copy)]
+/// Python wrapper for `MaxOperator`
 #[pyclass(from_py_object)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PyMaxOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: MaxOperator,
@@ -61,18 +55,14 @@ pub struct PyMaxOperator {
 #[pymethods]
 impl PyMaxOperator {
     #[new]
-    fn new() -> Self {
+    const fn new() -> Self {
         Self { inner: MaxOperator }
     }
 }
 
-/// Python wrapper for MinOperator
-// `from_py_object` generates the `FromPyObject` impl whose body clones the
-// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
-// is not ours to rewrite, so the lint is silenced at the derive site.
-#[allow(clippy::clone_on_copy)]
+/// Python wrapper for `MinOperator`
 #[pyclass(from_py_object)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PyMinOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: MinOperator,
@@ -81,18 +71,14 @@ pub struct PyMinOperator {
 #[pymethods]
 impl PyMinOperator {
     #[new]
-    fn new() -> Self {
+    const fn new() -> Self {
         Self { inner: MinOperator }
     }
 }
 
-/// Python wrapper for VectorOperator
-// `from_py_object` generates the `FromPyObject` impl whose body clones the
-// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
-// is not ours to rewrite, so the lint is silenced at the derive site.
-#[allow(clippy::clone_on_copy)]
+/// Python wrapper for `VectorOperator`
 #[pyclass(from_py_object)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PyVectorOperator {
     #[allow(dead_code)] // Used by PyO3 for type conversion
     inner: VectorOperator,
@@ -101,7 +87,7 @@ pub struct PyVectorOperator {
 #[pymethods]
 impl PyVectorOperator {
     #[new]
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             inner: VectorOperator,
         }
@@ -125,6 +111,20 @@ fn to_py_any_f64(py: Python<'_>, value: f64) -> Bound<'_, PyAny> {
     // Convert f64 to Python float - use eval as workaround
     let s = CString::new(value.to_string()).unwrap();
     py.eval(s.as_c_str(), None, None).unwrap()
+}
+
+/// Convert a Python integer to the `f64` that Python's float surface expects.
+///
+/// `f64` holds every integer exactly only up to 2^53. Above that the value is
+/// rounded, which is a property of Python's numeric tower rather than a
+/// defect in this conversion, so the rounding is confined to one documented
+/// place instead of being spread over the call sites.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "f64 represents integers exactly only up to 2^53; larger Python ints are inherently rounded"
+)]
+const fn py_int_to_f64(value: i64) -> f64 {
+    value as f64
 }
 
 /// Enum for different maplet types based on operator
@@ -208,7 +208,7 @@ impl PyMapletGeneric {
         Ok(Self { inner, runtime })
     }
 
-    fn insert(&mut self, key: String, value: Bound<PyAny>) -> PyResult<()> {
+    fn insert(&mut self, key: String, value: &Bound<'_, PyAny>) -> PyResult<()> {
         Python::attach(|_py| {
             match &self.inner {
                 PyMapletGenericInner::Counter(maplet) => {
@@ -258,9 +258,9 @@ impl PyMapletGeneric {
                         list.iter()
                             .map(|item| {
                                 item.extract::<f64>()
-                                    .or_else(|_| item.extract::<f32>().map(|x| x as f64))
-                                    .or_else(|_| item.extract::<i64>().map(|x| x as f64))
-                                    .or_else(|_| item.extract::<i32>().map(|x| x as f64))
+                                    .or_else(|_| item.extract::<f32>().map(f64::from))
+                                    .or_else(|_| item.extract::<i64>().map(py_int_to_f64))
+                                    .or_else(|_| item.extract::<i32>().map(f64::from))
                             })
                             .collect::<Result<Vec<f64>, _>>()?
                     } else {
@@ -272,15 +272,11 @@ impl PyMapletGeneric {
                                     list.iter()
                                         .map(|item| {
                                             item.extract::<f64>()
+                                                .or_else(|_| item.extract::<f32>().map(f64::from))
                                                 .or_else(|_| {
-                                                    item.extract::<f32>().map(|x| x as f64)
+                                                    item.extract::<i64>().map(py_int_to_f64)
                                                 })
-                                                .or_else(|_| {
-                                                    item.extract::<i64>().map(|x| x as f64)
-                                                })
-                                                .or_else(|_| {
-                                                    item.extract::<i32>().map(|x| x as f64)
-                                                })
+                                                .or_else(|_| item.extract::<i32>().map(f64::from))
                                         })
                                         .collect::<Result<Vec<f64>, _>>()?
                                 } else {
@@ -461,26 +457,26 @@ impl PyMapletGeneric {
         }
     }
 
-    fn find_slot_for_key(&self, key: &str) -> PyResult<Option<usize>> {
+    fn find_slot_for_key(&self, key: &str) -> Option<usize> {
         match &self.inner {
-            PyMapletGenericInner::Counter(maplet) => Ok(self
+            PyMapletGenericInner::Counter(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
-            PyMapletGenericInner::MaxU64(maplet) => Ok(self
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
+            PyMapletGenericInner::MaxU64(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
-            PyMapletGenericInner::MaxF64(maplet) => Ok(self
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
+            PyMapletGenericInner::MaxF64(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
-            PyMapletGenericInner::MinU64(maplet) => Ok(self
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
+            PyMapletGenericInner::MinU64(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
-            PyMapletGenericInner::MinF64(maplet) => Ok(self
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
+            PyMapletGenericInner::MinF64(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
-            PyMapletGenericInner::Vector(maplet) => Ok(self
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
+            PyMapletGenericInner::Vector(maplet) => self
                 .runtime
-                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await })),
+                .block_on(async { maplet.clone().find_slot_for_key(key.to_string()).await }),
         }
     }
 
@@ -534,18 +530,34 @@ impl PyMapletGeneric {
                     }
                 }
             })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?;
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
         Ok(result)
     }
 
     fn clear(&self) -> PyResult<()> {
-        // Maplet doesn't have a native clear() method.
-        // For clear functionality, use Engine instead of Maplet.
-        // As a workaround, we'll recreate the maplet by clearing the internal state.
-        // This is a limitation of the probabilistic data structure design.
-        Err(PyErr::new::<pyo3::exceptions::PyNotImplementedError, _>(
-            "clear() is not supported for Maplet. Use Engine for clear functionality, or recreate the Maplet.",
-        ))
+        // `Maplet::clear` exists; the wrapper simply forwards to it for the
+        // operator the maplet was built with.
+        let cleared = match &self.inner {
+            PyMapletGenericInner::Counter(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+            PyMapletGenericInner::MaxU64(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+            PyMapletGenericInner::MaxF64(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+            PyMapletGenericInner::MinU64(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+            PyMapletGenericInner::MinF64(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+            PyMapletGenericInner::Vector(maplet) => self
+                .runtime
+                .block_on(async { maplet.clone().clear().await }),
+        };
+        cleared.map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     fn stats(&self) -> PyResult<Py<PyAny>> {
@@ -598,10 +610,9 @@ impl PyMaplet {
         Ok(())
     }
 
-    fn query(&self, key: &str) -> PyResult<Option<u64>> {
-        Ok(self
-            .runtime
-            .block_on(async { self.inner.clone().query_str(key).await }))
+    fn query(&self, key: &str) -> Option<u64> {
+        self.runtime
+            .block_on(async { self.inner.clone().query_str(key).await })
     }
 
     fn contains(&self, key: &str) -> bool {
@@ -629,10 +640,9 @@ impl PyMaplet {
     }
 
     /// Find the slot for a key (quotient filter feature)
-    fn find_slot_for_key(&self, key: &str) -> PyResult<Option<usize>> {
-        Ok(self
-            .runtime
-            .block_on(async { self.inner.clone().find_slot_for_key(key.to_string()).await }))
+    fn find_slot_for_key(&self, key: &str) -> Option<usize> {
+        self.runtime
+            .block_on(async { self.inner.clone().find_slot_for_key(key.to_string()).await })
     }
 }
 
@@ -641,8 +651,12 @@ impl PyMaplet {
 // ============================================================================
 
 /// Python wrapper for Engine configuration
+// `Serialize`/`Deserialize` are deliberately absent: nothing in the crate or
+// its Python surface reads or writes these as JSON, and deriving `Deserialize`
+// on a `#[pyclass]` type would make the derive responsible for the type's
+// `unsafe` machinery.
 #[pyclass(from_py_object)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PyEngineConfig {
     #[pyo3(get, set)]
     pub capacity: usize,
@@ -745,7 +759,7 @@ impl PyEngineConfig {
 
 /// Python wrapper for Engine statistics
 #[pyclass(from_py_object)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PyEngineStats {
     #[pyo3(get)]
     pub uptime_seconds: u64,
@@ -771,9 +785,29 @@ pub struct PyEngineStats {
     pub ttl_cleanups: u64,
 }
 
-impl From<EngineStats> for PyEngineStats {
-    fn from(stats: EngineStats) -> Self {
-        Self {
+impl TryFrom<EngineStats> for PyEngineStats {
+    type Error = PyErr;
+
+    /// # Errors
+    ///
+    /// Returns an overflow error when a `u64` counter from the engine does not
+    /// fit in a `usize`, which can only happen on a 32-bit target.
+    fn try_from(stats: EngineStats) -> Result<Self, Self::Error> {
+        let storage_memory_usage =
+            usize::try_from(stats.storage_stats.memory_usage).map_err(|_| {
+                PyErr::new::<pyo3::exceptions::PyOverflowError, _>(format!(
+                    "storage memory usage {} does not fit in a usize",
+                    stats.storage_stats.memory_usage
+                ))
+            })?;
+        let ttl_entries = usize::try_from(stats.ttl_stats.total_keys_with_ttl).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyOverflowError, _>(format!(
+                "TTL entry count {} does not fit in a usize",
+                stats.ttl_stats.total_keys_with_ttl
+            ))
+        })?;
+
+        Ok(Self {
             uptime_seconds: stats.uptime_seconds,
             total_operations: stats.total_operations,
             maplet_capacity: stats.maplet_stats.capacity,
@@ -782,10 +816,10 @@ impl From<EngineStats> for PyEngineStats {
             maplet_error_rate: stats.maplet_stats.false_positive_rate,
             maplet_memory_usage: stats.maplet_stats.memory_usage,
             storage_operations: stats.storage_stats.operations_count,
-            storage_memory_usage: stats.storage_stats.memory_usage as usize,
-            ttl_entries: stats.ttl_stats.total_keys_with_ttl as usize,
+            storage_memory_usage,
+            ttl_entries,
             ttl_cleanups: stats.ttl_stats.expired_keys,
-        }
+        })
     }
 }
 
@@ -829,31 +863,31 @@ impl PyEngine {
     }
 
     /// Get a value by key
-    fn get(&self, key: String) -> PyResult<Option<Vec<u8>>> {
+    fn get(&self, key: &str) -> PyResult<Option<Vec<u8>>> {
         self.runtime
-            .block_on(async { self.inner.get(&key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .block_on(async { self.inner.get(key).await })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Check if a key exists
-    fn exists(&self, key: String) -> PyResult<bool> {
+    fn exists(&self, key: &str) -> PyResult<bool> {
         self.runtime
             .block_on(async { self.inner.exists(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Delete a key
     fn delete(&self, key: String) -> PyResult<bool> {
         self.runtime
             .block_on(async { self.inner.delete(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Get all keys
     fn keys(&self) -> PyResult<Vec<String>> {
         self.runtime
             .block_on(async { self.inner.keys().await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Clear all data
@@ -865,27 +899,29 @@ impl PyEngine {
     }
 
     /// Set TTL for a key
-    fn expire(&self, key: String, seconds: u64) -> PyResult<bool> {
+    fn expire(&self, key: &str, seconds: u64) -> PyResult<bool> {
         self.runtime
-            .block_on(async { self.inner.expire(&key, seconds).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .block_on(async { self.inner.expire(key, seconds).await })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Get TTL for a key
-    fn ttl(&self, key: String) -> PyResult<Option<u64>> {
+    fn ttl(&self, key: &str) -> PyResult<Option<u64>> {
         let result = self
             .runtime
-            .block_on(async { self.inner.ttl(&key).await })
+            .block_on(async { self.inner.ttl(key).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
 
-        Ok(result.map(|v| v as u64))
+        // The engine reports the remaining TTL as a signed count; a negative
+        // value means the key has already expired, which is reported as zero.
+        Ok(result.map(|v| u64::try_from(v.max(0)).unwrap_or(0)))
     }
 
     /// Remove TTL from a key (make it persistent)
     fn persist(&self, key: String) -> PyResult<bool> {
         self.runtime
             .block_on(async { self.inner.persist(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))
     }
 
     /// Set TTL for multiple keys (batch operation)
@@ -895,7 +931,7 @@ impl PyEngine {
             if self
                 .runtime
                 .block_on(async { self.inner.expire(&key, seconds).await })
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?
             {
                 count += 1;
             }
@@ -905,9 +941,22 @@ impl PyEngine {
 
     /// Get all keys with TTL
     fn keys_with_ttl(&self) -> PyResult<Vec<String>> {
-        // For now, return empty list as the Engine doesn't expose this method
-        // This would need to be implemented in the Engine if needed
-        Ok(vec![])
+        let keys = self
+            .runtime
+            .block_on(async { self.inner.keys().await })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
+
+        let mut with_ttl = Vec::new();
+        for key in keys {
+            let remaining = self
+                .runtime
+                .block_on(async { self.inner.ttl(&key).await })
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
+            if remaining.is_some() {
+                with_ttl.push(key);
+            }
+        }
+        Ok(with_ttl)
     }
 
     /// Get engine statistics
@@ -917,7 +966,7 @@ impl PyEngine {
             .block_on(async { self.inner.stats().await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
 
-        Ok(PyEngineStats::from(stats))
+        PyEngineStats::try_from(stats)
     }
 
     /// Get memory usage in bytes
@@ -927,7 +976,11 @@ impl PyEngine {
             .block_on(async { self.inner.memory_usage().await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
 
-        Ok(usage as usize)
+        usize::try_from(usage).map_err(|_| {
+            PyErr::new::<pyo3::exceptions::PyOverflowError, _>(format!(
+                "memory usage {usage} does not fit in a usize"
+            ))
+        })
     }
 
     /// Flush pending writes to disk

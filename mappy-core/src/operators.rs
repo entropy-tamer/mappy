@@ -583,19 +583,19 @@ mod tests {
 
     #[test]
     fn test_counter_operator_default() {
-        let op = CounterOperator::default();
+        let op = CounterOperator;
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 8);
     }
 
     #[test]
     fn test_max_operator_default() {
-        let op = MaxOperator::default();
+        let op = MaxOperator;
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 5);
     }
 
     #[test]
     fn test_min_operator_default() {
-        let op = MinOperator::default();
+        let op = MinOperator;
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 3);
     }
 
