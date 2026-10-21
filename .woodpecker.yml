@@ -5,8 +5,15 @@
 # them in the woodpecker-cargo volume shared across builds.
 #
 # The pact step is a ratchet: the number of crates.io sources in Cargo.lock
-# may not rise above the recorded baseline. The baseline is the migration
-# debt, not compliance -- drop it as dependencies move to git.sly.so.
+# may not rise above the recorded baseline, and neither may the number of
+# crate names that appear under more than one source. The baseline is the
+# migration debt, not compliance -- drop it as dependencies move to
+# git.sly.so.
+#
+# The ratchet reads Cargo.lock, so the lock must be committed. It was
+# gitignored until 2026-10-21, which made this step a no-op: the checkout
+# had no lock, the step printed "no Cargo.lock; pact baseline not
+# applicable" and exited 0. A missing lock is now a failure.
 
 when:
   - event: [push, pull_request]
@@ -25,22 +32,31 @@ steps:
       - |
         set -eu
         if [ ! -f Cargo.lock ]; then
-          echo "no Cargo.lock; pact baseline not applicable"
-          exit 0
+          echo "FAIL: Cargo.lock is missing; the pact ratchet reads the lock"
+          exit 1
         fi
-        count=$(grep -c '^source = "registry+' Cargo.lock || true)
-        echo "registry sources: $count (baseline ${SLY_PACT_MAX_REGISTRY:-unset})"
-        if [ -n "${SLY_PACT_MAX_REGISTRY:-}" ] && [ "$count" -gt "$SLY_PACT_MAX_REGISTRY" ]; then
+        registry=$(grep -c '^source = "registry+' Cargo.lock || true)
+        dups=$(awk '/^name = /{n=$3} /^source = /{print n}' Cargo.lock | sort | uniq -d | wc -l)
+        echo "registry sources: $registry (baseline ${SLY_PACT_MAX_REGISTRY})"
+        echo "duplicated crate names: $dups (baseline ${SLY_PACT_MAX_DUPES})"
+        if [ "$registry" -gt "${SLY_PACT_MAX_REGISTRY}" ]; then
           echo "FAIL: registry dependency count rose above the recorded baseline"
           exit 1
         fi
+        if [ "$dups" -gt "${SLY_PACT_MAX_DUPES}" ]; then
+          echo "FAIL: the count of crate names duplicated across sources rose above the recorded baseline"
+          exit 1
+        fi
     environment:
-      # 2026-10-19: the [patch.crates-io] block was removed per the pact end-state
-      # (empty patch blocks, direct git deps). The transitive crates it was forcing
-      # onto the den now resolve registry-side until the remaining forks are made
-      # self-sufficient internally, so this dropped from the pre-removal resolve
-      # baseline of 211 to 238. Burn the gap down; never let it rise further.
-      SLY_PACT_MAX_REGISTRY: "238"
+      # 2026-10-21: the den-side repair of the bitflags chain (proptest,
+      # rustix, redox_syscall, rusty-fork, parking_lot, parking_lot_core,
+      # hyper-util, and the new kade/system-configuration) took the registry
+      # count from 76 to 61 and removed the bitflags twin. Both baselines may
+      # only fall.
+      SLY_PACT_MAX_REGISTRY: "61"
+      # Crate names that appear under more than one source in the lock. The
+      # twin-crate hazard the Sly Pact exists to remove.
+      SLY_PACT_MAX_DUPES: "28"
 
   build:
     image: localhost/kade-rust:1.103
@@ -66,26 +82,50 @@ steps:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       CARGO_UNSTABLE_HEADSTART: "true"
 
+  # The lint debt that made this step advisory is gone: as of 2026-10-21 the
+  # workspace has zero clippy pedantic or nursery sites and no new #[allow]
+  # was introduced to get there.
+  #
+  # `multiple_crate_versions` is the one lint that is not denied here. It is
+  # not a code lint -- it reports the state of the dependency graph, and
+  # suppressing it in the source would be exactly the wrong fix. The pact
+  # step above is the gate for it: it counts the registry packages and the
+  # duplicated crate names in the lock and fails when either rises. The
+  # den-side twin walk is still in progress, so the graph is not yet clean
+  # enough to deny the lint outright; when it is, drop this one flag.
   clippy:
     image: localhost/kade-rust:1.103
     pull: false
     depends_on: [test]
-    # The forks are mid-migration to edition 2024; -D warnings turns that debt
-    # into a red pipeline and hides the build result. Advisory until cleaned.
-    failure: ignore
     commands:
-      - cargo clippy --release -- -D warnings
+      - cargo clippy --workspace --all-targets --release -- -D warnings -W clippy::pedantic -A clippy::multiple_crate_versions
     environment:
       CARGO_NET_OFFLINE: "false"
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
       CARGO_UNSTABLE_HEADSTART: "true"
 
-  # A fork's formatting drifts from the toolchain's rustfmt; report it without
-  # hiding the build and test result.
-  fmt:
+  # The nursery lint set is unstable by design: its members change between
+  # rustc releases. It is reported, not enforced, so a toolchain bump does
+  # not turn the pipeline red over a lint nobody has read yet.
+  clippy-nursery:
     image: localhost/kade-rust:1.103
     pull: false
     depends_on: [clippy]
     failure: ignore
     commands:
+      - cargo clippy --workspace --all-targets --release -- -W clippy::nursery -A clippy::multiple_crate_versions
+    environment:
+      CARGO_NET_OFFLINE: "false"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_UNSTABLE_HEADSTART: "true"
+
+  fmt:
+    image: localhost/kade-rust:1.103
+    pull: false
+    depends_on: [clippy-nursery]
+    commands:
       - cargo fmt --all --check
+    environment:
+      CARGO_NET_OFFLINE: "false"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_UNSTABLE_HEADSTART: "true"
