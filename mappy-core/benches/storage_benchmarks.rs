@@ -13,7 +13,7 @@ fn generate_test_data(size: usize) -> Vec<(String, Vec<u8>)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
         .map(|i| {
-            let key = format!("key_{:08x}", i);
+            let key = format!("key_{i:08x}");
             let value_size = rng.random_range(10..=1000);
             let value = (0..value_size).map(|_| rng.random::<u8>()).collect();
             (key, value)
@@ -26,7 +26,7 @@ fn bench_storage_write(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("storage_write");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         let test_data = generate_test_data(*size);
 
         // Memory storage
@@ -43,7 +43,7 @@ fn bench_storage_write(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // Disk storage
@@ -64,7 +64,7 @@ fn bench_storage_write(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // AOF storage
@@ -85,7 +85,7 @@ fn bench_storage_write(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // Hybrid storage
@@ -106,7 +106,7 @@ fn bench_storage_write(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
     }
 
@@ -118,7 +118,7 @@ fn bench_storage_read(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("storage_read");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         let test_data = generate_test_data(*size);
         let read_keys: Vec<String> = test_data.iter().map(|(k, _)| k.clone()).collect();
 
@@ -142,7 +142,7 @@ fn bench_storage_read(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // Disk storage
@@ -169,7 +169,7 @@ fn bench_storage_read(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // AOF storage
@@ -196,7 +196,7 @@ fn bench_storage_read(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         // Hybrid storage
@@ -223,7 +223,7 @@ fn bench_storage_read(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
     }
 
@@ -235,7 +235,7 @@ fn bench_ttl_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("ttl_operations");
 
-    for size in [1000, 10000].iter() {
+    for size in &[1000, 10000] {
         let test_data = generate_test_data(*size);
 
         group.bench_with_input(BenchmarkId::new("Set_TTL", size), size, |b, _| {
@@ -254,7 +254,7 @@ fn bench_ttl_operations(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         group.bench_with_input(BenchmarkId::new("Check_TTL", size), size, |b, _| {
@@ -274,7 +274,7 @@ fn bench_ttl_operations(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
     }
 
@@ -286,7 +286,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("concurrent_operations");
 
-    for size in [1000, 10000].iter() {
+    for size in &[1000, 10000] {
         let test_data = generate_test_data(*size);
 
         group.bench_with_input(BenchmarkId::new("Concurrent_Write", size), size, |b, _| {
@@ -312,7 +312,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
 
         group.bench_with_input(BenchmarkId::new("Concurrent_Read", size), size, |b, _| {
@@ -344,7 +344,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                 }
 
                 black_box(engine)
-            })
+            });
         });
     }
 
@@ -356,7 +356,7 @@ fn bench_memory_usage(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("memory_usage");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         let test_data = generate_test_data(*size);
 
         group.bench_with_input(BenchmarkId::new("Memory_Storage", size), size, |b, _| {
@@ -373,7 +373,7 @@ fn bench_memory_usage(c: &mut Criterion) {
 
                 let memory_usage = engine.memory_usage().await.unwrap();
                 black_box(memory_usage)
-            })
+            });
         });
 
         group.bench_with_input(BenchmarkId::new("Hybrid_Storage", size), size, |b, _| {
@@ -394,7 +394,7 @@ fn bench_memory_usage(c: &mut Criterion) {
 
                 let memory_usage = engine.memory_usage().await.unwrap();
                 black_box(memory_usage)
-            })
+            });
         });
     }
 

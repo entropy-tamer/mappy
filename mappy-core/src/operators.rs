@@ -407,10 +407,10 @@ mod tests {
             "right"
         );
         assert_eq!(
-            op.merge("".to_string(), "value".to_string()).unwrap(),
+            op.merge(String::new(), "value".to_string()).unwrap(),
             "value"
         );
-        assert_eq!(op.merge("value".to_string(), "".to_string()).unwrap(), "");
+        assert_eq!(op.merge("value".to_string(), String::new()).unwrap(), "");
         assert_eq!(op.identity(), "");
     }
 
@@ -583,25 +583,25 @@ mod tests {
 
     #[test]
     fn test_counter_operator_default() {
-        let op: CounterOperator = Default::default();
+        let op = CounterOperator::default();
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 8);
     }
 
     #[test]
     fn test_max_operator_default() {
-        let op: MaxOperator = Default::default();
+        let op = MaxOperator::default();
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 5);
     }
 
     #[test]
     fn test_min_operator_default() {
-        let op: MinOperator = Default::default();
+        let op = MinOperator::default();
         assert_eq!(op.merge(5u64, 3u64).unwrap(), 3);
     }
 
     #[test]
     fn test_set_operator_default() {
-        let op = SetOperator::default();
+        let op = SetOperator;
         let mut set1 = HashSet::new();
         set1.insert("a".to_string());
         let set2 = HashSet::new();
@@ -611,7 +611,7 @@ mod tests {
 
     #[test]
     fn test_string_operator_default() {
-        let op = StringOperator::default();
+        let op = StringOperator;
         assert_eq!(
             op.merge("left".to_string(), "right".to_string()).unwrap(),
             "right"
@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_vector_operator_default() {
-        let op = VectorOperator::default();
+        let op = VectorOperator;
         let vec1 = vec![1.0, 2.0, 3.0];
         let vec2 = vec![4.0, 5.0, 6.0];
         let result = op.merge(vec1, vec2).unwrap();
@@ -629,7 +629,7 @@ mod tests {
 
     #[test]
     fn test_byte_array_operator_default() {
-        let op = ByteArrayOperator::default();
+        let op = ByteArrayOperator;
         let bytes1 = vec![1, 2, 3];
         let bytes2 = vec![4, 5, 6];
         let result = op.merge(bytes1, bytes2).unwrap();

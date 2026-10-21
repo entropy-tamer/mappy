@@ -30,49 +30,31 @@ pub struct StorageStats {
 #[async_trait]
 pub trait Storage: Send + Sync {
     /// Get a value by key
-    async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>
-    where
-        Self: Send + Sync;
+    async fn get(&self, key: &str) -> MapletResult<Option<Vec<u8>>>;
 
     /// Set a key-value pair
-    async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>
-    where
-        Self: Send + Sync;
+    async fn set(&self, key: String, value: Vec<u8>) -> MapletResult<()>;
 
     /// Delete a key
-    async fn delete(&self, key: &str) -> MapletResult<bool>
-    where
-        Self: Send + Sync;
+    async fn delete(&self, key: &str) -> MapletResult<bool>;
 
     /// Check if a key exists
-    async fn exists(&self, key: &str) -> MapletResult<bool>
-    where
-        Self: Send + Sync;
+    async fn exists(&self, key: &str) -> MapletResult<bool>;
 
     /// Get all keys
-    async fn keys(&self) -> MapletResult<Vec<String>>
-    where
-        Self: Send + Sync;
+    async fn keys(&self) -> MapletResult<Vec<String>>;
 
     /// Clear all data
-    async fn clear_database(&self) -> MapletResult<()>
-    where
-        Self: Send + Sync;
+    async fn clear_database(&self) -> MapletResult<()>;
 
     /// Flush any pending writes
-    async fn flush(&self) -> MapletResult<()>
-    where
-        Self: Send + Sync;
+    async fn flush(&self) -> MapletResult<()>;
 
     /// Close the storage backend
-    async fn close(&self) -> MapletResult<()>
-    where
-        Self: Send + Sync;
+    async fn close(&self) -> MapletResult<()>;
 
     /// Get storage statistics
-    async fn stats(&self) -> MapletResult<StorageStats>
-    where
-        Self: Send + Sync;
+    async fn stats(&self) -> MapletResult<StorageStats>;
 }
 
 /// Storage factory for creating different backends
@@ -243,7 +225,7 @@ mod tests {
             avg_latency_us: 100,
         };
 
-        let cloned = stats.clone();
+        let cloned = stats;
         assert_eq!(cloned.total_keys, 100);
         assert_eq!(cloned.memory_usage, 1024);
     }

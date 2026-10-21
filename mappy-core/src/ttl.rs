@@ -84,7 +84,7 @@ impl TTLEntry {
     }
 }
 
-/// Type-erased background task handle (works with both smol::Task and tokio::JoinHandle).
+/// Type-erased background task handle (works with both `smol::Task` and `tokio::JoinHandle`).
 type CleanupHandle = std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + Sync>>;
 
 /// TTL manager for tracking and cleaning up expired keys
@@ -102,7 +102,7 @@ pub struct TTLManager {
 }
 
 /// Perform one cleanup batch: collect expired entries, remove them from the maps,
-/// and invoke the callback. Runtime-agnostic (uses async_lock::RwLock).
+/// and invoke the callback. Runtime-agnostic (uses `async_lock::RwLock`).
 async fn run_cleanup_batch<F>(
     expiration_map: &Arc<RwLock<BTreeMap<u64, Vec<TTLEntry>>>>,
     key_to_expiration: &Arc<RwLock<std::collections::HashMap<String, u64>>>,
@@ -409,10 +409,10 @@ impl TTLManager {
         // Send shutdown signal
         {
             let mut shutdown_tx = self.shutdown_tx.write().await;
-            if let Some(tx) = shutdown_tx.take() {
-                if let Err(e) = tx.send(()).await {
-                    tracing::warn!("Failed to send shutdown signal: {:?}", e);
-                }
+            if let Some(tx) = shutdown_tx.take()
+                && let Err(e) = tx.send(()).await
+            {
+                tracing::warn!("Failed to send shutdown signal: {:?}", e);
             }
         }
 
@@ -609,7 +609,7 @@ mod tests {
     #[tokio::test]
     async fn test_ttl_config_clone() {
         let config = TTLConfig::default();
-        let cloned = config.clone();
+        let cloned = config;
         assert_eq!(cloned.cleanup_interval_secs, 60);
     }
 
@@ -733,7 +733,7 @@ mod tests {
 
         for i in 0..10 {
             Arc::clone(&manager)
-                .set_ttl(format!("key{}", i), 0, 60)
+                .set_ttl(format!("key{i}"), 0, 60)
                 .await
                 .unwrap();
         }

@@ -25,7 +25,7 @@ fn bench_quotient_filter_insert(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -57,7 +57,7 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
                     for v in vals {
                         black_box(filter.query(*v));
                     }
-                })
+                });
             },
         );
     }
@@ -84,7 +84,7 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -116,7 +116,7 @@ fn bench_hash_functions(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }
@@ -145,7 +145,7 @@ fn bench_slot_finding(c: &mut Criterion) {
                             QuotientFilter::new(vals.len() * 2, 8, HashFunction::AHash).unwrap();
                         black_box(filter.get_actual_slot_for_fingerprint(*v));
                     }
-                })
+                });
             },
         );
     }
@@ -176,7 +176,7 @@ fn bench_multiset_operations(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -192,7 +192,7 @@ fn bench_memory_usage(c: &mut Criterion) {
             b.iter(|| {
                 let filter = QuotientFilter::new(s, 8, HashFunction::AHash).unwrap();
                 black_box(filter.stats())
-            })
+            });
         });
     }
 

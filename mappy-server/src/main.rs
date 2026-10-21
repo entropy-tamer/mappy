@@ -91,13 +91,15 @@ fn set_socket_permissions(socket_path: &StdPath) -> anyhow::Result<()> {
     if let Ok(group_file) = fs::read_to_string("/etc/group") {
         for line in group_file.lines() {
             let parts: Vec<&str> = line.split(':').collect();
-            if parts.len() >= 3 && parts[0] == "reynard"
-                && let Ok(gid) = parts[2].parse::<u32>() {
-                    // chown can fail if user doesn't have permission, but that's ok
-                    // The socket will still be accessible to group members
-                    let _ = chown(socket_path, None, Some(gid));
-                    break;
-                }
+            if parts.len() >= 3
+                && parts[0] == "reynard"
+                && let Ok(gid) = parts[2].parse::<u32>()
+            {
+                // chown can fail if user doesn't have permission, but that's ok
+                // The socket will still be accessible to group members
+                let _ = chown(socket_path, None, Some(gid));
+                break;
+            }
         }
     }
     Ok(())
@@ -241,45 +243,31 @@ async fn get_errors(
     let filtered: Vec<MappyError> = error_log
         .iter()
         .filter(|e| {
-            let type_match = if let Some(ref et) = error_type_filter {
-                match e {
-                    MappyError::CapacityExceeded { .. } => et == "CapacityExceeded",
-                    MappyError::CollisionLimitExceeded { .. } => et == "CollisionLimitExceeded",
-                    MappyError::ResizeFailed { .. } => et == "ResizeFailed",
-                    MappyError::SerializationError { .. } => et == "SerializationError",
-                    MappyError::Internal { .. } => et == "Internal",
-                    MappyError::OneSidedError { .. } => et == "OneSidedError",
-                }
-            } else {
-                true
-            };
+            let type_match = error_type_filter.as_deref().is_none_or(|et| match e {
+                MappyError::CapacityExceeded { .. } => et == "CapacityExceeded",
+                MappyError::CollisionLimitExceeded { .. } => et == "CollisionLimitExceeded",
+                MappyError::ResizeFailed { .. } => et == "ResizeFailed",
+                MappyError::SerializationError { .. } => et == "SerializationError",
+                MappyError::Internal { .. } => et == "Internal",
+                MappyError::OneSidedError { .. } => et == "OneSidedError",
+            });
 
-            let severity_match = if let Some(ref sf) = severity_filter {
-                match e {
-                    MappyError::CapacityExceeded { severity, .. } => {
-                        format!("{severity:?}") == *sf
-                    }
-                    MappyError::CollisionLimitExceeded { severity, .. } => {
-                        format!("{severity:?}") == *sf
-                    }
-                    MappyError::ResizeFailed { severity, .. } => format!("{severity:?}") == *sf,
-                    MappyError::SerializationError { severity, .. } => {
-                        format!("{severity:?}") == *sf
-                    }
-                    MappyError::Internal { severity, .. } => format!("{severity:?}") == *sf,
-                    MappyError::OneSidedError { severity, .. } => format!("{severity:?}") == *sf,
-                }
-            } else {
-                true
-            };
+            let severity_match = severity_filter.as_deref().is_none_or(|sf| match e {
+                MappyError::CapacityExceeded { severity, .. }
+                | MappyError::CollisionLimitExceeded { severity, .. }
+                | MappyError::ResizeFailed { severity, .. }
+                | MappyError::SerializationError { severity, .. }
+                | MappyError::Internal { severity, .. }
+                | MappyError::OneSidedError { severity, .. } => format!("{severity:?}") == sf,
+            });
 
             let time_match = match e {
-                MappyError::CapacityExceeded { timestamp, .. } => *timestamp >= since,
-                MappyError::CollisionLimitExceeded { timestamp, .. } => *timestamp >= since,
-                MappyError::ResizeFailed { timestamp, .. } => *timestamp >= since,
-                MappyError::SerializationError { timestamp, .. } => *timestamp >= since,
-                MappyError::Internal { timestamp, .. } => *timestamp >= since,
-                MappyError::OneSidedError { timestamp, .. } => *timestamp >= since,
+                MappyError::CapacityExceeded { timestamp, .. }
+                | MappyError::CollisionLimitExceeded { timestamp, .. }
+                | MappyError::ResizeFailed { timestamp, .. }
+                | MappyError::SerializationError { timestamp, .. }
+                | MappyError::Internal { timestamp, .. }
+                | MappyError::OneSidedError { timestamp, .. } => *timestamp >= since,
             };
 
             type_match && severity_match && time_match
@@ -296,6 +284,10 @@ async fn get_errors(
     })
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "error and key counts are far below 2^52, so the usize -> f64 conversion is exact"
+)]
 async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsResponse> {
     let error_log = state.error_log.read().await;
 
@@ -341,6 +333,7 @@ async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsRespon
     }
 
     let total_errors = error_log.len();
+    drop(error_log);
     let error_rate = if total_errors > 0 {
         (by_type.get("CollisionLimitExceeded").unwrap_or(&0)
             + by_type.get("CapacityExceeded").unwrap_or(&0)) as f64
@@ -360,9 +353,10 @@ async fn get_error_stats(State(state): State<AppState>) -> Json<ErrorStatsRespon
 }
 
 async fn get_one_sided_errors(State(state): State<AppState>) -> Json<OneSidedErrorsResponse> {
-    let error_log = state.error_log.read().await;
-
-    let violations: Vec<MappyError> = error_log
+    let violations: Vec<MappyError> = state
+        .error_log
+        .read()
+        .await
         .iter()
         .filter(|e| matches!(e, MappyError::OneSidedError { .. }))
         .cloned()
@@ -371,7 +365,7 @@ async fn get_one_sided_errors(State(state): State<AppState>) -> Json<OneSidedErr
     let total_violations = violations.len();
 
     let prob_exceed_chain = if total_violations > 0 {
-        0.01_f64.powi(total_violations as i32)
+        0.01_f64.powi(i32::try_from(total_violations).unwrap_or(i32::MAX))
     } else {
         0.0
     };
@@ -389,22 +383,26 @@ async fn clear_errors(State(state): State<AppState>) -> StatusCode {
     StatusCode::OK
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "error and key counts are far below 2^52, so the usize -> f64 conversion is exact"
+)]
 async fn get_metrics(State(state): State<AppState>) -> Json<MetricsResponse> {
-    let engine_guard = state.engine.read().await;
-    let error_log = state.error_log.read().await;
-
-    let (total_keys, memory_usage, load_factor) = if let Some(engine) = &*engine_guard {
-        let stats = engine.stats().await.unwrap();
-        (
-            stats.maplet_stats.len,
-            stats.maplet_stats.memory_usage,
-            stats.maplet_stats.load_factor,
-        )
-    } else {
-        (0, 0, 0.0)
+    let (total_keys, memory_usage, load_factor) = {
+        let engine_guard = state.engine.read().await;
+        if let Some(engine) = &*engine_guard {
+            let engine_stats = engine.stats().await.unwrap();
+            (
+                engine_stats.maplet_stats.len,
+                engine_stats.maplet_stats.memory_usage,
+                engine_stats.maplet_stats.load_factor,
+            )
+        } else {
+            (0, 0, 0.0)
+        }
     };
 
-    let total_errors = error_log.len();
+    let total_errors = state.error_log.read().await.len();
     let error_rate = if total_keys > 0 {
         total_errors as f64 / total_keys as f64
     } else {
@@ -498,9 +496,9 @@ async fn serve_unix_socket(listener: UnixListener, app: Router) -> anyhow::Resul
             let svc = service_fn(move |req| {
                 let mut app = app.clone();
                 async move {
-                    app.call(req).await.map_err(|e| {
-                        std::io::Error::other(format!("{e}"))
-                    })
+                    app.call(req)
+                        .await
+                        .map_err(|e| std::io::Error::other(format!("{e}")))
                 }
             });
 
@@ -528,9 +526,9 @@ async fn serve_http_socket(listener: TcpListener, app: Router) -> anyhow::Result
             let svc = service_fn(move |req| {
                 let mut app = app.clone();
                 async move {
-                    app.call(req).await.map_err(|e| {
-                        std::io::Error::other(format!("{e}"))
-                    })
+                    app.call(req)
+                        .await
+                        .map_err(|e| std::io::Error::other(format!("{e}")))
                 }
             });
 
@@ -543,88 +541,74 @@ async fn serve_http_socket(listener: TcpListener, app: Router) -> anyhow::Result
     }
 }
 
+/// Runtime configuration read from the environment.
 #[cfg(feature = "tokio-runtime")]
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+struct ServerConfig {
+    socket_path: String,
+    enable_http: bool,
+    enable_socket: bool,
+    port: u16,
+    host: String,
+    capacity: usize,
+    false_positive_rate: f64,
+    data_dir: String,
+    persistence_mode: String,
+}
 
-    info!("Starting Mappy Server");
+#[cfg(feature = "tokio-runtime")]
+impl ServerConfig {
+    /// Read every knob from the environment, applying the defaults the server
+    /// has always used when a variable is unset.
+    fn from_env() -> anyhow::Result<Self> {
+        fn env(name: &str, default: &str) -> String {
+            std::env::var(name).unwrap_or_else(|_| default.to_string())
+        }
 
-    // Load environment variables
-    dotenvy::EnvLoader::new().load().ok();
+        let enable_http = env("MAPPY_ENABLE_HTTP", "false").parse().unwrap_or(false);
+        let enable_socket = env("MAPPY_ENABLE_SOCKET", "true").parse().unwrap_or(true);
 
-    // Get configuration from environment
-    let socket_path = std::env::var("MAPPY_SOCKET_PATH")
-        .unwrap_or_else(|_| "/var/run/reynard/mappy.sock".to_string());
-    let enable_http = std::env::var("MAPPY_ENABLE_HTTP")
-        .unwrap_or_else(|_| "false".to_string())
-        .parse::<bool>()
-        .unwrap_or(false);
-    let enable_socket = std::env::var("MAPPY_ENABLE_SOCKET")
-        .unwrap_or_else(|_| "true".to_string())
-        .parse::<bool>()
-        .unwrap_or(true);
-    let port = std::env::var("MAPPY_PORT")
-        .unwrap_or_else(|_| "8003".to_string())
-        .parse::<u16>()?;
-    let host = std::env::var("MAPPY_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
-    let capacity = std::env::var("MAPPY_CAPACITY")
-        .unwrap_or_else(|_| "10000".to_string())
-        .parse::<usize>()?;
-    let false_positive_rate = std::env::var("MAPPY_FALSE_POSITIVE_RATE")
-        .unwrap_or_else(|_| "0.01".to_string())
-        .parse::<f64>()?;
-    let data_dir = std::env::var("MAPPY_DATA_DIR").unwrap_or_else(|_| "./data/mappy".to_string());
-    let persistence_mode =
-        std::env::var("MAPPY_PERSISTENCE_MODE").unwrap_or_else(|_| "memory".to_string());
+        Ok(Self {
+            socket_path: env("MAPPY_SOCKET_PATH", "/var/run/reynard/mappy.sock"),
+            enable_http,
+            enable_socket,
+            port: env("MAPPY_PORT", "8003").parse()?,
+            host: env("MAPPY_HOST", "0.0.0.0"),
+            capacity: env("MAPPY_CAPACITY", "10000").parse()?,
+            false_positive_rate: env("MAPPY_FALSE_POSITIVE_RATE", "0.01").parse()?,
+            data_dir: env("MAPPY_DATA_DIR", "./data/mappy"),
+            persistence_mode: env("MAPPY_PERSISTENCE_MODE", "memory"),
+        })
+    }
 
-    info!(
-        "Configuration: socket_path={}, enable_http={}, port={}, host={}, capacity={}, false_positive_rate={}, data_dir={}, persistence={}",
-        socket_path,
-        enable_http,
-        port,
-        host,
-        capacity,
-        false_positive_rate,
-        data_dir,
-        persistence_mode
-    );
+    fn persistence(&self) -> PersistenceMode {
+        match self.persistence_mode.as_str() {
+            "disk" => PersistenceMode::Disk,
+            "hybrid" => PersistenceMode::Hybrid,
+            _ => PersistenceMode::Memory,
+        }
+    }
 
-    // Initialize engine
-    let persistence = match persistence_mode.as_str() {
-        "disk" => PersistenceMode::Disk,
-        "hybrid" => PersistenceMode::Hybrid,
-        _ => PersistenceMode::Memory,
-    };
+    fn engine_config(&self) -> EngineConfig {
+        EngineConfig {
+            persistence_mode: self.persistence(),
+            data_dir: Some(self.data_dir.clone()),
+            maplet: mappy_core::types::MapletConfig {
+                capacity: self.capacity,
+                false_positive_rate: self.false_positive_rate,
+                max_load_factor: 0.95,
+                auto_resize: true,
+                enable_deletion: true,
+                enable_merging: true,
+            },
+            storage: mappy_core::storage::StorageConfig::default(),
+            ttl: mappy_core::ttl::TTLConfig::default(),
+        }
+    }
+}
 
-    let config = EngineConfig {
-        persistence_mode: persistence,
-        data_dir: Some(data_dir),
-        maplet: mappy_core::types::MapletConfig {
-            capacity,
-            false_positive_rate,
-            max_load_factor: 0.95,
-            auto_resize: true,
-            enable_deletion: true,
-            enable_merging: true,
-        },
-        storage: mappy_core::storage::StorageConfig::default(),
-        ttl: mappy_core::ttl::TTLConfig::default(),
-    };
-
-    let engine = Engine::new(config).await?;
-    let (error_broadcast, _) = broadcast::channel(1000);
-    let start_time = Arc::new(std::time::Instant::now());
-    let state = AppState {
-        engine: Arc::new(RwLock::new(Some(engine))),
-        error_log: Arc::new(RwLock::new(Vec::new())),
-        error_broadcast: Arc::new(error_broadcast),
-        start_time: start_time.clone(),
-    };
-
-    // Build router
-    let app = Router::new()
+#[cfg(feature = "tokio-runtime")]
+fn build_router(state: AppState) -> Router {
+    Router::new()
         .route("/health", get_route(health))
         .route("/status", get_route(status))
         .route("/set", post(set))
@@ -641,33 +625,39 @@ async fn main() -> anyhow::Result<()> {
                 .allow_methods(Any)
                 .allow_headers(Any),
         )
-        .with_state(state);
+        .with_state(state)
+}
 
-    // Start servers based on configuration
-    if enable_http && enable_socket {
-        // Both HTTP and socket
-        let socket_path_std = StdPath::new(&socket_path);
-        if socket_path_std.exists() {
-            fs::remove_file(socket_path_std)?;
-        }
+/// Bind the Unix socket, removing a stale socket file and creating the parent
+/// directory if the deployment has not already done so.
+#[cfg(feature = "tokio-runtime")]
+fn prepare_socket(path: &str) -> anyhow::Result<UnixListener> {
+    let socket_path = StdPath::new(path);
+    if socket_path.exists() {
+        fs::remove_file(socket_path)?;
+    }
+    if let Some(parent) = socket_path.parent() {
+        let _ = fs::create_dir_all(parent); // Non-fatal - deployment script should create it
+        // Directory permissions are set by deployment scripts, not at runtime
+    }
+    let listener = UnixListener::bind(socket_path)?;
+    set_socket_permissions(socket_path)?;
+    Ok(listener)
+}
 
-        // Create parent directory if it doesn't exist (non-fatal, should exist from deployment)
-        if let Some(parent) = socket_path_std.parent() {
-            let _ = fs::create_dir_all(parent); // Non-fatal - deployment script should create it
-            // Directory permissions are set by deployment scripts, not at runtime
-        }
+/// Bind whatever the configuration enabled and drive it to completion.
+#[cfg(feature = "tokio-runtime")]
+async fn serve(cfg: ServerConfig, app: Router) -> anyhow::Result<()> {
+    if cfg.enable_http && cfg.enable_socket {
+        let unix_listener = prepare_socket(&cfg.socket_path)?;
+        info!("Mappy Server Unix socket listening on {}", cfg.socket_path);
 
-        let unix_listener = UnixListener::bind(socket_path_std)?;
-        set_socket_permissions(socket_path_std)?;
-        info!("Mappy Server Unix socket listening on {}", socket_path);
-
-        let http_listener = TcpListener::bind(format!("{host}:{port}")).await?;
-        info!("Mappy Server HTTP listening on {}:{}", host, port);
+        let http_listener = TcpListener::bind(format!("{}:{}", cfg.host, cfg.port)).await?;
+        info!("Mappy Server HTTP listening on {}:{}", cfg.host, cfg.port);
 
         let app_clone = app.clone();
         let socket_handle =
             tokio::spawn(async move { serve_unix_socket(unix_listener, app_clone).await });
-
         let http_handle = tokio::spawn(async move { serve_http_socket(http_listener, app).await });
 
         tokio::select! {
@@ -682,27 +672,13 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
-    } else if enable_http {
-        // HTTP only
-        let http_listener = TcpListener::bind(format!("{host}:{port}")).await?;
-        info!("Mappy Server HTTP listening on {}:{}", host, port);
+    } else if cfg.enable_http {
+        let http_listener = TcpListener::bind(format!("{}:{}", cfg.host, cfg.port)).await?;
+        info!("Mappy Server HTTP listening on {}:{}", cfg.host, cfg.port);
         serve_http_socket(http_listener, app).await?;
-    } else if enable_socket {
-        // Socket only
-        let socket_path_std = StdPath::new(&socket_path);
-        if socket_path_std.exists() {
-            fs::remove_file(socket_path_std)?;
-        }
-
-        // Create parent directory if it doesn't exist (non-fatal, should exist from deployment)
-        if let Some(parent) = socket_path_std.parent() {
-            let _ = fs::create_dir_all(parent); // Non-fatal - deployment script should create it
-            // Directory permissions are set by deployment scripts, not at runtime
-        }
-
-        let unix_listener = UnixListener::bind(socket_path_std)?;
-        set_socket_permissions(socket_path_std)?;
-        info!("Mappy Server Unix socket listening on {}", socket_path);
+    } else if cfg.enable_socket {
+        let unix_listener = prepare_socket(&cfg.socket_path)?;
+        info!("Mappy Server Unix socket listening on {}", cfg.socket_path);
         serve_unix_socket(unix_listener, app).await?;
     } else {
         return Err(anyhow::anyhow!(
@@ -711,6 +687,39 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(feature = "tokio-runtime")]
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+    info!("Starting Mappy Server");
+
+    dotenvy::EnvLoader::new().load().ok();
+
+    let cfg = ServerConfig::from_env()?;
+    info!(
+        "Configuration: socket_path={}, enable_http={}, port={}, host={}, capacity={}, false_positive_rate={}, data_dir={}, persistence={}",
+        cfg.socket_path,
+        cfg.enable_http,
+        cfg.port,
+        cfg.host,
+        cfg.capacity,
+        cfg.false_positive_rate,
+        cfg.data_dir,
+        cfg.persistence_mode
+    );
+
+    let engine = Engine::new(cfg.engine_config()).await?;
+    let (error_broadcast, _) = broadcast::channel(1000);
+    let state = AppState {
+        engine: Arc::new(RwLock::new(Some(engine))),
+        error_log: Arc::new(RwLock::new(Vec::new())),
+        error_broadcast: Arc::new(error_broadcast),
+        start_time: Arc::new(Instant::now()),
+    };
+
+    serve(cfg, build_router(state)).await
 }
 
 #[cfg(test)]
@@ -745,7 +754,7 @@ mod tests {
             engine: Arc::new(RwLock::new(Some(engine))),
             error_log: Arc::new(RwLock::new(Vec::new())),
             error_broadcast: Arc::new(error_broadcast),
-            start_time: start_time.clone(),
+            start_time,
         };
 
         Router::new()
@@ -762,7 +771,7 @@ mod tests {
             .with_state(state)
     }
 
-    async fn create_test_app_no_engine() -> Router {
+    fn create_test_app_no_engine() -> Router {
         let (error_broadcast, _) = broadcast::channel(1000);
         let state = AppState {
             engine: Arc::new(RwLock::new(None)),
@@ -831,7 +840,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_status_endpoint_without_engine() {
-        let app = create_test_app_no_engine().await;
+        let app = create_test_app_no_engine();
         let response = app
             .oneshot(
                 Request::builder()
@@ -876,7 +885,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_endpoint_no_engine() {
-        let app = create_test_app_no_engine().await;
+        let app = create_test_app_no_engine();
         let request_body = serde_json::json!({
             "key": "test_key",
             "value": "test_value"
@@ -966,7 +975,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_endpoint_no_engine() {
-        let app = create_test_app_no_engine().await;
+        let app = create_test_app_no_engine();
 
         let response = app
             .oneshot(
@@ -1016,7 +1025,7 @@ mod tests {
                 .clone()
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/get/{}", key))
+                        .uri(format!("/get/{key}"))
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1123,7 +1132,7 @@ mod tests {
             .unwrap();
         let get_response: GetResponse = serde_json::from_slice(&body).unwrap();
         assert!(get_response.found);
-        assert_eq!(get_response.value, Some("".to_string()));
+        assert_eq!(get_response.value, Some(String::new()));
     }
 
     #[test]

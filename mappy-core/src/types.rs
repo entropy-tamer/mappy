@@ -282,16 +282,16 @@ mod tests {
     #[test]
     fn test_maplet_error_display() {
         let err = MapletError::CapacityExceeded;
-        assert_eq!(format!("{}", err), "Maplet is at capacity");
+        assert_eq!(format!("{err}"), "Maplet is at capacity");
 
         let err = MapletError::InvalidErrorRate(0.5);
         assert_eq!(
-            format!("{}", err),
+            format!("{err}"),
             "Invalid false-positive rate: 0.5 (must be between 0 and 1)"
         );
 
         let err = MapletError::InvalidCapacity(100);
-        assert_eq!(format!("{}", err), "Invalid capacity: 100 (must be > 0)");
+        assert_eq!(format!("{err}"), "Invalid capacity: 100 (must be > 0)");
     }
 
     #[test]

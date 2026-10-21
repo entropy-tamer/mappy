@@ -25,7 +25,7 @@ fn bench_query_operations(c: &mut Criterion) {
             }
             maplet
         });
-        let maplet_clone = maplet.clone();
+        let maplet_clone = maplet;
 
         group.bench_with_input(BenchmarkId::new("maplet", size), &size, |b, &size| {
             b.to_async(&rt).iter(|| async {

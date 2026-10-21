@@ -101,12 +101,12 @@ mod tests {
             Arc::new(ConcurrentMaplet::<String, u64, CounterOperator>::new(1000, 0.01).unwrap());
         let mut handles = vec![];
 
-        for i in 0..4 {
+        for i in 0u64..4 {
             let maplet = Arc::clone(&maplet);
             let handle = tokio::spawn(async move {
-                for j in 0..100 {
+                for j in 0u64..100 {
                     let key = format!("key_{i}_{j}");
-                    let _ = maplet.insert(key, (i * 100 + j) as u64).await;
+                    let _ = maplet.insert(key, i * 100 + j).await;
                 }
             });
             handles.push(handle);
@@ -183,7 +183,7 @@ mod tests {
         let maplet = ConcurrentMaplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap();
 
         for i in 0..10 {
-            maplet.insert(format!("key{}", i), i).await.unwrap();
+            maplet.insert(format!("key{i}"), i).await.unwrap();
         }
 
         assert_eq!(maplet.len().await, 10);

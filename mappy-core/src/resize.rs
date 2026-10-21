@@ -119,7 +119,7 @@ mod tests {
     #[test]
     fn test_resize_manager_clone() {
         let manager = ResizeManager::new(100);
-        let cloned = manager.clone();
+        let cloned = manager;
         assert_eq!(cloned.capacity, 100);
     }
 

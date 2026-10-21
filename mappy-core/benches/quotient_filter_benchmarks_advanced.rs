@@ -18,7 +18,7 @@ fn bench_advanced_slot_finding(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("advanced_slot_finding");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(
@@ -43,7 +43,7 @@ fn bench_advanced_slot_finding(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }
@@ -56,7 +56,7 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("maplet_slot_finding");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(
@@ -89,7 +89,7 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
                     }
 
                     black_box(maplet)
-                })
+                });
             },
         );
     }
@@ -101,7 +101,7 @@ fn bench_maplet_slot_finding(c: &mut Criterion) {
 fn bench_run_detection(c: &mut Criterion) {
     let mut group = c.benchmark_group("run_detection");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(BenchmarkId::new("run_detection", size), size, |b, &size| {
@@ -118,7 +118,7 @@ fn bench_run_detection(c: &mut Criterion) {
                 // Get statistics (which includes run detection)
                 let stats = filter.stats();
                 black_box(stats.runs)
-            })
+            });
         });
     }
 
@@ -155,7 +155,7 @@ fn bench_slot_finding_hash_functions(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -191,7 +191,7 @@ fn bench_slot_finding_remainder_bits(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }
@@ -203,7 +203,7 @@ fn bench_slot_finding_remainder_bits(c: &mut Criterion) {
 fn bench_slot_finding_collisions(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding_collisions");
 
-    for collision_factor in [1, 2, 4, 8].iter() {
+    for collision_factor in &[1, 2, 4, 8] {
         let capacity = 1000;
         let size = capacity / collision_factor;
 
@@ -229,7 +229,7 @@ fn bench_slot_finding_collisions(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }
@@ -241,7 +241,7 @@ fn bench_slot_finding_collisions(c: &mut Criterion) {
 fn bench_slot_finding_multiset(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding_multiset");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(BenchmarkId::new("multiset", size), size, |b, &size| {
@@ -263,7 +263,7 @@ fn bench_slot_finding_multiset(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -275,7 +275,7 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("slot_finding_concurrent");
 
-    for num_threads in [1, 2, 4, 8].iter() {
+    for num_threads in &[1, 2, 4, 8] {
         group.bench_with_input(
             BenchmarkId::new("concurrent", num_threads),
             num_threads,
@@ -299,7 +299,8 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
                         let filter_clone = Arc::clone(&filter);
                         let handle = task::spawn(async move {
                             for i in 0..1000 {
-                                let value = (thread_id * 1000 + i) as u64;
+                                let value: u64 =
+                                    (thread_id * 1000 + i).try_into().unwrap_or(u64::MAX);
                                 filter_clone.lock().unwrap().insert(value).unwrap();
 
                                 // Test slot finding
@@ -320,7 +321,7 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }
@@ -332,7 +333,7 @@ fn bench_slot_finding_concurrent(c: &mut Criterion) {
 fn bench_slot_finding_accuracy(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding_accuracy");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.bench_with_input(BenchmarkId::new("accuracy", size), size, |b, &size| {
             b.iter(|| {
                 let mut filter = QuotientFilter::new(size * 2, 8, HashFunction::AHash).unwrap();
@@ -351,15 +352,15 @@ fn bench_slot_finding_accuracy(c: &mut Criterion) {
                 // Test slot finding consistency
                 let mut consistent = 0;
                 for (value, expected_slot) in &value_to_slot {
-                    if let Some(actual_slot) = filter.get_actual_slot_for_fingerprint(*value) {
-                        if actual_slot == *expected_slot {
-                            consistent += 1;
-                        }
+                    if let Some(actual_slot) = filter.get_actual_slot_for_fingerprint(*value)
+                        && actual_slot == *expected_slot
+                    {
+                        consistent += 1;
                     }
                 }
 
                 black_box(consistent)
-            })
+            });
         });
     }
 
@@ -370,7 +371,7 @@ fn bench_slot_finding_accuracy(c: &mut Criterion) {
 fn bench_slot_finding_stress(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding_stress");
 
-    for size in [1000, 10000, 100000].iter() {
+    for size in &[1000, 10000, 100_000] {
         group.throughput(Throughput::Elements(*size as u64));
 
         group.bench_with_input(BenchmarkId::new("stress", size), size, |b, &size| {
@@ -398,7 +399,7 @@ fn bench_slot_finding_stress(c: &mut Criterion) {
                 }
 
                 black_box(filter)
-            })
+            });
         });
     }
 
@@ -410,10 +411,10 @@ fn bench_slot_finding_load_factor(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding_load_factor");
 
     let capacity = 10000;
-    let load_factors = vec![0.1, 0.3, 0.5, 0.7, 0.9];
+    let load_factors = [(0.1, 10), (0.3, 30), (0.5, 50), (0.7, 70), (0.9, 90)];
 
-    for &load_factor in &load_factors {
-        let size = (capacity as f64 * load_factor) as usize;
+    for &(load_factor, percent) in &load_factors {
+        let size = capacity * percent / 100;
 
         group.bench_with_input(
             BenchmarkId::new("load_factor", load_factor),
@@ -437,7 +438,7 @@ fn bench_slot_finding_load_factor(c: &mut Criterion) {
                     }
 
                     black_box(filter)
-                })
+                });
             },
         );
     }

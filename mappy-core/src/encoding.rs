@@ -245,15 +245,15 @@ mod tests {
 
     #[test]
     fn test_compact_encoding() {
-        let value: u32 = 0x1234_5678;
-        let encoded = CompactEncoder::encode_inline(&value);
-        let decoded: u32 = CompactEncoder::decode_inline(&encoded).unwrap();
-        assert_eq!(decoded, value);
+        let value32: u32 = 0x1234_5678;
+        let encoded32 = CompactEncoder::encode_inline(&value32);
+        let decoded32: u32 = CompactEncoder::decode_inline(&encoded32).unwrap();
+        assert_eq!(decoded32, value32);
 
-        let value: u64 = 0x1234_5678_9ABC_DEF0;
-        let encoded = CompactEncoder::encode_inline(&value);
-        let decoded: u64 = CompactEncoder::decode_inline(&encoded).unwrap();
-        assert_eq!(decoded, value);
+        let value64: u64 = 0x1234_5678_9ABC_DEF0;
+        let encoded64 = CompactEncoder::encode_inline(&value64);
+        let decoded64: u64 = CompactEncoder::decode_inline(&encoded64).unwrap();
+        assert_eq!(decoded64, value64);
     }
 
     #[test]

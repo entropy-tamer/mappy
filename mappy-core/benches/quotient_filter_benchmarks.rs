@@ -12,7 +12,7 @@ use std::hint::black_box as hint_black_box;
 fn bench_quotient_filter_insert(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_insert");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(
@@ -29,7 +29,7 @@ fn bench_quotient_filter_insert(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
     }
@@ -41,7 +41,7 @@ fn bench_quotient_filter_insert(c: &mut Criterion) {
 fn bench_quotient_filter_query(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_query");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         // Prepare filter with data
@@ -63,7 +63,7 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
                     for &value in values {
                         hint_black_box(filter.query(value));
                     }
-                })
+                });
             },
         );
     }
@@ -75,7 +75,7 @@ fn bench_quotient_filter_query(c: &mut Criterion) {
 fn bench_quotient_filter_delete(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_delete");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(
@@ -100,7 +100,7 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
     }
@@ -108,11 +108,11 @@ fn bench_quotient_filter_delete(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark quotient filter vs HashSet performance
+/// Benchmark quotient filter vs `HashSet` performance
 fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
     let mut group = c.benchmark_group("quotient_filter_vs_hashset");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         // Benchmark QuotientFilter
@@ -135,7 +135,7 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
 
@@ -156,7 +156,7 @@ fn bench_quotient_filter_vs_hashset(c: &mut Criterion) {
                 }
 
                 hint_black_box(set)
-            })
+            });
         });
     }
 
@@ -188,7 +188,7 @@ fn bench_hash_functions(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
     }
@@ -200,7 +200,7 @@ fn bench_hash_functions(c: &mut Criterion) {
 fn bench_slot_finding(c: &mut Criterion) {
     let mut group = c.benchmark_group("slot_finding");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         // Prepare values
@@ -217,7 +217,7 @@ fn bench_slot_finding(c: &mut Criterion) {
                             QuotientFilter::new(vals.len() * 2, 8, HashFunction::AHash).unwrap();
                         hint_black_box(filter.get_actual_slot_for_fingerprint(*v));
                     }
-                })
+                });
             },
         );
     }
@@ -229,7 +229,7 @@ fn bench_slot_finding(c: &mut Criterion) {
 fn bench_multiset_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("multiset_operations");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(BenchmarkId::new("multiset", size), &size, |b, &s| {
@@ -248,7 +248,7 @@ fn bench_multiset_operations(c: &mut Criterion) {
                 }
 
                 hint_black_box(filter)
-            })
+            });
         });
     }
 
@@ -259,13 +259,13 @@ fn bench_multiset_operations(c: &mut Criterion) {
 fn bench_memory_usage(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_usage");
 
-    for size in [1000usize, 10000, 100000, 1000000] {
+    for size in [1000usize, 10000, 100_000, 1_000_000] {
         group.bench_with_input(BenchmarkId::new("memory", size), &size, |b, &s| {
             b.iter(|| {
                 let filter = QuotientFilter::new(s, 8, HashFunction::AHash).unwrap();
                 let stats = filter.stats();
                 hint_black_box(stats.capacity)
-            })
+            });
         });
     }
 
@@ -306,7 +306,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
     }
@@ -318,7 +318,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
 fn bench_false_positive_rate(c: &mut Criterion) {
     let mut group = c.benchmark_group("false_positive_rate");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.bench_with_input(BenchmarkId::new("false_positive", size), &size, |b, &s| {
             b.iter(|| {
                 let mut filter = QuotientFilter::new(s * 2, 8, HashFunction::AHash).unwrap();
@@ -347,13 +347,13 @@ fn bench_false_positive_rate(c: &mut Criterion) {
                 }
 
                 let rate = if total_tested > 0 {
-                    false_positives as f64 / total_tested as f64
+                    f64::from(false_positives) / f64::from(total_tested)
                 } else {
                     0.0
                 };
 
                 hint_black_box(rate)
-            })
+            });
         });
     }
 
@@ -365,10 +365,10 @@ fn bench_load_factor_impact(c: &mut Criterion) {
     let mut group = c.benchmark_group("load_factor_impact");
 
     let capacity = 10000;
-    let load_factors = vec![0.1, 0.3, 0.5, 0.7, 0.9];
+    let load_factors = [(0.1, 10), (0.3, 30), (0.5, 50), (0.7, 70), (0.9, 90)];
 
-    for &load_factor in &load_factors {
-        let size = (capacity as f64 * load_factor) as usize;
+    for &(load_factor, percent) in &load_factors {
+        let size = capacity * percent / 100;
 
         group.bench_with_input(
             BenchmarkId::new("load_factor", load_factor),
@@ -391,7 +391,7 @@ fn bench_load_factor_impact(c: &mut Criterion) {
                     }
 
                     hint_black_box(filter)
-                })
+                });
             },
         );
     }
@@ -403,7 +403,7 @@ fn bench_load_factor_impact(c: &mut Criterion) {
 fn bench_run_detection(c: &mut Criterion) {
     let mut group = c.benchmark_group("run_detection");
 
-    for size in [1000usize, 10000, 100000] {
+    for size in [1000usize, 10000, 100_000] {
         group.throughput(Throughput::Elements(size as u64));
 
         group.bench_with_input(BenchmarkId::new("run_detection", size), &size, |b, &s| {
@@ -420,7 +420,7 @@ fn bench_run_detection(c: &mut Criterion) {
                 // Get statistics (which includes run detection)
                 let stats = filter.stats();
                 hint_black_box(stats.runs)
-            })
+            });
         });
     }
 

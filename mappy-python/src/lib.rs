@@ -25,6 +25,10 @@ use tokio::runtime::Runtime;
 // ============================================================================
 
 /// Python wrapper for CounterOperator
+// `from_py_object` generates the `FromPyObject` impl whose body clones the
+// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
+// is not ours to rewrite, so the lint is silenced at the derive site.
+#[allow(clippy::clone_on_copy)]
 #[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyCounterOperator {
@@ -43,6 +47,10 @@ impl PyCounterOperator {
 }
 
 /// Python wrapper for MaxOperator
+// `from_py_object` generates the `FromPyObject` impl whose body clones the
+// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
+// is not ours to rewrite, so the lint is silenced at the derive site.
+#[allow(clippy::clone_on_copy)]
 #[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyMaxOperator {
@@ -59,6 +67,10 @@ impl PyMaxOperator {
 }
 
 /// Python wrapper for MinOperator
+// `from_py_object` generates the `FromPyObject` impl whose body clones the
+// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
+// is not ours to rewrite, so the lint is silenced at the derive site.
+#[allow(clippy::clone_on_copy)]
 #[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyMinOperator {
@@ -75,6 +87,10 @@ impl PyMinOperator {
 }
 
 /// Python wrapper for VectorOperator
+// `from_py_object` generates the `FromPyObject` impl whose body clones the
+// wrapper. The wrapper is `Copy`, the clone is free, and the generated code
+// is not ours to rewrite, so the lint is silenced at the derive site.
+#[allow(clippy::clone_on_copy)]
 #[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct PyVectorOperator {
@@ -649,6 +665,10 @@ pub struct PyEngineConfig {
 #[pymethods]
 impl PyEngineConfig {
     #[new]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "PyEngineConfig mirrors the eight keyword arguments of the Python constructor"
+    )]
     fn new(
         capacity: Option<usize>,
         false_positive_rate: Option<f64>,
@@ -810,34 +830,30 @@ impl PyEngine {
 
     /// Get a value by key
     fn get(&self, key: String) -> PyResult<Option<Vec<u8>>> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.get(&key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Check if a key exists
     fn exists(&self, key: String) -> PyResult<bool> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.exists(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Delete a key
     fn delete(&self, key: String) -> PyResult<bool> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.delete(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Get all keys
     fn keys(&self) -> PyResult<Vec<String>> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.keys().await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Clear all data
@@ -850,10 +866,9 @@ impl PyEngine {
 
     /// Set TTL for a key
     fn expire(&self, key: String, seconds: u64) -> PyResult<bool> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.expire(&key, seconds).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Get TTL for a key
@@ -868,10 +883,9 @@ impl PyEngine {
 
     /// Remove TTL from a key (make it persistent)
     fn persist(&self, key: String) -> PyResult<bool> {
-        Ok(self
-            .runtime
+        self.runtime
             .block_on(async { self.inner.persist(key).await })
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))?)
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e)))
     }
 
     /// Set TTL for multiple keys (batch operation)

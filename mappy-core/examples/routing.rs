@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nComparison with HashMap:");
     for ip in &test_ips {
-        let maplet_route = find_best_route(&routing_table, &ip).await;
+        let maplet_route = find_best_route(&routing_table, ip).await;
         let hashmap_route = find_best_route_hashmap(&hashmap_routes, ip);
         println!("  {ip}: Maplet={maplet_route:?}, HashMap={hashmap_route:?}");
     }

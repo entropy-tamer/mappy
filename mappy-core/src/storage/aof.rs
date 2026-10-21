@@ -132,10 +132,10 @@ impl AOFStorage {
             Box::pin(smol::spawn(async move {
                 loop {
                     smol::Timer::after(sync_interval).await;
-                    if aof_path.exists() {
-                        if let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all()) {
-                            eprintln!("Failed to sync AOF file: {e}");
-                        }
+                    if aof_path.exists()
+                        && let Err(e) = std::fs::File::open(&aof_path).and_then(|f| f.sync_all())
+                    {
+                        eprintln!("Failed to sync AOF file: {e}");
                     }
                 }
             }));
@@ -190,9 +190,7 @@ impl AOFStorage {
     /// Calculate disk usage
     fn calculate_disk_usage(&self) -> u64 {
         if self.aof_path.exists() {
-            std::fs::metadata(&self.aof_path)
-                .map(|m| m.len())
-                .unwrap_or(0)
+            std::fs::metadata(&self.aof_path).map_or(0, |m| m.len())
         } else {
             0
         }
@@ -650,7 +648,7 @@ mod tests {
                 assert_eq!(key, "test");
                 assert_eq!(value, vec![1, 2, 3]);
             }
-            _ => panic!("Expected Set entry"),
+            AOFEntry::Delete { .. } => panic!("Expected Set entry"),
         }
     }
 
@@ -668,7 +666,7 @@ mod tests {
             AOFEntry::Delete { key } => {
                 assert_eq!(key, "test");
             }
-            _ => panic!("Expected Delete entry"),
+            AOFEntry::Set { .. } => panic!("Expected Delete entry"),
         }
     }
 }

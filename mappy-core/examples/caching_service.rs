@@ -175,7 +175,7 @@ impl CachingService {
     }
 
     /// Update user and invalidate cache
-    async fn update_user(&mut self, user: User) -> Result<User, Box<dyn std::error::Error>> {
+    async fn update_user(&self, user: User) -> Result<User, Box<dyn std::error::Error>> {
         // Update in database
         let updated_user = self.db.update_user(user.clone()).await;
 

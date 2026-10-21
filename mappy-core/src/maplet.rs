@@ -165,8 +165,10 @@ where
         K: ToString,
     {
         let fingerprint = self.hash_str_key(key);
-        let mut filter_guard = self.filter.write().await;
-        filter_guard.insert(fingerprint)?;
+        {
+            let mut filter_guard = self.filter.write().await;
+            filter_guard.insert(fingerprint)?;
+        }
         Arc::clone(&self).store_value(fingerprint, value).await?;
         {
             let mut len_guard = self.len.write().await;
@@ -182,9 +184,11 @@ where
     {
         let fingerprint = self.hash_key(&key);
 
-        let filter_guard = self.filter.read().await;
-        if !filter_guard.query(fingerprint) {
-            return None;
+        {
+            let filter_guard = self.filter.read().await;
+            if !filter_guard.query(fingerprint) {
+                return None;
+            }
         }
 
         let values_guard = self.values.read().await;
@@ -198,9 +202,11 @@ where
     {
         let fingerprint = self.hash_str_key(key);
 
-        let filter_guard = self.filter.read().await;
-        if !filter_guard.query(fingerprint) {
-            return None;
+        {
+            let filter_guard = self.filter.read().await;
+            if !filter_guard.query(fingerprint) {
+                return None;
+            }
         }
 
         let values_guard = self.values.read().await;
@@ -871,10 +877,10 @@ mod tests {
     async fn test_maplet_resize() {
         let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
-        for i in 0..20 {
+        for i in 0u64..20 {
             let key = format!("key_{i}");
             Arc::clone(&maplet)
-                .insert(key, i as u64)
+                .insert(key, i)
                 .await
                 .expect("Failed to insert item during resize test");
         }
@@ -937,10 +943,10 @@ mod tests {
         // Fill up to capacity - insert until we get a capacity exceeded error
         // Note: Due to hash collisions, we might not reach exactly 5 unique keys
         let mut got_capacity_error = false;
-        for i in 0..15 {
+        for i in 0u64..15 {
             let key = format!("key_{i}");
-            match Arc::clone(&maplet).insert(key, i as u64).await {
-                Ok(_) => {
+            match Arc::clone(&maplet).insert(key, i).await {
+                Ok(()) => {
                     // Continue inserting
                 }
                 Err(MapletError::CapacityExceeded) => {
@@ -955,12 +961,11 @@ mod tests {
         // This test verifies that capacity exceeded errors can occur
         // Note: Due to hash collisions, we might not always hit capacity exactly
         // but the important thing is that the error type is correct when it occurs
-        if got_capacity_error {
-            // We successfully tested the capacity exceeded path
-            assert!(true);
-        } else {
-            // If we didn't hit capacity, it might be due to hash collisions merging values
-            // This is acceptable behavior - the test still validates the error handling code path exists
+        // Whether the capacity limit is reached is not asserted: hash collisions can
+        // merge values, so the insert count is not a deterministic function of the
+        // loop bound. The error type itself is exercised by the `CapacityExceeded`
+        // arm above whenever it does occur.
+        if !got_capacity_error {
             println!("Note: Did not hit capacity exceeded - may be due to hash collisions");
         }
     }
@@ -984,9 +989,9 @@ mod tests {
         // The resize happens automatically when capacity is reached
         // Note: Due to hash collisions, some inserts might merge values
         let mut inserted = 0;
-        for i in 0..15 {
+        for i in 0u64..15 {
             let key = format!("key_{i}");
-            if Arc::clone(&maplet).insert(key, i as u64).await.is_ok() {
+            if Arc::clone(&maplet).insert(key, i).await.is_ok() {
                 inserted += 1;
             }
         }
@@ -1007,9 +1012,9 @@ mod tests {
         let load_factor = Arc::clone(&maplet).load_factor().await;
         assert_eq!(load_factor, 0.0);
 
-        for i in 0..20 {
+        for i in 0u64..20 {
             let key = format!("key_{i}");
-            Arc::clone(&maplet).insert(key, i as u64).await.unwrap();
+            Arc::clone(&maplet).insert(key, i).await.unwrap();
         }
 
         let load_factor = Arc::clone(&maplet).load_factor().await;
@@ -1110,7 +1115,7 @@ mod tests {
 
         let maplet_clone = Arc::clone(&maplet);
         let handle = tokio::spawn(async move { Arc::clone(&maplet_clone).stats().await });
-        assert!(handle.await.unwrap().len == 0);
+        assert_eq!(handle.await.unwrap().len, 0);
     }
 
     #[tokio::test]
@@ -1193,25 +1198,24 @@ mod tests {
         let maplet = Arc::new(Maplet::<String, u64, CounterOperator>::new(100, 0.01).unwrap());
 
         // Insert multiple keys
-        for i in 0..20 {
+        for i in 0u64..20 {
             let key = format!("key_{i}");
-            Arc::clone(&maplet).insert(key, i as u64).await.unwrap();
+            Arc::clone(&maplet).insert(key, i).await.unwrap();
         }
 
         assert_eq!(Arc::clone(&maplet).len().await, 20);
 
-        for i in 0..10 {
+        for i in 0u64..10 {
             let key = format!("key_{i}");
-            let value = i as u64;
-            Arc::clone(&maplet).delete(key, value).await.unwrap();
+            Arc::clone(&maplet).delete(key, i).await.unwrap();
         }
 
         assert!(Arc::clone(&maplet).len().await <= 11);
 
         // Insert more keys
-        for i in 20..30 {
+        for i in 20u64..30 {
             let key = format!("key_{i}");
-            Arc::clone(&maplet).insert(key, i as u64).await.unwrap();
+            Arc::clone(&maplet).insert(key, i).await.unwrap();
         }
 
         assert_eq!(Arc::clone(&maplet).len().await, 20);

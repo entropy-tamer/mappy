@@ -818,20 +818,20 @@ mod tests {
 
     #[test]
     fn test_replace_operator_default() {
-        let op = ReplaceOperator::default();
+        let op = ReplaceOperator;
         assert_eq!(op.merge(vec![1, 2], vec![3, 4]).unwrap(), vec![3, 4]);
     }
 
     #[test]
     fn test_replace_operator_clone() {
-        let op = ReplaceOperator::default();
-        let cloned = op.clone();
+        let op = ReplaceOperator;
+        let cloned = op;
         assert_eq!(cloned.merge(vec![1, 2], vec![3, 4]).unwrap(), vec![3, 4]);
     }
 
     #[test]
     fn test_replace_operator_identity() {
-        let op = ReplaceOperator::default();
+        let op = ReplaceOperator;
         assert_eq!(op.identity(), Vec::<u8>::new());
     }
 

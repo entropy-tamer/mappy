@@ -25,7 +25,7 @@ const MAX_GROW_RETRIES: u32 = 8;
 /// Owner tag stored in a slot for members of `quotient`.
 fn tag_of(quotient: u64) -> u32 {
     debug_assert!(
-        quotient <= u64::from(u32::MAX),
+        u32::try_from(quotient).is_ok(),
         "quotient exceeds owner tag width"
     );
     #[allow(clippy::cast_possible_truncation)] // width enforced by MAX_QUOTIENT_BITS
@@ -352,9 +352,9 @@ impl QuotientFilter {
                 j += 1;
             }
 
-            for k in i..=j {
-                self.slots[k].runend = k == j;
-                self.slots[k].shifted = k != i;
+            for (offset, slot) in self.slots[i..=j].iter_mut().enumerate() {
+                slot.runend = offset == j - i;
+                slot.shifted = offset != 0;
             }
 
             if j + 1 < self.capacity && !self.slots[j + 1].occupied {
@@ -799,7 +799,7 @@ mod tests {
             shifted: false,
         };
 
-        let cloned = metadata.clone();
+        let cloned = metadata;
         assert_eq!(cloned.remainder, 123);
         assert!(cloned.runend);
         assert!(cloned.occupied);
@@ -1118,7 +1118,7 @@ mod tests {
             for step in 0..300 {
                 let fp = splitmix(&mut state) & mask;
 
-                if splitmix(&mut state) % 2 == 0 {
+                if splitmix(&mut state).is_multiple_of(2) {
                     let present = model.contains_key(&fp);
                     let deleted = filter.delete(fp).unwrap();
                     assert_eq!(

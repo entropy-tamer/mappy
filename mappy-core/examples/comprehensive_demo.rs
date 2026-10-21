@@ -59,29 +59,24 @@ async fn demo_basic_operations() -> Result<(), Box<dyn std::error::Error>> {
     let user1 = engine.get("user:1".to_string()).await?;
     println!(
         "  user:1 = {:?}",
-        String::from_utf8_lossy(
-            user1
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(user1.as_deref().unwrap_or(b"[not found]"))
     );
 
     // Check existence
     let exists = engine.exists("user:2".to_string()).await?;
-    println!("  user:2 exists: {}", exists);
+    println!("  user:2 exists: {exists}");
 
     // Get all keys
     let keys = engine.keys().await?;
-    println!("  All keys: {:?}", keys);
+    println!("  All keys: {keys:?}");
 
     // Delete a key
     let deleted = engine.delete("user:3".to_string()).await?;
-    println!("  Deleted user:3: {}", deleted);
+    println!("  Deleted user:3: {deleted}");
 
     // Final state
     let final_keys = engine.keys().await?;
-    println!("  Final keys: {:?}", final_keys);
+    println!("  Final keys: {final_keys:?}");
 
     engine.close().await?;
     println!("  ✅ Basic operations demo completed\n");
@@ -104,7 +99,7 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check TTL
     let session_ttl = engine.ttl("session:abc123".to_string()).await?;
-    println!("  session:abc123 TTL: {:?} seconds", session_ttl);
+    println!("  session:abc123 TTL: {session_ttl:?} seconds");
 
     // Set another key with longer TTL
     engine
@@ -118,18 +113,18 @@ async fn demo_ttl_management() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check if expired
     let expired_value = engine.get("session:abc123".to_string()).await?;
-    println!("  session:abc123 after expiration: {:?}", expired_value);
+    println!("  session:abc123 after expiration: {expired_value:?}");
 
     // Check TTL of second key
     let remaining_ttl = engine.ttl("cache:data".to_string()).await?;
-    println!("  cache:data remaining TTL: {:?} seconds", remaining_ttl);
+    println!("  cache:data remaining TTL: {remaining_ttl:?} seconds");
 
     // Remove TTL (make persistent)
     let had_ttl = engine.persist("cache:data".to_string()).await?;
-    println!("  Removed TTL from cache:data: {}", had_ttl);
+    println!("  Removed TTL from cache:data: {had_ttl}");
 
     let final_ttl = engine.ttl("cache:data".to_string()).await?;
-    println!("  cache:data TTL after persist: {:?}", final_ttl);
+    println!("  cache:data TTL after persist: {final_ttl:?}");
 
     engine.close().await?;
     println!("  ✅ TTL management demo completed\n");
@@ -153,12 +148,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let memory_value = memory_engine.get("memory_key".to_string()).await?;
     println!(
         "  Memory storage: {:?}",
-        String::from_utf8_lossy(
-            memory_value
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(memory_value.as_deref().unwrap_or(b"[not found]"))
     );
     memory_engine.close().await?;
 
@@ -178,12 +168,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let disk_value = disk_engine.get("disk_key".to_string()).await?;
     println!(
         "  Disk storage: {:?}",
-        String::from_utf8_lossy(
-            disk_value
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(disk_value.as_deref().unwrap_or(b"[not found]"))
     );
     disk_engine.close().await?;
 
@@ -203,12 +188,7 @@ async fn demo_storage_backends() -> Result<(), Box<dyn std::error::Error>> {
     let aof_value = aof_engine.get("aof_key".to_string()).await?;
     println!(
         "  AOF storage: {:?}",
-        String::from_utf8_lossy(
-            aof_value
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(aof_value.as_deref().unwrap_or(b"[not found]"))
     );
     aof_engine.close().await?;
 
@@ -227,13 +207,13 @@ async fn demo_statistics() -> Result<(), Box<dyn std::error::Error>> {
     // Perform some operations
     for i in 0..100 {
         engine
-            .set(format!("key_{}", i), format!("value_{}", i).into_bytes())
+            .set(format!("key_{i}"), format!("value_{i}").into_bytes())
             .await?;
     }
 
     // Set some TTLs
     for i in 0..10 {
-        engine.expire(format!("key_{}", i), 60).await?;
+        engine.expire(format!("key_{i}"), 60).await?;
     }
 
     // Get statistics
@@ -265,10 +245,10 @@ async fn demo_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> 
             let engine = Arc::clone(&engine_arc);
             tokio::spawn(async move {
                 for j in 0..100 {
-                    let key = format!("concurrent_{}_{}", i, j);
-                    let value = format!("value_{}_{}", i, j);
+                    let key = format!("concurrent_{i}_{j}");
+                    let value = format!("value_{i}_{j}");
                     if let Err(e) = engine.set(key.clone(), value.into_bytes()).await {
-                        eprintln!("Failed to set {}: {}", key, e);
+                        eprintln!("Failed to set {key}: {e}");
                     }
                 }
             })
@@ -282,7 +262,7 @@ async fn demo_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> 
 
     // Verify results
     let total_keys = engine_arc.keys().await?.len();
-    println!("  Total keys after concurrent operations: {}", total_keys);
+    println!("  Total keys after concurrent operations: {total_keys}");
 
     // Test concurrent reads
     let read_handles: Vec<_> = (0..5)
@@ -290,12 +270,12 @@ async fn demo_concurrent_operations() -> Result<(), Box<dyn std::error::Error>> 
             let engine = Arc::clone(&engine_arc);
             tokio::spawn(async move {
                 for j in 0..50 {
-                    let key = format!("concurrent_{}_{}", i, j);
+                    let key = format!("concurrent_{i}_{j}");
                     let value = engine.get(&key).await;
                     if let Ok(Some(_)) = value {
                         // Key found
                     } else if let Err(e) = value {
-                        eprintln!("Failed to get {}: {}", key, e);
+                        eprintln!("Failed to get {key}: {e}");
                     }
                 }
             })
@@ -328,7 +308,7 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     engine.expire("session:user123", 3600).await?; // 1 hour
     let session_ttl = engine.ttl("session:user123").await?;
-    println!("    Session TTL: {:?} seconds", session_ttl);
+    println!("    Session TTL: {session_ttl:?} seconds");
 
     // Use case 2: Caching
     println!("  🗄️  Caching:");
@@ -342,12 +322,7 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let cache_value = engine.get("cache:expensive_calculation").await?;
     println!(
         "    Cache hit: {:?}",
-        String::from_utf8_lossy(
-            cache_value
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(cache_value.as_deref().unwrap_or(b"[not found]"))
     );
 
     // Use case 3: Rate limiting
@@ -370,7 +345,7 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
                     .await?;
                 println!("    Request {}: Allowed (count: {})", i, count + 1);
             } else {
-                println!("    Request {}: Rate limited (count: {})", i, count);
+                println!("    Request {i}: Rate limited (count: {count})");
             }
         }
     }
@@ -388,21 +363,11 @@ async fn demo_real_world_use_cases() -> Result<(), Box<dyn std::error::Error>> {
     let beta_feature = engine.get("feature:beta_feature").await?;
     println!(
         "    New UI: {:?}",
-        String::from_utf8_lossy(
-            new_ui
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(new_ui.as_deref().unwrap_or(b"[not found]"))
     );
     println!(
         "    Beta Feature: {:?}",
-        String::from_utf8_lossy(
-            beta_feature
-                .as_ref()
-                .map(|v| v.as_slice())
-                .unwrap_or(b"[not found]")
-        )
+        String::from_utf8_lossy(beta_feature.as_deref().unwrap_or(b"[not found]"))
     );
 
     engine.close().await?;

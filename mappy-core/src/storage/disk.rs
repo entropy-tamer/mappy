@@ -67,12 +67,9 @@ impl DiskStorage {
     }
 
     /// Calculate disk usage
-    async fn calculate_disk_usage(&self) -> u64 {
+    fn calculate_disk_usage(&self) -> u64 {
         let db = self.db.lock().expect("Failed to acquire db lock");
-        match db.size_on_disk() {
-            Ok(size) => size,
-            Err(_) => 0,
-        }
+        db.size_on_disk().unwrap_or_default()
     }
 }
 
@@ -120,7 +117,7 @@ impl Storage for DiskStorage {
         .await;
 
         // Update disk usage separately
-        let disk_usage = self.calculate_disk_usage().await;
+        let disk_usage = self.calculate_disk_usage();
         self.update_stats(|stats| {
             stats.disk_usage = disk_usage;
         })
@@ -140,6 +137,7 @@ impl Storage for DiskStorage {
             let tree_len = tree
                 .len()
                 .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?;
+            drop(tree);
             (existed, tree_len)
         };
 
@@ -155,7 +153,7 @@ impl Storage for DiskStorage {
         .await;
 
         // Update disk usage separately
-        let disk_usage = self.calculate_disk_usage().await;
+        let disk_usage = self.calculate_disk_usage();
         self.update_stats(|stats| {
             stats.disk_usage = disk_usage;
         })
@@ -196,6 +194,7 @@ impl Storage for DiskStorage {
                         .map_err(|e| MapletError::Internal(format!("Invalid UTF-8 key: {e}")))
                 })
                 .collect();
+            drop(tree);
             keys?
         };
 
@@ -230,7 +229,7 @@ impl Storage for DiskStorage {
         .await;
 
         // Update disk usage separately
-        let disk_usage = self.calculate_disk_usage().await;
+        let disk_usage = self.calculate_disk_usage();
         self.update_stats(|stats| {
             stats.disk_usage = disk_usage;
         })
@@ -273,7 +272,7 @@ impl Storage for DiskStorage {
             tree.len()
                 .map_err(|e| MapletError::Internal(format!("Failed to get tree length: {e}")))?
         };
-        let disk_usage = self.calculate_disk_usage().await;
+        let disk_usage = self.calculate_disk_usage();
 
         stats.total_keys = u64::try_from(tree_len).expect("Failed to convert tree length to u64");
         stats.disk_usage = disk_usage;

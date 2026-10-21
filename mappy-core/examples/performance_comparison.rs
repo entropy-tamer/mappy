@@ -16,29 +16,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("===============================\n");
 
     // Test different data sizes
-    let sizes = vec![1000, 10000, 100000];
+    let sizes = vec![1000, 10000, 100_000];
 
     for size in sizes {
-        println!("📊 Testing with {} items", size);
+        println!("📊 Testing with {size} items");
         println!("{}", "=".repeat(50));
 
         // Generate test data
         let test_data = generate_test_data(size);
 
         // Test HashMap
-        test_hashmap(&test_data, size).await;
+        test_hashmap(&test_data, size);
 
         // Test BTreeMap
-        test_btreemap(&test_data, size).await;
+        test_btreemap(&test_data, size);
 
         // Test Mappy (Memory)
         if let Err(e) = test_mappy(&test_data, size, PersistenceMode::Memory).await {
-            eprintln!("Mappy (Memory) test failed: {}", e);
+            eprintln!("Mappy (Memory) test failed: {e}");
         }
 
         // Test Mappy (Disk)
         if let Err(e) = test_mappy(&test_data, size, PersistenceMode::Disk).await {
-            eprintln!("Mappy (Disk) test failed: {}", e);
+            eprintln!("Mappy (Disk) test failed: {e}");
         }
 
         println!();
@@ -59,15 +59,15 @@ fn generate_test_data(size: usize) -> Vec<(String, String)> {
     let mut rng = StdRng::seed_from_u64(42);
     (0..size)
         .map(|i| {
-            let key = format!("key_{:08x}", i);
+            let key = format!("key_{i:08x}");
             let value = format!("value_{}", rng.random_range(1..=1000));
             (key, value)
         })
         .collect()
 }
 
-/// Test HashMap performance
-async fn test_hashmap(test_data: &[(String, String)], size: usize) {
+/// Test `HashMap` performance
+fn test_hashmap(test_data: &[(String, String)], size: usize) {
     let start = Instant::now();
 
     let mut map = HashMap::new();
@@ -88,17 +88,17 @@ async fn test_hashmap(test_data: &[(String, String)], size: usize) {
     let estimated_memory = size * (32 + 32); // Key + value overhead
 
     println!("  HashMap:");
-    println!("    Insert time: {:?}", insert_time);
-    println!("    Read time (1000 items): {:?}", read_time);
-    println!("    Estimated memory: {} bytes", estimated_memory);
+    println!("    Insert time: {insert_time:?}");
+    println!("    Read time (1000 items): {read_time:?}");
+    println!("    Estimated memory: {estimated_memory} bytes");
     println!(
         "    Load factor: {:.2}",
         map.len() as f64 / map.capacity() as f64
     );
 }
 
-/// Test BTreeMap performance
-async fn test_btreemap(test_data: &[(String, String)], size: usize) {
+/// Test `BTreeMap` performance
+fn test_btreemap(test_data: &[(String, String)], size: usize) {
     let start = Instant::now();
 
     let mut map = BTreeMap::new();
@@ -119,9 +119,9 @@ async fn test_btreemap(test_data: &[(String, String)], size: usize) {
     let estimated_memory = size * (32 + 32); // Key + value overhead
 
     println!("  BTreeMap:");
-    println!("    Insert time: {:?}", insert_time);
-    println!("    Read time (1000 items): {:?}", read_time);
-    println!("    Estimated memory: {} bytes", estimated_memory);
+    println!("    Insert time: {insert_time:?}");
+    println!("    Read time (1000 items): {read_time:?}");
+    println!("    Estimated memory: {estimated_memory} bytes");
 }
 
 /// Test Mappy performance
@@ -166,10 +166,10 @@ async fn test_mappy(
     let stats = engine.stats().await?;
     let memory_usage = engine.memory_usage().await?;
 
-    println!("  Mappy ({:?}):", persistence_mode);
-    println!("    Insert time: {:?}", insert_time);
-    println!("    Read time (1000 items): {:?}", read_time);
-    println!("    Memory usage: {} bytes", memory_usage);
+    println!("  Mappy ({persistence_mode:?}):");
+    println!("    Insert time: {insert_time:?}");
+    println!("    Read time (1000 items): {read_time:?}");
+    println!("    Memory usage: {memory_usage} bytes");
     println!("    Maplet stats: {:?}", stats.maplet_stats);
 
     engine.close().await?;
@@ -208,7 +208,7 @@ async fn test_memory_efficiency() -> Result<(), Box<dyn std::error::Error>> {
         let stats = engine.stats().await?;
 
         println!("  False Positive Rate: {:.1}%", fpr * 100.0);
-        println!("    Memory usage: {} bytes", memory_usage);
+        println!("    Memory usage: {memory_usage} bytes");
         println!("    Maplet stats: {:?}", stats.maplet_stats);
 
         engine.close().await?;
@@ -232,10 +232,10 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
             let engine = engine.clone();
             tokio::spawn(async move {
                 for j in 0..1000 {
-                    let key = format!("concurrent_{}_{}", i, j);
-                    let value = format!("value_{}_{}", i, j);
+                    let key = format!("concurrent_{i}_{j}");
+                    let value = format!("value_{i}_{j}");
                     if let Err(e) = engine.set(key.clone(), value.into_bytes()).await {
-                        eprintln!("Failed to set {}: {}", key, e);
+                        eprintln!("Failed to set {key}: {e}");
                     }
                 }
             })
@@ -257,7 +257,7 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
                 for j in 0..2000 {
                     let key = format!("concurrent_{}_{}", i % 10, j % 1000);
                     if let Err(e) = engine.get(key.clone()).await {
-                        eprintln!("Failed to get {}: {}", key, e);
+                        eprintln!("Failed to get {key}: {e}");
                     }
                 }
             })
@@ -270,17 +270,11 @@ async fn test_concurrent_performance() -> Result<(), Box<dyn std::error::Error>>
 
     let concurrent_read_time = start.elapsed();
 
-    println!(
-        "  Concurrent writes (10 tasks, 1000 items each): {:?}",
-        concurrent_write_time
-    );
-    println!(
-        "  Concurrent reads (5 tasks, 2000 items each): {:?}",
-        concurrent_read_time
-    );
+    println!("  Concurrent writes (10 tasks, 1000 items each): {concurrent_write_time:?}");
+    println!("  Concurrent reads (5 tasks, 2000 items each): {concurrent_read_time:?}");
 
     let stats = engine.stats().await?;
-    println!("  Final stats: {:?}", stats);
+    println!("  Final stats: {stats:?}");
 
     engine.close().await?;
     Ok(())
