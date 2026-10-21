@@ -1859,15 +1859,15 @@ dependencies = [
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",
- "zeroize 1.9.0",
+ "zeroize",
 ]
 
 [[package]]
 name = "rustls-pki-types"
 version = "1.15.1"
-source = "git+https://git.sly.so/kade/rustls-pki-types#9c13d1ee60c19cfcfa97c8b18c9ec5c1567e94da"
+source = "git+https://git.sly.so/kade/rustls-pki-types#1b8cf96e1f64c3856b57e2880f07b9ef400a07d5"
 dependencies = [
- "zeroize 1.9.0-pre",
+ "zeroize",
 ]
 
 [[package]]
@@ -2758,11 +2758,6 @@ dependencies = [
  "syn 3.0.9 (git+https://git.sly.so/kade/syn)",
  "synstructure",
 ]
-
-[[package]]
-name = "zeroize"
-version = "1.9.0-pre"
-source = "git+https://git.sly.so/kade/zeroize#a00167aa5bc1fcde165b8b02ca2f657e2ca08669"
 
 [[package]]
 name = "zeroize"
