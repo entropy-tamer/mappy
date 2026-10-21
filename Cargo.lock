@@ -16,7 +16,7 @@ dependencies = [
 [[package]]
 name = "aho-corasick"
 version = "1.1.4"
-source = "git+https://git.sly.so/kade/aho-corasick#ed4e00cf902580ccf3a24d0453a745d2cef9a3fe"
+source = "git+https://git.sly.so/kade/aho-corasick#7dbe035f2c1c48015504d400aff10820f6bc6a13"
 dependencies = [
  "memchr",
 ]
@@ -192,8 +192,7 @@ dependencies = [
 [[package]]
 name = "atomic-maybe-uninit"
 version = "0.3.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a3a1970491d08a2e07608183747de2c7c71ac4c392fec8523e29a978474503"
+source = "git+https://git.sly.so/kade/atomic-maybe-uninit#46661c29448849dd86a631ba4d20f1276d849bdc"
 
 [[package]]
 name = "atomic-waker"
@@ -214,12 +213,12 @@ source = "git+https://git.sly.so/kade/autocfg#bfdf616345f23b735466cb413f85866d51
 [[package]]
 name = "axum"
 version = "0.8.9"
-source = "git+https://git.sly.so/kade/axum#c0a04727704748885e4aafec07237b06175c62c4"
+source = "git+https://git.sly.so/kade/axum#fb9af329a41ff3a0a24c62b5c4b9a6e286141639"
 dependencies = [
  "axum-core",
  "axum-macros",
  "bytes",
- "form_urlencoded 1.2.2 (git+https://git.sly.so/kade/form_urlencoded)",
+ "form_urlencoded",
  "futures-core 1.0.0-alpha.0",
  "futures-util 0.4.0-alpha.0",
  "http",
@@ -231,7 +230,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "percent-encoding",
  "pin-project-lite 0.2.17 (git+https://git.sly.so/kade/pin-project-lite)",
  "serde_core",
  "serde_html_form",
@@ -248,7 +247,7 @@ dependencies = [
 [[package]]
 name = "axum-core"
 version = "0.5.6"
-source = "git+https://git.sly.so/kade/axum#c0a04727704748885e4aafec07237b06175c62c4"
+source = "git+https://git.sly.so/kade/axum#fb9af329a41ff3a0a24c62b5c4b9a6e286141639"
 dependencies = [
  "bytes",
  "futures-core 1.0.0-alpha.0",
@@ -266,7 +265,7 @@ dependencies = [
 [[package]]
 name = "axum-macros"
 version = "0.5.1"
-source = "git+https://git.sly.so/kade/axum#c0a04727704748885e4aafec07237b06175c62c4"
+source = "git+https://git.sly.so/kade/axum#fb9af329a41ff3a0a24c62b5c4b9a6e286141639"
 dependencies = [
  "proc-macro2 1.0.107 (git+https://git.sly.so/kade/proc-macro2)",
  "quote 1.0.47 (git+https://git.sly.so/kade/quote)",
@@ -357,7 +356,7 @@ source = "git+https://git.sly.so/kade/cc#19a7148be92f789aeb82517aefd4b941c73094b
 dependencies = [
  "find-msvc-tools",
  "jobserver",
- "libc 1.0.0-alpha.5",
+ "libc 0.2.190",
  "shlex",
 ]
 
@@ -540,7 +539,7 @@ dependencies = [
 [[package]]
 name = "crossbeam-utils"
 version = "0.8.23"
-source = "git+https://git.sly.so/kade/crossbeam#e5af4dbda81575b205311c219e670cd74142cee6"
+source = "git+https://git.sly.so/kade/crossbeam#9057c5794547d7ce25f97f9b6f5c6030f53c27ca"
 dependencies = [
  "atomic-maybe-uninit",
 ]
@@ -553,13 +552,13 @@ source = "git+https://git.sly.so/kade/crunchy#6562e4f622095ae19bb9ca3a9324a7712e
 [[package]]
 name = "dashmap"
 version = "7.0.0-rc2"
-source = "git+https://git.sly.so/kade/dashmap#08c25a1a5a8d2fb703e5d456cc480abcd7fac359"
+source = "git+https://git.sly.so/kade/dashmap#9f94c6ef827502ea5ee18dac50f9a838d6e1c826"
 dependencies = [
  "crossbeam-utils",
  "equivalent",
  "hashbrown",
  "lock_api",
- "parking_lot_core 0.9.12 (git+https://git.sly.so/kade/parking_lot_core)",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -681,17 +680,9 @@ source = "git+https://git.sly.so/kade/fnv#4e55052a343a4372c191141f29a17ab829cf1d
 [[package]]
 name = "form_urlencoded"
 version = "1.2.2"
-source = "git+https://git.sly.so/kade/form_urlencoded#00a6ce58d02f4e0d43c5ca0702c0bedb8b1ebf3a"
-dependencies = [
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/form_urlencoded)",
-]
-
-[[package]]
-name = "form_urlencoded"
-version = "1.2.2"
 source = "git+https://git.sly.so/kade/rust-url#571305f052b33d91797d5499b914685c172769ff"
 dependencies = [
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "percent-encoding",
 ]
 
 [[package]]
@@ -846,7 +837,7 @@ name = "getrandom"
 version = "0.4.3"
 source = "git+https://git.sly.so/kade/getrandom#8123925f5544382abd0df32fbe023cf0fcebb081"
 dependencies = [
- "libc 1.0.0-alpha.5",
+ "libc 0.2.190",
  "r-efi 6.0.0 (git+https://git.sly.so/kade/r-efi)",
  "rand_core 0.10.1",
 ]
@@ -996,8 +987,8 @@ dependencies = [
  "http-body",
  "hyper",
  "ipnet",
- "libc 1.0.0-alpha.5",
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "libc 0.2.190",
+ "percent-encoding",
  "pin-project-lite 0.2.17 (git+https://git.sly.so/kade/pin-project-lite)",
  "socket2",
  "system-configuration",
@@ -1162,18 +1153,18 @@ dependencies = [
 [[package]]
 name = "lazy_static"
 version = "1.5.1"
-source = "git+https://git.sly.so/kade/lazy_static#fdd8a534917667d74b186d208e554c25f84b8fc1"
+source = "git+https://git.sly.so/kade/lazy_static#a0aac03f85497474ef7fe6445dca7e505c6fd193"
+
+[[package]]
+name = "libc"
+version = "0.2.190"
+source = "git+https://git.sly.so/kade/libc#25ac28daaf7e382b317cc5d36176f9e7dee9b399"
 
 [[package]]
 name = "libc"
 version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
-
-[[package]]
-name = "libc"
-version = "1.0.0-alpha.5"
-source = "git+https://git.sly.so/kade/libc#c6528d95e18cfcc6639bd47a86b3d8f896920541"
 
 [[package]]
 name = "linux-raw-sys"
@@ -1197,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "log"
 version = "0.4.29"
-source = "git+https://git.sly.so/kade/log#ac0bc6568f47e24740b69875de605e7463253023"
+source = "git+https://git.sly.so/kade/log#fadc2723586b479c1ae5d4a969759fc1594d9ed8"
 
 [[package]]
 name = "mappy-client"
@@ -1318,7 +1309,7 @@ source = "git+https://git.sly.so/kade/matchit#3aeef46934ff7c5043a78b33c43499dfab
 [[package]]
 name = "memchr"
 version = "2.8.0"
-source = "git+https://git.sly.so/kade/memchr#2ed61ded93cf10f6c1bed438dadd98a201298ba0"
+source = "git+https://git.sly.so/kade/memchr#2fbf6fa2420019c60a1369fb1adf4a551eec7f6c"
 
 [[package]]
 name = "mime"
@@ -1355,7 +1346,7 @@ dependencies = [
 [[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
-source = "git+https://git.sly.so/kade/nu-ansi-term#a23b71dae8efc17ca89d6bfe86134e15c3b157f5"
+source = "git+https://git.sly.so/kade/nu-ansi-term#292d824e0ea42ec8ca377711bec91d9f3452ffd4"
 dependencies = [
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1386,7 +1377,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "once_cell"
 version = "1.21.4"
-source = "git+https://git.sly.so/kade/once_cell#f1087eeae86523a073b93180886185a06f8ebf70"
+source = "git+https://git.sly.so/kade/once_cell#53399494933ee13ab7147e95219d35ad05c23f00"
 
 [[package]]
 name = "oorandom"
@@ -1418,7 +1409,7 @@ version = "0.12.5"
 source = "git+https://git.sly.so/kade/parking_lot#43fc204f9c56ca41e77cc135daa4de83f46e6c99"
 dependencies = [
  "lock_api",
- "parking_lot_core 0.9.12 (git+https://git.sly.so/kade/parking_lot)",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -1434,22 +1425,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parking_lot_core"
-version = "0.9.12"
-source = "git+https://git.sly.so/kade/parking_lot_core#7115afd7f4b1dfbd3919c00ad9606090433c8451"
-dependencies = [
- "libc 0.2.191",
- "redox_syscall",
- "smallvec",
- "windows-link 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "percent-encoding"
-version = "2.3.2"
-source = "git+https://git.sly.so/kade/form_urlencoded#00a6ce58d02f4e0d43c5ca0702c0bedb8b1ebf3a"
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "git+https://git.sly.so/kade/rust-url#571305f052b33d91797d5499b914685c172769ff"
@@ -1463,7 +1438,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 [[package]]
 name = "pin-project-lite"
 version = "0.2.17"
-source = "git+https://git.sly.so/kade/pin-project-lite#a6e057c2fafaa52140837fa7a2e5d8df572d00d7"
+source = "git+https://git.sly.so/kade/pin-project-lite#e8c721071e9afd1e2b45db1483492a5490db4809"
 
 [[package]]
 name = "piper"
@@ -1552,7 +1527,7 @@ dependencies = [
 [[package]]
 name = "proc-macro2"
 version = "1.0.107"
-source = "git+https://git.sly.so/kade/proc-macro2#dccb5bda9ca53b8183e34f0ae8f6c6ac3622006b"
+source = "git+https://git.sly.so/kade/proc-macro2#b03be1eab45f2547f62d786d16ce5ce120de3276"
 dependencies = [
  "unicode-ident 1.0.26",
 ]
@@ -1654,7 +1629,7 @@ dependencies = [
 [[package]]
 name = "quote"
 version = "1.0.47"
-source = "git+https://git.sly.so/kade/quote#614ebb08c8c888339c61c55af250adc1c3dd9021"
+source = "git+https://git.sly.so/kade/quote#7f4cc867a6bf5b82af51abf3cb3ac95c41b7003a"
 dependencies = [
  "proc-macro2 1.0.107 (git+https://git.sly.so/kade/proc-macro2)",
 ]
@@ -1806,7 +1781,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "percent-encoding",
  "pin-project-lite 0.2.17 (git+https://git.sly.so/kade/pin-project-lite)",
  "rustls",
  "rustls-pki-types",
@@ -1833,7 +1808,7 @@ source = "git+https://git.sly.so/kade/ring#eccda669f0b8fa675408bbef41c64f782ac34
 dependencies = [
  "cc",
  "getrandom 0.4.3 (git+https://git.sly.so/kade/getrandom)",
- "libc 1.0.0-alpha.5",
+ "libc 0.2.190",
  "untrusted",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1951,9 +1926,9 @@ dependencies = [
 [[package]]
 name = "serde_html_form"
 version = "0.4.0"
-source = "git+https://git.sly.so/kade/serde-html-form#ac2e1f2ab673a17b62d71011e1b9ddd0cd064a1a"
+source = "git+https://git.sly.so/kade/serde-html-form#34bb84ac9ca36153393a7038fa5cb5e7b0152c99"
 dependencies = [
- "form_urlencoded 1.2.2 (git+https://git.sly.so/kade/form_urlencoded)",
+ "form_urlencoded",
  "indexmap",
  "itoa",
  "serde_core",
@@ -2052,7 +2027,7 @@ dependencies = [
 [[package]]
 name = "smallvec"
 version = "2.0.0-alpha.12"
-source = "git+https://git.sly.so/kade/smallvec#61185bdf42afc9fb966a423c68054e0da7bfe0d9"
+source = "git+https://git.sly.so/kade/smallvec#08c6855147fdb739b5e52692cf270b55a58ae368"
 
 [[package]]
 name = "smol"
@@ -2075,7 +2050,7 @@ name = "socket2"
 version = "0.6.3"
 source = "git+https://git.sly.so/kade/socket2#d169a53d7050704c44cb1067226106b319b8530f"
 dependencies = [
- "libc 1.0.0-alpha.5",
+ "libc 0.2.190",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2205,7 +2180,7 @@ dependencies = [
 [[package]]
 name = "thread_local"
 version = "1.1.10"
-source = "git+https://git.sly.so/kade/thread_local#01713319504e6a19a01459a0f71e9870793d0899"
+source = "git+https://git.sly.so/kade/thread_local#8eeecb82c485e477e8c5d9417eb715575cff9c18"
 dependencies = [
  "cfg-if",
 ]
@@ -2234,7 +2209,7 @@ version = "1.52.2"
 source = "git+https://git.sly.so/kade/tokio#110442ab05fe59f2eae8ffefe8acbccb4617fc26"
 dependencies = [
  "bytes",
- "libc 1.0.0-alpha.5",
+ "libc 0.2.190",
  "mio",
  "parking_lot",
  "pin-project-lite 0.2.17 (git+https://git.sly.so/kade/pin-project-lite)",
@@ -2316,7 +2291,7 @@ dependencies = [
  "httpdate",
  "mime",
  "mime_guess",
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "percent-encoding",
  "pin-project-lite 0.2.17 (git+https://git.sly.so/kade/pin-project-lite)",
  "tokio 1.52.2",
  "tokio-util",
@@ -2420,7 +2395,7 @@ source = "git+https://git.sly.so/kade/unicase#91175408584ad810bfeaed2994f11e5104
 [[package]]
 name = "unicode-ident"
 version = "1.0.26"
-source = "git+https://git.sly.so/kade/unicode-ident#49354c087e8aa5716b7e2f2661479c358ecfee17"
+source = "git+https://git.sly.so/kade/unicode-ident#eaebcfeeaedda50a8564488626e5b3b036dc015d"
 
 [[package]]
 name = "unicode-ident"
@@ -2438,9 +2413,9 @@ name = "url"
 version = "2.5.8"
 source = "git+https://git.sly.so/kade/rust-url#571305f052b33d91797d5499b914685c172769ff"
 dependencies = [
- "form_urlencoded 1.2.2 (git+https://git.sly.so/kade/rust-url)",
+ "form_urlencoded",
  "idna",
- "percent-encoding 2.3.2 (git+https://git.sly.so/kade/rust-url)",
+ "percent-encoding",
  "serde",
 ]
 
@@ -2457,7 +2432,7 @@ source = "git+https://git.sly.so/kade/utf8_iter#c63885e5e3d9adafa85bb98fedabeba4
 [[package]]
 name = "valuable"
 version = "0.1.1"
-source = "git+https://git.sly.so/kade/valuable#5fd3fc4196650cc49cfec0833503533640514a75"
+source = "git+https://git.sly.so/kade/valuable#370eca1dd67d4a8e22f970c6b3bd1ec306703cd3"
 
 [[package]]
 name = "version_check"
