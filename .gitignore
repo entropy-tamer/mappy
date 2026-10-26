@@ -5,6 +5,8 @@ mappy-core/data/
 
 # Rust build artifacts
 target/
+# Cargo/sccache output committed under a literal `true` path
+/true/
 
 # Python cache
 __pycache__/
