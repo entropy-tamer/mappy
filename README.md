@@ -1,376 +1,115 @@
-# Mappy: Space-Efficient Maplet Data Structures
+# Mappy
 
-![A friendly red fox standing in a forest, holding and examining a map with rectangular sections. The fox wears a green backpack, suggesting an expedition. The word "MAPPY" appears in large bold orange-red letters with black outline. The scene conveys exploration, navigation, and the journey of understanding complex data structures through local mappings and spatial organization.](docs/mappy_header_text.webp)
+![A red fox in a forest, holding a map divided into rectangular sections. The word MAPPY is drawn in large orange letters.](docs/mappy_header_text.webp)
 
-A Rust implementation of maplets - space-efficient data structures for approximate key-value mappings, based on the research paper "Time To Replace Your Filter: How Maplets Simplify System Design".
+Mappy is a Rust implementation of **maplets**, the approximate key-value structure described by Bender, Conway, Farach-Colton, Johnson, and Pandey in *Time To Replace Your Filter: How Maplets Simplify System Design*. A maplet keeps a fingerprint of each key alongside its value, at `O(log 1/ε + v)` bits per item for false-positive rate ε and value size v; a Bloom filter needs `O(log 1/ε)` bits for the key alone, so the extra cost is the value. Reads are fast and usually exact; when two fingerprints collide, the value returned is the true value combined with the colliding values through an associative operator the application supplies. For a counter the answer can only be too large, for a set it can only be a superset, and for a maximum it can only be an upper bound. That is the one-sided error the paper promises, and it is why an approximate structure can still answer value queries.
 
-## Overview
+The rest of this file covers the workspace, the two library entry points, the network services, and the places where the code has moved ahead of the older documentation.
 
-Maplets provide the same space benefits as filters while natively supporting key-value associations with one-sided error guarantees. Unlike traditional filters that only support set membership queries, maplets allow you to associate values with keys and retrieve them during queries.
+## The workspace
 
-## Key Features
+Mappy is a Cargo workspace with one crate per job. `mappy-core` holds the maplet, the quotient filter behind it, the merge operators, the `Engine`, the memory, disk, append-only, and hybrid storage backends, and TTL support. `mappy-client` is the network client; it speaks to a running service over a Unix socket or HTTP. `mappy-server` is the Axum service that exposes engine operations, health and metrics endpoints, and a server-sent error stream. `mappy-daemon` is a smaller socket-only server built on smol, with a compact line protocol, for cases where the full HTTP surface is unnecessary. `mappy-proxy` forwards raw TCP bytes to the daemon's Unix socket for clients on another machine. `mappy-python` wraps the maplet and engine with PyO3 and builds as a maturin extension module.
 
-- **Space Efficiency**: Achieves `O(log 1/ε + v)` bits per item where ε is the false-positive rate and v is the value size
-- **Value Support**: Native key-value associations with configurable merge operators
-- **One-Sided Errors**: Guarantees `M[k] ≺ m[k]` for application-specific ordering relations
-- **Deletion Support**: Full support for removing key-value pairs
-- **Merging**: Combine maplets using associative/commutative operators
-- **Resizing**: Dynamic growth with efficient rehashing
-- **Cache Locality**: Optimized memory layout for performance
-- **Concurrency**: Thread-safe operations with lock-free reads
-- **Quotient Filter**: Enhanced slot finding with run detection and shifting support
+The older `mappy-python-client` and `python-mappy-ml` directories are not workspace members and are not built by CI. Everything in the workspace uses edition 2024 and Rust 1.101 or newer.
 
-## Architecture
+## The maplet
 
-The implementation follows a multi-crate workspace structure:
-
-- **mappy-core**: Core maplet data structure implementation
-- **mappy-client**: Client library for Rust applications
-- **mappy-python**: Python bindings via PyO3
-- **mappy-server**: HTTP server for network access to Mappy service
-
-## Deployment and Integration
-
-### Reynard Integration
-
-Mappy is integrated into the Reynard ecosystem for telemetry and metrics collection:
-
-- **Service Deployment**: Mappy server runs as a systemd service (`reynard-mappy.service`)
-- **Unix Socket Communication**: Primary communication via `/var/run/reynard/mappy.sock` for low-latency metrics
-- **HTTP API**: Fallback HTTP API on port 8003 for broader compatibility
-- **Telemetry Client**: TypeScript client in `packages/core/connection/src/telemetry/` for frontend integration
-- **Metrics Recording**: Automatic metric recording in `useAsyncOperation` composable
-- **Configuration**: Environment-based configuration with graceful degradation
-
-### Connection Package Telemetry
-
-The Reynard connection package uses Mappy for efficient metrics storage:
-
-- **Request Metrics**: Track request counts, success/failure rates, and duration
-- **Cache Metrics**: Monitor cache hits/misses and performance
-- **Deduplication Metrics**: Track deduplication effectiveness
-- **Error Metrics**: Categorize and track errors by type and endpoint
-- **Throughput Metrics**: Monitor requests per second
-- **Latency Percentiles**: Track P50, P95, P99 latency metrics
-
-For detailed telemetry documentation, see the [Connection Package Telemetry README](../../packages/core/connection/src/telemetry/README.md).
-
-## Quick Start
+The maplet is the small, self-contained structure. It takes the key and value types and a merge operator, and it returns approximate values.
 
 ```rust
-use mappy_core::{Maplet, CounterOperator};
+use std::sync::Arc;
+use mappy_core::{CounterOperator, Maplet, MapletResult};
 
-// Create a maplet for counting with 1% false-positive rate
-let mut maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01);
+async fn count_page_views() -> MapletResult<()> {
+    let counts = Arc::new(Maplet::<String, u64, CounterOperator>::new(10_000, 0.01)?);
 
-// Insert key-value pairs
-maplet.insert("key1".to_string(), 5).expect("Failed to insert key1");
-maplet.insert("key2".to_string(), 3).expect("Failed to insert key2");
+    Arc::clone(&counts).insert("page:home".to_string(), 1).await?;
+    Arc::clone(&counts).insert("page:home".to_string(), 1).await?;
 
-// Query values (may return approximate results)
-let count1 = maplet.query(&"key1".to_string()); // Some(5) or Some(5 + other_values)
-let count2 = maplet.query(&"key2".to_string()); // Some(3) or Some(3 + other_values)
+    let home = Arc::clone(&counts).query("page:home".to_string()).await;
+    let stats = Arc::clone(&counts).stats().await;
 
-// Check if key exists
-let exists = maplet.contains(&"key1".to_string()); // true
-
-// Get statistics
-let stats = maplet.stats();
-println!("Load factor: {:.2}%", stats.load_factor * 100.0);
-println!("Memory usage: {} bytes", stats.memory_usage);
-```
-
-## Advanced Features
-
-### Quotient Filter
-
-Enable the `quotient-filter` feature for enhanced slot finding capabilities with run detection, shifting support, and comprehensive benchmarking:
-
-```toml
-[dependencies]
-mappy-core = { version = "0.3.2", features = ["quotient-filter"] }
-```
-
-```rust
-use mappy_core::{Maplet, CounterOperator};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a maplet with quotient filter support
-    let maplet = Maplet::<String, u64, CounterOperator>::new(1000, 0.01)?;
-
-    // Insert some data
-    maplet.insert("test_key".to_string(), 42).await?;
-
-    // Find the actual slot where a key's fingerprint is stored
-    // This handles runs, shifting, and all complex quotient filter logic
-    let slot = maplet.find_slot_for_key(&"test_key".to_string()).await;
-    match slot {
-        Some(slot_index) => println!("Key found at slot {}", slot_index),
-        None => println!("Key not found"),
-    }
+    println!("home = {home:?}, load = {:.1}%", stats.load_factor * 100.0);
     Ok(())
 }
 ```
 
-**Quotient Filter Benefits:**
+Operations take `Arc<Self>` and are asynchronous because the filter and the value map sit behind async locks. Cloning the `Arc` is the idiomatic way to keep using the handle after a call, and the runtime is the caller's choice: `mappy-core` defaults to the `smol` feature and can be built with `tokio` instead. The `quotient-filter` feature is enabled by default and adds `find_slot_for_key`, which walks runs and shifts to report the physical slot holding a key's fingerprint. That is an inspection and debugging tool; ordinary reads and writes do not need it.
 
-- **Precise Slot Finding**: Locate exact storage slots considering runs and shifting
-- **Run Detection**: Handle quotient filter runs with multiple fingerprints
-- **Shifting Support**: Account for linear probing and slot shifting
-- **Debugging Support**: Inspect internal storage layout for optimization
-- **Performance Analysis**: Understand memory access patterns and cache behavior
-- **Comprehensive Testing**: 62+ test cases covering all edge cases and scenarios
-- **Performance Benchmarks**: Detailed benchmarks showing 10-60M operations/second
-- **Python Integration**: Full Python bindings for quotient filter features
+## The engine
 
-### Comprehensive Testing & Benchmarking
+Most applications want the `Engine`; the bare maplet is the lower-level piece. The engine stores exact bytes in a storage backend and uses the maplet as a membership prefilter, so `get` returns `None` as soon as the filter says no and only reaches storage on a maybe. It also adds TTL, persistence, and statistics.
 
-The quotient filter implementation includes extensive testing and benchmarking infrastructure:
+```rust
+use mappy_core::{Engine, EngineConfig};
 
-#### Test Coverage (62+ Tests)
+async fn store_a_value() -> mappy_core::MapletResult<()> {
+    let engine = Engine::new(EngineConfig::default()).await?;
 
-- **Basic Operations**: Insert, query, delete with various data types
-- **False Positive Rate**: Validation of probabilistic accuracy
-- **Multiset Operations**: Counter and aggregation operations
-- **Run Detection**: Advanced slot finding with run handling
-- **Capacity Management**: Load factor and resizing behavior
-- **Concurrency**: Thread-safe operations and race condition testing
-- **Edge Cases**: Boundary conditions and error scenarios
-- **Hash Functions**: AHash, TwoX, Fnv performance comparison
-- **Memory Usage**: Space efficiency and memory optimization
-- **Advanced Features**: Slot finding, run detection, shifting support
+    engine.set("user:123", b"Alice".to_vec()).await?;
+    assert_eq!(engine.get("user:123").await?, Some(b"Alice".to_vec()));
 
-#### Performance Benchmarks
-
-- **Insert Performance**: 10-17 million operations/second
-- **Query Performance**: 16-45 million operations/second
-- **Delete Performance**: 4-8 million operations/second
-- **Slot Finding**: 24-61 million operations/second
-- **Hash Function Comparison**: AHash (fastest), TwoX (medium), Fnv (slowest)
-- **Memory Usage**: Linear scaling with efficient space utilization
-- **Load Factor Impact**: Performance analysis across different load factors
-
-#### Running Tests and Benchmarks
-
-```bash
-# Run all tests with quotient filter features
-cargo test --features quotient-filter
-
-# Run comprehensive test suite
-./run_tests_and_benchmarks.sh
-
-# Run specific benchmarks
-cargo bench --bench basic_quotient_filter_benchmarks
-
-# Run complete test suite with Python support
-./test_quotient_filter_complete.sh
+    Ok(())
+}
 ```
 
-### Python Integration
+`PersistenceMode` selects how much durability you want: `Memory` keeps everything in RAM, `Disk` uses Sled, `AOF` appends writes to a file, and `Hybrid` combines an in-memory cache with an append-only log. On startup the engine rebuilds the maplet from persistent storage so membership survives a restart. `expire` and `ttl` add per-key lifetimes, with a background cleanup task.
 
-Full Python bindings are available for the quotient filter features:
+## The network services
+
+The three network binaries cover different deployment shapes. `mappy-server` listens on the Unix socket at `/var/run/reynard/mappy.sock` by default and leaves HTTP disabled until `MAPPY_ENABLE_HTTP=true` is set; when enabled, HTTP defaults to `0.0.0.0:8003`. Its routes cover `/health`, `/status`, `/set`, `/get/{key}`, metrics, and an error log with an SSE stream.
+
+`mappy-daemon` is the leaner option. It binds `$XDG_RUNTIME_DIR/mappy/mappy.sock` unless `MAPPY_SOCKET_PATH` says otherwise, sets the socket to mode `0600`, and speaks a line protocol with `PING`, `SET`, `SETEX`, `GET`, `DEL`, `KEYS`, `STATS`, `HEALTH`, and `QUIT`. `mappy-proxy` listens on `127.0.0.1:6380` by default and pipes bytes to that socket, which is enough for a remote client to use the same protocol without an HTTP translation layer.
+
+The server and daemon read their knobs from the environment: `MAPPY_CAPACITY`, `MAPPY_FALSE_POSITIVE_RATE`, `MAPPY_DATA_DIR`, `MAPPY_PERSISTENCE_MODE`, and `RUST_LOG` are the common ones. The proxy uses `MAPPY_PROXY_LISTEN` and `MAPPY_SOCKET_PATH`. The defaults are conservative and in-memory, so a service started without configuration will not write to disk by accident.
+
+## Python
+
+The Python module mirrors the two Rust entry points. `PyMaplet` is a `u64`-valued approximate map, and `PyEngine` exposes the durable engine with bytes values, TTL, persistence, and statistics.
 
 ```python
 import mappy_python
 
-# Create Maplet with quotient filter features
-maplet = mappy_python.PyMaplet(capacity=1000, false_positive_rate=0.01)
-maplet.insert("key", 42)
-slot = maplet.find_slot_for_key("key")  # Returns slot index
+counts = mappy_python.PyMaplet(capacity=10_000, false_positive_rate=0.01)
+counts.insert("page:home", 1)
+counts.insert("page:home", 1)
 
-# Create Engine with quotient filter features
-config = mappy_python.PyEngineConfig(capacity=1000, false_positive_rate=0.01)
-engine = mappy_python.PyEngine(config)
-engine.set("key", b"value")
-slot = engine.find_slot_for_key("key")  # Returns slot index
+print(counts.query("page:home"))  # 2
 ```
 
-**Python Features:**
+Build the extension from `mappy-python` with `maturin develop --release`, or `maturin build --release` for a wheel. The crate is a `cdylib` named `mappy_python`, and the PyO3 module of the same name is what the import above resolves.
 
-- **Slot Finding**: `find_slot_for_key()` method for both Maplet and Engine
-- **Error Handling**: Proper Python exceptions for invalid operations
-- **Performance**: Same high-performance as Rust implementation
-- **Concurrency**: Thread-safe operations in Python
-- **Memory Management**: Automatic cleanup and resource management
+## Benchmarks
 
-## Use Cases
+Criterion benchmarks live in `mappy-core/benches` and run with `cargo bench -p mappy-core`. They cover insertion, query, deletion, slot finding, hash-function comparisons, storage backends, and a maplet-versus-standard-collections comparison.
 
-### 1. K-mer Counting (Computational Biology)
+The Redis comparison and the machine-learning tables that appeared in earlier revisions of this file were measured against a different repository layout. The ML harness now lives in the separate [stilts](https://git.sly.so/kade/stilts) project, and the benchmark script paths printed in those revisions no longer exist. Treat the old numbers as historical; re-run the benches before quoting any figure.
 
-```rust
-use mappy_core::{Maplet, CounterOperator};
-
-let mut kmer_counter = Maplet::<String, u32, CounterOperator>::new(1_000_000, 0.001);
-// Count k-mers in DNA sequences with high accuracy
-```
-
-### 2. Network Routing Tables
-
-```rust
-use mappy_core::{Maplet, SetOperator};
-
-let mut routing_table = Maplet::<String, HashSet<String>, SetOperator>::new(100_000, 0.01);
-// Map network prefixes to sets of next-hop routers
-```
-
-### 3. LSM Storage Engine Index
-
-```rust
-use mappy_core::{Maplet, MaxOperator};
-
-let mut sstable_index = Maplet::<String, u64, MaxOperator>::new(10_000_000, 0.001);
-// Map keys to SSTable identifiers for efficient lookups
-```
-
-## Performance Characteristics
-
-### Benchmark Results: Mappy vs Redis
-
-Our comprehensive benchmarks show Mappy significantly outperforms Redis for approximate key-value operations:
-
-| Dataset Size | Operation  | Redis Performance | Mappy Performance | Mappy Advantage  |
-| ------------ | ---------- | ----------------- | ----------------- | ---------------- |
-| 100 items    | SET/INSERT | 13.9-18.0 ms      | 41.9-47.7 µs      | **~300x faster** |
-| 1,000 items  | SET/INSERT | 107-130 ms        | 414-481 µs        | **~250x faster** |
-| 10,000 items | SET/INSERT | 976-1,244 ms      | 4.9-5.7 ms        | **~200x faster** |
-
-### Performance Highlights
-
-- **Query Throughput**: 200-300x faster than Redis for insert operations
-- **Memory Efficiency**: Space-efficient design with configurable false-positive rates
-- **Error Control**: False-positive rate within 1.5x of configured ε
-- **Cache Performance**: Optimized for sequential access patterns
-- **Concurrent Access**: Thread-safe operations with stable performance under load
-
-### ML Benchmarks: Machine Learning with Compressed Tags
-
-Mappy's approximate nature has been proven **not to hurt ML performance** when using Huffman-compressed tags. Comprehensive benchmarks demonstrate production-ready performance for all ML tasks:
-
-| Task | Accuracy | Speed Ratio | Status | Improvement |
-|------|----------|-------------|--------|-------------|
-| **Similarity Search** | 100.00% | **0.72x** | ✅ **Faster than exact!** | **50.8x faster** |
-| **Embeddings** | 100.00% | **1.13x** | ✅ **Excellent!** | **1894x faster** |
-| **Classification** | 92.50% | **1.08x** | ✅ **Excellent!** | Stable |
-| **Clustering** | 34.00%* | **2.42x** | ✅ **Acceptable** | Stable |
-
-*Clustering accuracy varies by test data, but exact and approximate match perfectly.
-
-**Key Findings:**
-
-- ✅ **Perfect accuracy preservation** - All tasks maintain exact accuracy with approximate storage
-- ✅ **No degradation** - Mappy's 1% false positive rate doesn't impact ML task accuracy
-- ✅ **Production-ready** - All 4 ML tasks achieve excellent or acceptable performance
-- ✅ **Optimization techniques** - Cache-first strategy and vocabulary caching eliminate bottlenecks
-
-**Optimization Strategy:**
-The critical optimization was **moving mappy operations out of the hot path**:
-
-1. **Setup Phase:** Store in mappy, pre-decompress into cache
-2. **Hot Path:** Only ML computation (similarity, embedding, etc.)
-3. **Result:** Minimal overhead, excellent performance
-
-**Storage Efficiency:**
-
-- **90% storage reduction** with Huffman compression
-- **Memory usage:** 8.74% of original size
-- **Compression ratio:** 0.0977 (9.77% of original)
-
-For detailed ML benchmark results and optimization techniques, see the [Stilts ML Benchmarks documentation](https://git.sly.so/kade/stilts#ml-benchmarks).
-
-### Running Benchmarks
+## Building and testing
 
 ```bash
-# Run Redis comparison benchmarks
-cd services/mappy/mappy-core
-cargo bench --bench redis_comparison
-
-# Run ML benchmarks (in the stilts repo, https://git.sly.so/kade/stilts)
-cd ../stilts
-cargo run --example ml_benchmark_demo --features mappy-integration
-
-# Run all benchmarks
-cd services/mappy
-./benchmark_runner.sh --all
-
-# Run specific benchmark categories
-./benchmark_runner.sh --redis
+cargo build --release
+cargo test --release
+cargo clippy --workspace --all-targets --release -- -D warnings -W clippy::pedantic
+cargo fmt --all --check
 ```
 
-## Error Guarantees
+The dependencies are git dependencies hosted on the `git.sly.so` Forgejo instance, so the first build needs network access to that host. The CI pipeline runs the same sequence and adds a dependency-pact check over `Cargo.lock`.
 
-Maplets provide the **strong maplet property**:
+## Status and limitations
 
-```math
-m[k] = M[k] ⊕ (⊕ᵢ₌₁ˡ M[kᵢ])
-```
+Two parts of the public surface are thinner than their names suggest. `Maplet::merge` returns `MergeFailed`; merge operators are applied within a single maplet when fingerprints collide, but combining two maplets is not implemented. `Maplet::resize` swaps in a fresh quotient filter without reinserting the existing fingerprints, so keys that were already stored stop being found through the filter, although their values remain in the map. Until that is fixed, size the maplet up front or leave `auto_resize` off. The engine is not immune: it inserts into a maplet, so more keys than its configured capacity will reach the same path.
 
-Where `Pr[ℓ ≥ L] ≤ ε^L`, meaning even when wrong, the result is close to correct.
+The documents under `docs/` predate the workspace split. `docs/API.md` still shows configuration fields such as `memory_capacity` and `aof_sync_interval_ms` that the code does not have, and the component READMEs describe earlier network designs. The source and this file are the current reference; the technical guide in `docs/TECHNICAL_README.md` remains useful for the model and the internals, with that caveat.
 
 ## Documentation
 
-- **[Technical Documentation](docs/TECHNICAL_README.md)** - Comprehensive technical guide with architecture diagrams, API reference, and implementation details
-- **[Quotient Filter](docs/QUOTIENT_FILTER.md)** - Complete guide to quotient filter features, testing, and Python integration
-- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Comprehensive index of all documentation and resources
-- **[API Reference](docs/API.md)** - Complete API reference and usage examples
-- **[Testing Guide](docs/TESTING.md)** - Comprehensive testing guide for Python bindings
-- **[Benchmark Documentation](mappy-core/benches/QUOTIENT_FILTER_BENCHMARKS.md)** - Detailed benchmark results and performance analysis
-- **[API Documentation](https://docs.rs/mappy-core)** - Auto-generated API documentation
+The technical guide at [docs/TECHNICAL_README.md](docs/TECHNICAL_README.md) covers the maplet model, the quotient filter, and the storage layer in depth. [docs/QUOTIENT_FILTER.md](docs/QUOTIENT_FILTER.md) collects the slot-finding details and benchmark notes, and [mappy-core/benches/README.md](mappy-core/benches/README.md) explains the benchmark harness. Generate the Rust API documentation with `cargo doc --workspace --no-deps`.
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT. See [LICENSE](LICENSE).
 
 ## References
 
-Based on the research paper:
-
 > Bender, M. A., Conway, A., Farach-Colton, M., Johnson, R., & Pandey, P. (2025). Time To Replace Your Filter: How Maplets Simplify System Design. arXiv preprint [arXiv:2510.05518](https://arxiv.org/abs/2510.05518).
-
----
-
-## Visual Guide: Maplets and Transformers
-
-![A four-panel comic strip showing a fox navigating a forest, illustrating the parallel between maplets (local key-value mappings) and transformer attention mechanisms (local context views). The comic demonstrates how both systems process local information incrementally to build global understanding—one clearing, one maplet, one attention head at a time.](docs/mappy_comic.webp)
-
-This comic strip illustrates a fascinating parallel between **maplets** and **transformer attention mechanisms**. While they serve different purposes, both systems share a fundamental pattern of aggregating local information to build global understanding.
-
-### The Core Parallel: Aggregation Mechanisms
-
-**Maplets** use associative/commutative operators (⊕) to merge values when hash collisions occur:
-
-```math
-m[k] = M[k] ⊕ (⊕ᵢ₌₁ˡ M[kᵢ])
-```
-
-**Transformer Attention** uses weighted sums to aggregate values based on query-key similarity:
-
-```math
-Attention(Q, K, V) = softmax(QK^T / √d_k) V
-```
-
-Both combine multiple pieces of information into a single representation, though through different mechanisms.
-
-### Key Similarities
-
-1. **Key-Value Structure**: Both operate on key-value semantics—maplets explicitly, attention via QKV (query-key-value)
-2. **Local-to-Global**: Both build global structures from local pieces—individual key-value pairs in maplets, token representations in attention
-3. **Aggregation**: Both merge information using associative operations (addition, weighted sums, set union, etc.)
-
-### Important Differences
-
-1. **Merging Mechanism**:
-   - **Maplets**: Values merge due to hash collisions (unintended but bounded with exponentially decreasing error probability)
-   - **Attention**: Values merge by design through learned attention weights
-
-2. **Purpose**:
-   - **Maplets**: Space-efficient approximate storage with probabilistic guarantees
-   - **Attention**: Contextual understanding and representation learning
-
-3. **"Local Views"**:
-   - **Maplets**: "Local" refers to individual key-value pairs in the key space
-   - **Attention**: "Local" refers to positional/contextual views across sequence positions
-
-### The Metaphor
-
-The fox's journey through the forest represents the iterative process of building understanding from discrete pieces. Whether navigating a literal forest (the key space in maplets) or an abstract manifold (the sequence space in transformers), both systems demonstrate that **"understand the local, and the global reveals itself"**—one clearing, one key-value pair, one attention head at a time.
