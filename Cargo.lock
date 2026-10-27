@@ -7,7 +7,7 @@ name = "ahash"
 version = "0.8.10"
 source = "git+https://git.sly.so/kade/ahash#b8bb006595103e1b953d39c4ff4316fc65feba2a"
 dependencies = [
- "getrandom 0.4.3 (git+https://git.sly.so/kade/getrandom)",
+ "getrandom 0.4.3",
  "once_cell 1.21.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "version_check",
  "zerocopy 0.8.47",
@@ -306,7 +306,7 @@ dependencies = [
 [[package]]
 name = "bitflags"
 version = "2.11.1"
-source = "git+https://git.sly.so/kade/bitflags#bb889472105d91519a5d09eb59b28033a039d11d"
+source = "git+https://git.sly.so/kade/bitflags#bca3d6c757e322c03830558bb69fb62344a34444"
 
 [[package]]
 name = "blocking"
@@ -442,21 +442,21 @@ dependencies = [
 [[package]]
 name = "core-foundation"
 version = "0.10.1"
-source = "git+https://git.sly.so/kade/core-foundation-sys#d96fc4a040efc665969601b29805e31ecabf4ef7"
+source = "git+https://git.sly.so/kade/core-foundation-sys#ea734ea2680ab29fc231b42801bfc217762ef906"
 dependencies = [
  "core-foundation-sys",
- "libc 0.2.191",
+ "libc 0.2.190",
 ]
 
 [[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
-source = "git+https://git.sly.so/kade/core-foundation-sys#d96fc4a040efc665969601b29805e31ecabf4ef7"
+source = "git+https://git.sly.so/kade/core-foundation-sys#ea734ea2680ab29fc231b42801bfc217762ef906"
 
 [[package]]
 name = "cpufeatures"
 version = "0.3.1"
-source = "git+https://git.sly.so/kade/crypto-utils#48f1eecdaeb6beac923a323d5105fc3bafe7fb69"
+source = "git+https://git.sly.so/kade/crypto-utils#3349249313a8c7d4c80a6ab8735c495903e6f32d"
 dependencies = [
  "libc 0.2.191",
 ]
@@ -623,17 +623,7 @@ source = "git+https://git.sly.so/kade/equivalent#44cdd44f8b8ebb5f9ae096c7550a5e7
 [[package]]
 name = "errno"
 version = "0.3.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
-dependencies = [
- "libc 0.2.191",
- "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "errno"
-version = "0.3.14"
-source = "git+https://git.sly.so/kade/errno#23e06ffea896440949326f408217f273f4ca4a8c"
+source = "git+https://git.sly.so/kade/errno#d8cd39fa73ae4d08e0ecd78f6176d149cde24e73"
 dependencies = [
  "libc 0.2.191",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -688,9 +678,9 @@ dependencies = [
 [[package]]
 name = "fs2"
 version = "0.4.3"
-source = "git+https://git.sly.so/kade/fs2#9a340454a8292df025de368fc4b310bb736f382f"
+source = "git+https://git.sly.so/kade/fs2#aacc1a640f9e900d62e5b3486c054b1d68fd9078"
 dependencies = [
- "libc 0.2.191",
+ "libc 0.2.190",
  "winapi",
 ]
 
@@ -824,21 +814,10 @@ dependencies = [
 [[package]]
 name = "getrandom"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
-dependencies = [
- "cfg-if",
- "libc 0.2.191",
- "r-efi 6.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "getrandom"
-version = "0.4.3"
 source = "git+https://git.sly.so/kade/getrandom#8123925f5544382abd0df32fbe023cf0fcebb081"
 dependencies = [
  "libc 0.2.190",
- "r-efi 6.0.0 (git+https://git.sly.so/kade/r-efi)",
+ "r-efi 6.0.0",
  "rand_core 0.10.1",
 ]
 
@@ -1133,10 +1112,10 @@ source = "git+https://git.sly.so/kade/itoa#8494034588cd77fa08e196ca49447f330091a
 [[package]]
 name = "jobserver"
 version = "0.1.35"
-source = "git+https://git.sly.so/kade/jobserver#3fa6e73bb697a9dc31c6cf45143c8f2dccc29ecc"
+source = "git+https://git.sly.so/kade/jobserver#73ee71d610213dbfe935f652718c080bc5a78043"
 dependencies = [
- "getrandom 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.191",
+ "getrandom 0.4.3",
+ "libc 0.2.190",
 ]
 
 [[package]]
@@ -1158,7 +1137,7 @@ source = "git+https://git.sly.so/kade/lazy_static#a0aac03f85497474ef7fe6445dca7e
 [[package]]
 name = "libc"
 version = "0.2.190"
-source = "git+https://git.sly.so/kade/libc#25ac28daaf7e382b317cc5d36176f9e7dee9b399"
+source = "git+https://git.sly.so/kade/libc#5953a5720a2740c4fc4badb2349a94611b2361c9"
 
 [[package]]
 name = "libc"
@@ -1180,7 +1159,7 @@ source = "git+https://git.sly.so/kade/icu4x#43a953abcf6cbd82908cce503d274559b481
 [[package]]
 name = "lock_api"
 version = "0.4.14"
-source = "git+https://git.sly.so/kade/parking_lot#43fc204f9c56ca41e77cc135daa4de83f46e6c99"
+source = "git+https://git.sly.so/kade/parking_lot#ed53ea885c84117a612f730d3b72144acc9abce5"
 dependencies = [
  "scopeguard",
 ]
@@ -1336,9 +1315,9 @@ dependencies = [
 [[package]]
 name = "mio"
 version = "1.2.0"
-source = "git+https://git.sly.so/kade/mio#247cd28ccab3ee12b4a4256ff72cc676bc370f77"
+source = "git+https://git.sly.so/kade/mio#873fd3550aca9950f0213cbdf09b349d32a2ebac"
 dependencies = [
- "libc 0.2.191",
+ "libc 0.2.190",
  "wasi",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1387,9 +1366,9 @@ source = "git+https://git.sly.so/kade/oorandom#5387e417d7abb870967c250e69fe3e9f0
 [[package]]
 name = "page_size"
 version = "0.6.0"
-source = "git+https://git.sly.so/kade/page_size#f58857b0a7831c0c1aa84d75a45164982cf66800"
+source = "git+https://git.sly.so/kade/page_size#ac3284067edd5e4656b4eddedfbb71da142618d9"
 dependencies = [
- "libc 0.2.191",
+ "libc 0.2.190",
  "winapi",
 ]
 
@@ -1406,7 +1385,7 @@ source = "git+https://git.sly.so/kade/parking#cedb1884e0502ad21d4863a21eec9e3f13
 [[package]]
 name = "parking_lot"
 version = "0.12.5"
-source = "git+https://git.sly.so/kade/parking_lot#43fc204f9c56ca41e77cc135daa4de83f46e6c99"
+source = "git+https://git.sly.so/kade/parking_lot#ed53ea885c84117a612f730d3b72144acc9abce5"
 dependencies = [
  "lock_api",
  "parking_lot_core",
@@ -1415,10 +1394,10 @@ dependencies = [
 [[package]]
 name = "parking_lot_core"
 version = "0.9.12"
-source = "git+https://git.sly.so/kade/parking_lot#43fc204f9c56ca41e77cc135daa4de83f46e6c99"
+source = "git+https://git.sly.so/kade/parking_lot#ed53ea885c84117a612f730d3b72144acc9abce5"
 dependencies = [
  "cfg-if",
- "libc 0.2.191",
+ "libc 0.2.190",
  "redox_syscall",
  "smallvec",
  "windows-link 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1643,12 +1622,6 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 [[package]]
 name = "r-efi"
 version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
-
-[[package]]
-name = "r-efi"
-version = "6.0.0"
 source = "git+https://git.sly.so/kade/r-efi#1c6682ee71abf35ad7b90ca56d6b59243f521918"
 
 [[package]]
@@ -1667,7 +1640,7 @@ version = "0.10.3"
 source = "git+https://git.sly.so/kade/rand#d5bc4adfed891944672b98fd0f050eb00821e5a6"
 dependencies = [
  "chacha20",
- "getrandom 0.4.3 (git+https://git.sly.so/kade/getrandom)",
+ "getrandom 0.4.3",
  "rand_core 0.10.1",
 ]
 
@@ -1725,7 +1698,7 @@ dependencies = [
 [[package]]
 name = "redox_syscall"
 version = "0.5.18"
-source = "git+https://git.sly.so/kade/redox_syscall#a8fb10dc6e13534275b00cae73cbd87405e9bb60"
+source = "git+https://git.sly.so/kade/redox_syscall#a41827956b520718aeb5926209e739c2f0781251"
 dependencies = [
  "bitflags",
 ]
@@ -1807,7 +1780,7 @@ version = "0.17.16000"
 source = "git+https://git.sly.so/kade/ring#eccda669f0b8fa675408bbef41c64f782ac348d0"
 dependencies = [
  "cc",
- "getrandom 0.4.3 (git+https://git.sly.so/kade/getrandom)",
+ "getrandom 0.4.3",
  "libc 0.2.190",
  "untrusted",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1816,10 +1789,10 @@ dependencies = [
 [[package]]
 name = "rustix"
 version = "1.1.4"
-source = "git+https://git.sly.so/kade/rustix#fd8bad1c87541166c7bc84f008337e3168d6ae79"
+source = "git+https://git.sly.so/kade/rustix#ae268b85f0b84fa84101d1a86c17e2d71b3abbe9"
 dependencies = [
  "bitflags",
- "errno 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "errno",
  "libc 0.2.191",
  "linux-raw-sys",
  "windows-sys 0.61.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1981,10 +1954,10 @@ source = "git+https://git.sly.so/kade/shlex#653936e120cdd0a8d1b4f0837e2cce0f347d
 [[package]]
 name = "signal-hook-registry"
 version = "1.4.8"
-source = "git+https://git.sly.so/kade/signal-hook-registry#0dda8ec876956e67b134dafab48e270ce9db0b7a"
+source = "git+https://git.sly.so/kade/signal-hook-registry#44949d1087929f6af951bb38a5f1b2e80ee01ef1"
 dependencies = [
- "errno 0.3.14 (git+https://git.sly.so/kade/errno)",
- "libc 0.2.191",
+ "errno",
+ "libc 0.2.190",
 ]
 
 [[package]]
@@ -2153,7 +2126,7 @@ version = "3.27.0"
 source = "git+https://git.sly.so/kade/tempfile#a71d9e543d26bb73d73583c872fd7726d7866e2e"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3 (git+https://git.sly.so/kade/getrandom)",
+ "getrandom 0.4.3",
  "once_cell 1.21.4 (git+https://git.sly.so/kade/once_cell)",
  "rustix",
  "windows-sys 0.61.2 (git+https://git.sly.so/kade/windows-sys)",
@@ -2376,9 +2349,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "twox-hash"
 version = "2.1.2"
-source = "git+https://git.sly.so/kade/twox-hash#2d5963bad11a50845f952ff03ba25850c7928694"
+source = "git+https://git.sly.so/kade/twox-hash#b0c7192ee850e133798bdd190989119b2d0090da"
 dependencies = [
- "rand 0.9.5",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -2737,7 +2710,7 @@ dependencies = [
 [[package]]
 name = "zeroize"
 version = "1.9.0"
-source = "git+https://git.sly.so/kade/crypto-utils#48f1eecdaeb6beac923a323d5105fc3bafe7fb69"
+source = "git+https://git.sly.so/kade/crypto-utils#3349249313a8c7d4c80a6ab8735c495903e6f32d"
 
 [[package]]
 name = "zerotrie"
