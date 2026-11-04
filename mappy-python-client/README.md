@@ -33,17 +33,16 @@ exit=124   # 124 = timeout killed it; the daemon was up the whole time
   `$XDG_RUNTIME_DIR`, carries a 5s socket timeout, and supports `GET`, `SET`,
   `SETEX`, `DEL`, `KEYS`, `STATS`, `PING`. Tested in
   `forgejo-client/tests/test_mappy_cache.py`.
-  See [`~/src/forgejo-client/src/forgejo_client/mappy_socket.py`](file:///home/kade/src/forgejo-client/src/forgejo_client/mappy_socket.py).
+  It lives in the `forgejo-client` repository, under
+  `src/forgejo_client/mappy_socket.py`.
 - **`mappy_client::MappyClient`** (Rust) — the upstream async client in
-  [`../mappy-client/`](file:///home/kade/src/mappy/mappy-client), if a typed
-  client is wanted.
+  [`../mappy-client/`](../mappy-client), if a typed client is wanted.
 
 ## Status
 
 Nothing in this repository imports `mappy_client.py`. The HTTP router it targets
-is not deployed anywhere: [`~/ansible/roles/mappy`](file:///home/kade/ansible/roles/mappy/defaults/main.yml)
-installs `mappy-daemon`, "smol, socket-only, line protocol", and
-[`deploy-mappy.yml`](file:///home/kade/ansible/playbooks/deploy-mappy.yml) runs it
-as `reynard-mappy.service` on the mesh servers.
+is not deployed from this repository: the deployment roles that install
+`mappy-daemon`, "smol, socket-only, line protocol", run it as
+`reynard-mappy.service` on the mesh servers, and they are kept separately.
 
 The file is kept only as a reference for the old `mappy-server` wire format.
