@@ -13,7 +13,7 @@ rust-version = "1.101"
 
 [dependencies]
 # Workspace dependencies
-mappy-core = { path = "../mappy-core", version = "0.3.2" }
+mappy-core = { git = "https://git.sly.so/kade/mappy", package = "mappy-core" }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

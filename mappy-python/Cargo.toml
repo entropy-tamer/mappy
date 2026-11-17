@@ -16,7 +16,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Workspace dependencies (maturin project)
-mappy-core = { path = "../mappy-core" }
+mappy-core = { git = "https://git.sly.so/kade/mappy", package = "mappy-core" }
 pyo3 = { workspace = true, features = ["extension-module"] }
 # numpy = "0.21"  # Temporarily disabled - version conflict with pyo3 0.27
 serde.workspace = true

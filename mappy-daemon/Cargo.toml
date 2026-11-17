@@ -15,7 +15,7 @@ name = "mappy-daemon"
 path = "src/main.rs"
 
 [dependencies]
-mappy-core = { path = "../mappy-core" }
+mappy-core = { git = "https://git.sly.so/kade/mappy", package = "mappy-core" }
 smol.workspace = true
 async-net.workspace = true
 futures-lite.workspace = true

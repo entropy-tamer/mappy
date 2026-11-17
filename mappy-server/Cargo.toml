@@ -33,7 +33,7 @@ tracing-subscriber.workspace = true
 dotenvy.workspace = true
 
 # Local dependencies
-mappy-core = { path = "../mappy-core" }
+mappy-core = { git = "https://git.sly.so/kade/mappy", package = "mappy-core" }
 
 # Additional dependencies
 bytes = { git = "https://git.sly.so/kade/bytes" }
