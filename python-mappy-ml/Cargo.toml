@@ -8,7 +8,7 @@ repository.workspace = true
 description = "High-performance Rust-native ML data pipeline for mappy with image decoding and zero-copy tensor export"
 keywords = ["machine-learning", "data-pipeline", "pytorch", "tensor", "image-processing", "python"]
 categories = ["machine-learning", "data-structures", "python"]
-rust-version = "1.101"
+rust-version = "1.102.0"
 
 [lib]
 name = "python_mappy_ml"

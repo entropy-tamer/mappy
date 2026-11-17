@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Smol TCP-to-Unix bridge for mappy-daemon (remote mesh access)"
 keywords = ["mappy", "daemon", "proxy", "bridge", "smol"]
 categories = ["network-programming"]
-rust-version = "1.101"
+rust-version = "1.102.0"
 
 [[bin]]
 name = "mappy-proxy"

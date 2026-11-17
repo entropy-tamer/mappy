@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Smol socket-only KV daemon backed by mappy-core (silly, fast, semi-unreliable)"
 keywords = ["mappy", "maplet", "kv", "daemon", "smol"]
 categories = ["database-implementations"]
-rust-version = "1.101"
+rust-version = "1.102.0"
 
 [[bin]]
 name = "mappy-daemon"
