@@ -1,8 +1,8 @@
 # Woodpecker CI pipeline for kade Rust projects.
 #
-# Image 1.102 adds git to the toolchain image, so cargo fetches git
-# dependencies with the CLI (much faster than the builtin fetch) and keeps
-# them in the woodpecker-cargo volume shared across builds.
+# Image :stable is the 1.102 toolchain: rustc 1.102.0 with the parallel
+# frontend on by default. Cargo fetches git dependencies with the CLI and
+# keeps them in the woodpecker-cargo volume shared across builds.
 #
 # The pact step is a ratchet: the number of crates.io sources in Cargo.lock
 # may not rise above the recorded baseline, and neither may the number of
@@ -26,7 +26,7 @@ clone:
 
 steps:
   pact:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     commands:
       - |
@@ -59,7 +59,7 @@ steps:
       SLY_PACT_MAX_DUPES: "28"
 
   build:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     depends_on: [pact]
     commands:
@@ -72,7 +72,7 @@ steps:
       CARGO_UNSTABLE_HEADSTART: "true"
 
   test:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     depends_on: [build]
     commands:
@@ -94,7 +94,7 @@ steps:
   # den-side twin walk is still in progress, so the graph is not yet clean
   # enough to deny the lint outright; when it is, drop this one flag.
   clippy:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     depends_on: [test]
     commands:
@@ -108,7 +108,7 @@ steps:
   # rustc releases. It is reported, not enforced, so a toolchain bump does
   # not turn the pipeline red over a lint nobody has read yet.
   clippy-nursery:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     depends_on: [clippy]
     failure: ignore
@@ -120,7 +120,7 @@ steps:
       CARGO_UNSTABLE_HEADSTART: "true"
 
   fmt:
-    image: localhost/kade-rust:1.103
+    image: localhost/kade-rust:stable
     pull: false
     depends_on: [clippy-nursery]
     commands:
