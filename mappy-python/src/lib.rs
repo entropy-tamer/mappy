@@ -208,7 +208,7 @@ impl PyMapletGeneric {
         Ok(Self { inner, runtime })
     }
 
-    fn insert(&mut self, key: String, value: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn insert(&self, key: String, value: &Bound<'_, PyAny>) -> PyResult<()> {
         Python::attach(|_py| {
             match &self.inner {
                 PyMapletGenericInner::Counter(maplet) => {
@@ -603,7 +603,7 @@ impl PyMaplet {
         })
     }
 
-    fn insert(&mut self, key: String, value: u64) -> PyResult<()> {
+    fn insert(&self, key: String, value: u64) -> PyResult<()> {
         self.runtime
             .block_on(async { self.inner.clone().insert(key, value).await })
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}")))?;
