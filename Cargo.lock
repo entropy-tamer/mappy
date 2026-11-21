@@ -96,7 +96,7 @@ dependencies = [
  "polling",
  "rustix",
  "slab",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -138,7 +138,7 @@ dependencies = [
 [[package]]
 name = "async-signal"
 version = "0.2.14"
-source = "git+https://git.sly.so/kade/async-signal#fd6e7731d19cbcd725f24b0374a596a51935eca6"
+source = "git+https://git.sly.so/kade/async-signal#1280557f252ae30c6b83d366ff1fe749c86f70d8"
 dependencies = [
  "async-io",
  "async-lock",
@@ -148,7 +148,7 @@ dependencies = [
  "rustix",
  "signal-hook-registry",
  "slab",
- "windows-sys 0.61.2",
+ "windows-sys",
 ]
 
 [[package]]
@@ -636,7 +636,7 @@ version = "0.3.14"
 source = "git+https://git.sly.so/kade/errno#8530bde1dce8b43d3b7b51ae0f1f474fb2ad8daa"
 dependencies = [
  "libc 0.2.190",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -904,7 +904,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "smallvec 2.0.0-alpha.12",
+ "smallvec",
  "tokio",
  "want",
 ]
@@ -983,7 +983,7 @@ dependencies = [
  "icu_normalizer_data",
  "icu_properties",
  "icu_provider",
- "smallvec 2.0.0-alpha.12",
+ "smallvec",
  "zerovec",
 ]
 
@@ -1031,7 +1031,7 @@ version = "1.1.0"
 source = "git+https://git.sly.so/kade/rust-url#e8af098990808132cd5ecb7444b1510af5ae48a7"
 dependencies = [
  "idna_adapter",
- "smallvec 2.0.0-alpha.12",
+ "smallvec",
  "utf8_iter",
 ]
 
@@ -1180,7 +1180,7 @@ dependencies = [
 [[package]]
 name = "mappy-core"
 version = "0.3.2"
-source = "git+https://git.sly.so/kade/mappy#9192cd3959bb0300ca3f3419483ba1e30d05ef9d"
+source = "git+https://git.sly.so/kade/mappy#ea9059c645899330757108e6a204045c3c14f009"
 dependencies = [
  "ahash",
  "async-channel",
@@ -1310,7 +1310,7 @@ source = "git+https://git.sly.so/kade/mio#b293eda2ef1307b82f50addbf25c29c618310a
 dependencies = [
  "libc 0.2.190",
  "wasi",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1318,7 +1318,7 @@ name = "nu-ansi-term"
 version = "0.50.3"
 source = "git+https://git.sly.so/kade/nu-ansi-term#c1ff23f4581477986d51ced9cbe5f5f66aeb842d"
 dependencies = [
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1374,8 +1374,8 @@ source = "git+https://git.sly.so/kade/parking_lot#d04249db3eb998d42694fb838c071b
 dependencies = [
  "libc 1.0.0-alpha.3",
  "redox_syscall",
- "smallvec 2.0.0-alpha.12",
- "windows-link 0.100.0",
+ "smallvec",
+ "windows-link",
 ]
 
 [[package]]
@@ -1437,7 +1437,7 @@ dependencies = [
  "hermit-abi",
  "pin-project-lite",
  "rustix",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1601,7 +1601,7 @@ dependencies = [
 [[package]]
 name = "rand_chacha"
 version = "0.10.0"
-source = "git+https://git.sly.so/kade/rngs#207752f89bc215a8ab1ba7187a478449d1c4087e"
+source = "git+https://git.sly.so/kade/rngs#5058ef4ff9414a8437c72119012408bd999a8cda"
 dependencies = [
  "ppv-lite86",
  "rand_core",
@@ -1615,7 +1615,7 @@ source = "git+https://git.sly.so/kade/rand_core#c2977b9584d0611d52b83f95d3d413ba
 [[package]]
 name = "rand_xorshift"
 version = "0.5.0"
-source = "git+https://git.sly.so/kade/rngs#207752f89bc215a8ab1ba7187a478449d1c4087e"
+source = "git+https://git.sly.so/kade/rngs#5058ef4ff9414a8437c72119012408bd999a8cda"
 dependencies = [
  "rand_core",
 ]
@@ -1720,7 +1720,7 @@ dependencies = [
  "getrandom",
  "libc 0.2.190",
  "untrusted",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1732,7 +1732,7 @@ dependencies = [
  "errno",
  "libc 0.2.190",
  "linux-raw-sys",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -1928,19 +1928,13 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.16.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3244542535d5de959d90ec55d1b5ff0fd2bb7b1310223907d5f11932847f7b59"
-
-[[package]]
-name = "smallvec"
 version = "2.0.0-alpha.12"
 source = "git+https://git.sly.so/kade/smallvec#e605a21786548812eb8595ef23d8dd60ba9d6ab1"
 
 [[package]]
 name = "smol"
 version = "2.0.2"
-source = "git+https://git.sly.so/kade/smol#4469b5a77c879a1121c8e64d439ca64a90dafacc"
+source = "git+https://git.sly.so/kade/smol#2cb480cab42ec177b47a0b8cda1fdc953f73c413"
 dependencies = [
  "async-channel",
  "async-executor",
@@ -1959,7 +1953,7 @@ version = "0.6.3"
 source = "git+https://git.sly.so/kade/socket2#0aad09784e30cbe0144125c7271894f5a9fddb1d"
 dependencies = [
  "libc 0.2.190",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -2041,7 +2035,7 @@ dependencies = [
  "getrandom",
  "once_cell",
  "rustix",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -2098,7 +2092,7 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
@@ -2215,7 +2209,7 @@ source = "git+https://git.sly.so/kade/tower#0adb270efe3afa93b13ffb37c0d550c24e1b
 [[package]]
 name = "tracing"
 version = "0.2.0"
-source = "git+https://git.sly.so/kade/tracing#849506b3d39821e6122f04681976ea5b59e58029"
+source = "git+https://git.sly.so/kade/tracing#a6e68097754c900e2413ce7ad7eee33edc0e0ca4"
 dependencies = [
  "log",
  "pin-project-lite",
@@ -2227,7 +2221,7 @@ dependencies = [
 [[package]]
 name = "tracing-attributes"
 version = "0.2.0"
-source = "git+https://git.sly.so/kade/tracing#849506b3d39821e6122f04681976ea5b59e58029"
+source = "git+https://git.sly.so/kade/tracing#a6e68097754c900e2413ce7ad7eee33edc0e0ca4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2237,7 +2231,7 @@ dependencies = [
 [[package]]
 name = "tracing-core"
 version = "0.2.0"
-source = "git+https://git.sly.so/kade/tracing#849506b3d39821e6122f04681976ea5b59e58029"
+source = "git+https://git.sly.so/kade/tracing#a6e68097754c900e2413ce7ad7eee33edc0e0ca4"
 dependencies = [
  "once_cell",
  "portable-atomic",
@@ -2247,7 +2241,7 @@ dependencies = [
 [[package]]
 name = "tracing-log"
 version = "0.2.0"
-source = "git+https://git.sly.so/kade/tracing#849506b3d39821e6122f04681976ea5b59e58029"
+source = "git+https://git.sly.so/kade/tracing#a6e68097754c900e2413ce7ad7eee33edc0e0ca4"
 dependencies = [
  "log",
  "once_cell",
@@ -2257,7 +2251,7 @@ dependencies = [
 [[package]]
 name = "tracing-subscriber"
 version = "0.3.0"
-source = "git+https://git.sly.so/kade/tracing#849506b3d39821e6122f04681976ea5b59e58029"
+source = "git+https://git.sly.so/kade/tracing#a6e68097754c900e2413ce7ad7eee33edc0e0ca4"
 dependencies = [
  "matchers",
  "nu-ansi-term",
@@ -2265,7 +2259,7 @@ dependencies = [
  "portable-atomic-util",
  "regex-automata",
  "sharded-slab",
- "smallvec 1.16.6",
+ "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",
@@ -2462,19 +2456,13 @@ name = "winapi-util"
 version = "0.1.11"
 source = "git+https://git.sly.so/kade/winapi-util#b1d423f4ab921daed53921bff37fa7a0bfc83033"
 dependencies = [
- "windows-sys 0.100.0",
+ "windows-sys",
 ]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "git+https://git.sly.so/kade/winapi#862b5f677332bef815b7e706e0c03da147a2f5d5"
-
-[[package]]
-name = "windows-link"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
 name = "windows-link"
@@ -2486,7 +2474,7 @@ name = "windows-registry"
 version = "0.100.0"
 source = "git+https://git.sly.so/kade/windows-rs#8ac4b7c4891379f7c40a95d011a81b973226be89"
 dependencies = [
- "windows-link 0.100.0",
+ "windows-link",
  "windows-result",
  "windows-strings",
 ]
@@ -2496,7 +2484,7 @@ name = "windows-result"
 version = "0.100.0"
 source = "git+https://git.sly.so/kade/windows-rs#8ac4b7c4891379f7c40a95d011a81b973226be89"
 dependencies = [
- "windows-link 0.100.0",
+ "windows-link",
 ]
 
 [[package]]
@@ -2504,16 +2492,7 @@ name = "windows-strings"
 version = "0.100.0"
 source = "git+https://git.sly.so/kade/windows-rs#8ac4b7c4891379f7c40a95d011a81b973226be89"
 dependencies = [
- "windows-link 0.100.0",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.61.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
-dependencies = [
- "windows-link 0.2.1",
+ "windows-link",
 ]
 
 [[package]]
@@ -2521,7 +2500,7 @@ name = "windows-sys"
 version = "0.100.0"
 source = "git+https://git.sly.so/kade/windows-rs#8ac4b7c4891379f7c40a95d011a81b973226be89"
 dependencies = [
- "windows-link 0.100.0",
+ "windows-link",
 ]
 
 [[package]]
