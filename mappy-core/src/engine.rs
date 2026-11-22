@@ -571,8 +571,8 @@ mod tests {
 
         // Verify keys exist
         let keys = Arc::clone(&engine).keys().await.unwrap();
-        assert!(keys.contains(&"key1".to_string()), "key1 should exist");
-        assert!(keys.contains(&"key2".to_string()), "key2 should exist");
+        assert!(keys.iter().any(|key| key == "key1"), "key1 should exist");
+        assert!(keys.iter().any(|key| key == "key2"), "key2 should exist");
 
         Arc::clone(&engine).close().await.unwrap();
     }

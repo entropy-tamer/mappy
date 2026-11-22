@@ -191,12 +191,11 @@ impl HybridStorage {
                                 eprintln!("Failed to flush AOF buffer: {e}");
                             }
                         }
-                        if aof_path.exists() {
-                            if let Err(e) =
+                        if aof_path.exists()
+                            && let Err(e) =
                                 std::fs::File::open(&aof_path).and_then(|f| f.sync_all())
-                            {
-                                eprintln!("Failed to sync AOF file: {e}");
-                            }
+                        {
+                            eprintln!("Failed to sync AOF file: {e}");
                         }
                     }
                 })

@@ -216,8 +216,8 @@ mod tests {
 
         let keys = storage.keys().await.unwrap();
         assert_eq!(keys.len(), 2);
-        assert!(keys.contains(&"key1".to_string()));
-        assert!(keys.contains(&"key2".to_string()));
+        assert!(keys.iter().any(|key| key == "key1"));
+        assert!(keys.iter().any(|key| key == "key2"));
     }
 
     #[tokio::test]
