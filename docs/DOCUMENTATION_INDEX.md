@@ -30,6 +30,10 @@ This document provides a comprehensive index of all documentation for the Mappy 
    - Performance characteristics and optimization
    - Troubleshooting and debugging guide
 
+### Operations
+
+- **[AOF_COMPACTION.md](AOF_COMPACTION.md)** - Offline AOF compaction with a hard-link backup, bounded memory, and end-to-end reload checks
+
 ## Testing and Benchmarking Documentation
 
 ### Test Documentation

@@ -1,0 +1,21 @@
+[package]
+name = "mappy-aof-compact"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Offline, bounded-memory compactor for mappy append-only files"
+keywords = ["mappy", "aof", "compaction", "offline"]
+categories = ["development-tools"]
+
+[dependencies]
+anyhow.workspace = true
+mappy-core = { path = "../mappy-core" }
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints.clippy]
+multiple_crate_versions = "allow"

@@ -5,7 +5,8 @@ members = [
     "mappy-python",
     "mappy-server",
     "mappy-proxy",
-    "mappy-daemon"
+    "mappy-daemon",
+    "mappy-aof-compact"
 ]
 resolver = "3"
 

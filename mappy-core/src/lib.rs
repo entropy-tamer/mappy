@@ -5,6 +5,10 @@
 //! Based on the research paper "Time To Replace Your Filter: How Maplets Simplify System Design"
 //! by Bender, Conway, Farach-Colton, Johnson, and Pandey.
 
+// The workspace mirrors pin two libc lines through transitive dependencies; this
+// crate does not choose either version.
+#![allow(clippy::multiple_crate_versions)]
+
 pub mod concurrent;
 pub mod deletion;
 pub mod encoding;
@@ -27,6 +31,7 @@ pub use operators::{
     ByteArrayOperator, CounterOperator, MaxOperator, MergeOperator, MinOperator, SetOperator,
     StringOperator, VectorConcatOperator, VectorOperator,
 };
+pub use storage::aof::{AofCompactionReport, CompactOptions, analyze_aof, compact_aof};
 pub use storage::{PersistenceMode, Storage, StorageConfig, StorageStats};
 pub use ttl::{TTLConfig, TTLEntry, TTLManager, TTLStats};
 // `MapletConfig` lives in `types` and is part of the primary configuration surface:

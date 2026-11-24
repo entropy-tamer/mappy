@@ -1137,6 +1137,16 @@ version = "0.4.29"
 source = "git+https://git.sly.so/kade/log#1ba9ccc3555c64361a22300c79bfc6e3c67f01b4"
 
 [[package]]
+name = "mappy-aof-compact"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "mappy-core 0.3.2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "mappy-client"
 version = "0.3.2"
 dependencies = [

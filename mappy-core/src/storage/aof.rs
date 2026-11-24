@@ -7,9 +7,10 @@ use async_lock::RwLock;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use serde_json;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
+use std::collections::HashMap;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -194,6 +195,319 @@ impl AOFStorage {
             0
         }
     }
+}
+
+/// Controls how offline compaction treats the original AOF.
+#[derive(Debug, Clone, Default)]
+pub struct CompactOptions {
+    /// Hard-link destination for the pre-compaction file. Defaults to
+    /// `<stem>.aof.pre-compact` next to the AOF.
+    pub backup_path: Option<PathBuf>,
+    /// Replace an existing backup instead of refusing to run.
+    pub overwrite_backup: bool,
+    /// Skip the backup entirely. Only useful when disk is critically short.
+    pub skip_backup: bool,
+}
+
+/// What an offline compaction actually kept.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AofCompactionReport {
+    /// Bytes in the original AOF before compaction.
+    pub input_bytes: u64,
+    /// Bytes in the compacted AOF.
+    pub output_bytes: u64,
+    /// Non-empty JSON records read in the first pass.
+    pub records_read: u64,
+    /// Records copied into the compacted AOF.
+    pub records_written: u64,
+    /// Distinct live keys retained.
+    pub keys_retained: u64,
+    /// Delete records encountered and dropped.
+    pub tombstones_dropped: u64,
+}
+
+#[derive(serde::Deserialize)]
+enum CompactionEntry {
+    Set {
+        key: String,
+        #[allow(dead_code)]
+        value: serde::de::IgnoredAny,
+    },
+    Delete {
+        key: String,
+    },
+}
+
+struct LiveOffsets {
+    by_key: HashMap<String, u64>,
+    records_read: u64,
+    tombstones_dropped: u64,
+}
+
+#[allow(clippy::cast_possible_truncation)] // AOF line lengths fit u64 on every supported target
+fn scan_live_offsets(path: &Path) -> MapletResult<LiveOffsets> {
+    let file = File::open(path)
+        .map_err(|e| MapletError::Internal(format!("Failed to open AOF for scanning: {e}")))?;
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    let mut offset = 0_u64;
+    let mut by_key = HashMap::new();
+    let mut records_read = 0_u64;
+    let mut tombstones_dropped = 0_u64;
+
+    loop {
+        line.clear();
+        let read = reader.read_line(&mut line).map_err(|e| {
+            MapletError::Internal(format!("Failed to read AOF line at byte {offset}: {e}"))
+        })?;
+        if read == 0 {
+            break;
+        }
+        if line.trim().is_empty() {
+            offset += read as u64;
+            continue;
+        }
+
+        let entry: CompactionEntry = serde_json::from_str(&line).map_err(|e| {
+            MapletError::Internal(format!("Failed to parse AOF entry at byte {offset}: {e}"))
+        })?;
+        records_read += 1;
+        match entry {
+            CompactionEntry::Set { key, value: _ } => {
+                by_key.insert(key, offset);
+            }
+            CompactionEntry::Delete { key } => {
+                by_key.remove(&key);
+                tombstones_dropped += 1;
+            }
+        }
+        offset += read as u64;
+    }
+
+    Ok(LiveOffsets {
+        by_key,
+        records_read,
+        tombstones_dropped,
+    })
+}
+
+/// Report what a compaction would keep without changing the file.
+///
+/// # Errors
+/// Returns an error when the file cannot be read or a non-empty line is not a valid AOF entry.
+pub fn analyze_aof(path: &Path) -> MapletResult<AofCompactionReport> {
+    let input_bytes = std::fs::metadata(path)
+        .map_err(|e| MapletError::Internal(format!("Failed to stat AOF: {e}")))?
+        .len();
+    let scan = scan_live_offsets(path)?;
+    let keys_retained = scan.by_key.len() as u64;
+    let mut offsets = scan.by_key.into_values().collect::<Vec<_>>();
+    offsets.sort_unstable();
+
+    let file = File::open(path)
+        .map_err(|e| MapletError::Internal(format!("Failed to reopen AOF for analysis: {e}")))?;
+    let mut reader = BufReader::new(file);
+    let mut line = String::new();
+    let mut byte_offset = 0_u64;
+    let mut output_bytes = 0_u64;
+    let mut records_written = 0_u64;
+    loop {
+        line.clear();
+        let read = reader.read_line(&mut line).map_err(|e| {
+            MapletError::Internal(format!(
+                "Failed to reread AOF line at byte {byte_offset}: {e}"
+            ))
+        })?;
+        if read == 0 {
+            break;
+        }
+        if offsets.binary_search(&byte_offset).is_ok() {
+            output_bytes += read as u64;
+            if !line.ends_with('\n') {
+                output_bytes += 1;
+            }
+            records_written += 1;
+        }
+        byte_offset += read as u64;
+    }
+
+    Ok(AofCompactionReport {
+        input_bytes,
+        output_bytes,
+        records_read: scan.records_read,
+        records_written,
+        keys_retained,
+        tombstones_dropped: scan.tombstones_dropped,
+    })
+}
+
+#[allow(clippy::cast_possible_truncation)] // AOF line lengths fit u64 on every supported target
+fn copy_live_entries(path: &Path, temp_path: &Path, offsets: &[u64]) -> MapletResult<(u64, u64)> {
+    let input = File::open(path)
+        .map_err(|e| MapletError::Internal(format!("Failed to reopen AOF for copying: {e}")))?;
+    let output = File::create(temp_path)
+        .map_err(|e| MapletError::Internal(format!("Failed to create compacted AOF: {e}")))?;
+    let mut reader = BufReader::new(input);
+    let mut writer = BufWriter::new(output);
+    let mut line = String::new();
+    let mut offset = 0_u64;
+    let mut records_written = 0_u64;
+
+    loop {
+        line.clear();
+        let read = reader.read_line(&mut line).map_err(|e| {
+            MapletError::Internal(format!("Failed to reread AOF line at byte {offset}: {e}"))
+        })?;
+        if read == 0 {
+            break;
+        }
+        if offsets.binary_search(&offset).is_ok() {
+            writer.write_all(line.as_bytes()).map_err(|e| {
+                MapletError::Internal(format!("Failed to write compacted AOF entry: {e}"))
+            })?;
+            if !line.ends_with('\n') {
+                writer.write_all(b"\n").map_err(|e| {
+                    MapletError::Internal(format!("Failed to terminate compacted AOF entry: {e}"))
+                })?;
+            }
+            records_written += 1;
+        }
+        offset += read as u64;
+    }
+
+    writer
+        .flush()
+        .map_err(|e| MapletError::Internal(format!("Failed to flush compacted AOF: {e}")))?;
+    writer
+        .get_ref()
+        .sync_all()
+        .map_err(|e| MapletError::Internal(format!("Failed to sync compacted AOF: {e}")))?;
+
+    Ok((records_written, offset))
+}
+
+fn sync_parent_dir(path: &Path) -> MapletResult<()> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    File::open(parent)
+        .and_then(|dir| dir.sync_all())
+        .map_err(|e| {
+            MapletError::Internal(format!(
+                "Failed to sync AOF directory {}: {e}",
+                parent.display()
+            ))
+        })
+}
+
+/// Compact an AOF in place with bounded memory.
+///
+/// The first pass keeps only the byte offset of the last `Set` for each key;
+/// values are parsed as `IgnoredAny`, so a 4 KiB vector does not become a
+/// resident `Vec<u8>`. The second pass copies only surviving lines into a temp
+/// file in the same directory, syncs it, hard-links a backup of the original,
+/// and atomically renames the temp file over the AOF. A concurrent append is
+/// detected by comparing the byte count of the second pass with the original
+/// size; in that case the original is left untouched.
+///
+/// This is offline-only. Stop every writer before calling it.
+///
+/// # Errors
+/// Returns an error if the AOF is malformed, changes while being copied, or
+/// the backup/rename cannot be completed.
+pub fn compact_aof(
+    path: impl AsRef<Path>,
+    options: CompactOptions,
+) -> MapletResult<AofCompactionReport> {
+    let path = path.as_ref();
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| MapletError::Internal(format!("Failed to stat AOF: {e}")))?;
+    let input_bytes = metadata.len();
+
+    let live = scan_live_offsets(path)?;
+    let mut offsets: Vec<u64> = live.by_key.into_values().collect();
+    offsets.sort_unstable();
+
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| MapletError::Internal("AOF path has no UTF-8 file name".to_string()))?;
+    let nonce = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let temp_path = parent.join(format!(".{file_name}.compact-{nonce}-{nanos}.tmp"));
+
+    let (records_written, rescanned_bytes) = match copy_live_entries(path, &temp_path, &offsets) {
+        Ok(result) => result,
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(e);
+        }
+    };
+    if rescanned_bytes != input_bytes {
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(MapletError::Internal(format!(
+            "AOF changed during compaction: {input_bytes} bytes before, {rescanned_bytes} bytes after"
+        )));
+    }
+
+    let output_bytes = std::fs::metadata(&temp_path)
+        .map_err(|e| MapletError::Internal(format!("Failed to stat compacted AOF: {e}")))?
+        .len();
+
+    let backup_path = options
+        .backup_path
+        .unwrap_or_else(|| path.with_extension("aof.pre-compact"));
+    if !options.skip_backup {
+        if backup_path == path {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(MapletError::Internal(
+                "AOF backup path must differ from the AOF itself".to_string(),
+            ));
+        }
+        if backup_path.exists() {
+            if !options.overwrite_backup {
+                let _ = std::fs::remove_file(&temp_path);
+                return Err(MapletError::Internal(format!(
+                    "Backup already exists: {}",
+                    backup_path.display()
+                )));
+            }
+            std::fs::remove_file(&backup_path).map_err(|e| {
+                let _ = std::fs::remove_file(&temp_path);
+                MapletError::Internal(format!("Failed to remove old backup: {e}"))
+            })?;
+        }
+        std::fs::hard_link(path, &backup_path).map_err(|e| {
+            let _ = std::fs::remove_file(&temp_path);
+            MapletError::Internal(format!(
+                "Failed to hard-link backup {}: {e}",
+                backup_path.display()
+            ))
+        })?;
+    }
+
+    std::fs::rename(&temp_path, path).map_err(|e| {
+        let _ = std::fs::remove_file(&temp_path);
+        MapletError::Internal(format!("Failed to install compacted AOF: {e}"))
+    })?;
+    sync_parent_dir(path)?;
+
+    Ok(AofCompactionReport {
+        input_bytes,
+        output_bytes,
+        records_read: live.records_read,
+        records_written,
+        keys_retained: offsets.len() as u64,
+        tombstones_dropped: live.tombstones_dropped,
+    })
 }
 
 #[async_trait]
@@ -390,6 +704,69 @@ mod tests {
         let deleted = storage.delete("key1").await.unwrap();
         assert!(deleted);
         assert!(!storage.exists("key1").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_compact_aof_keeps_last_set_and_honors_delete() {
+        let temp_dir = TempDir::new().unwrap();
+        let aof_path = temp_dir.path().join("mappy.aof");
+        let entries = [
+            AOFEntry::Set {
+                key: "live".to_string(),
+                value: b"first".to_vec(),
+            },
+            AOFEntry::Set {
+                key: "dead".to_string(),
+                value: b"gone".to_vec(),
+            },
+            AOFEntry::Delete {
+                key: "dead".to_string(),
+            },
+            AOFEntry::Set {
+                key: "live".to_string(),
+                value: b"second".to_vec(),
+            },
+        ];
+        let body = entries
+            .iter()
+            .map(|entry| serde_json::to_string(entry).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&aof_path, format!("{body}\n")).unwrap();
+
+        let report = compact_aof(&aof_path, CompactOptions::default()).unwrap();
+        assert_eq!(report.records_read, 4);
+        assert_eq!(report.records_written, 1);
+        assert_eq!(report.keys_retained, 1);
+        assert_eq!(report.tombstones_dropped, 1);
+        assert!(report.output_bytes < report.input_bytes);
+        assert!(aof_path.with_extension("aof.pre-compact").exists());
+
+        let storage = AOFStorage::new(StorageConfig {
+            data_dir: temp_dir.path().to_string_lossy().to_string(),
+            sync_interval: 1,
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(storage.get("live").await.unwrap(), Some(b"second".to_vec()));
+        assert_eq!(storage.get("dead").await.unwrap(), None);
+    }
+
+    #[test]
+    fn test_compact_aof_rejects_malformed_line_without_touching_original() {
+        let temp_dir = TempDir::new().unwrap();
+        let aof_path = temp_dir.path().join("mappy.aof");
+        let body = "not json\n";
+        std::fs::write(&aof_path, body).unwrap();
+
+        let error = compact_aof(&aof_path, CompactOptions::default()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Failed to parse AOF entry at byte 0")
+        );
+        assert_eq!(std::fs::read_to_string(&aof_path).unwrap(), body);
+        assert!(!aof_path.with_extension("aof.pre-compact").exists());
     }
 
     #[tokio::test]
