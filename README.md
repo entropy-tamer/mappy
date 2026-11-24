@@ -2,7 +2,7 @@
 
 ![A red fox in a forest, holding a map divided into rectangular sections. The word MAPPY is drawn in large orange letters.](docs/mappy_header_text.webp)
 
-Mappy is a Rust implementation of **maplets**, the approximate key-value structure described by Bender, Conway, Farach-Colton, Johnson, and Pandey in *Time To Replace Your Filter: How Maplets Simplify System Design*. A maplet keeps a fingerprint of each key alongside its value, at `O(log 1/ε + v)` bits per item for false-positive rate ε and value size v; a Bloom filter needs `O(log 1/ε)` bits for the key alone, so the extra cost is the value. Reads are fast and usually exact; when two fingerprints collide, the value returned is the true value combined with the colliding values through an associative operator the application supplies. For a counter the answer can only be too large, for a set it can only be a superset, and for a maximum it can only be an upper bound. That is the one-sided error the paper promises, and it is why an approximate structure can still answer value queries.
+Mappy is a Rust implementation of **maplets**, the approximate key-value structure described by Bender, Conway, Farach-Colton, Johnson and Pandey in *Time To Replace Your Filter: How Maplets Simplify System Design*. A maplet keeps a fingerprint of each key alongside its value, at `O(log 1/ε + v)` bits per item for false-positive rate ε and value size v; a Bloom filter needs `O(log 1/ε)` bits for the key alone, so the extra cost is the value. Reads are fast and usually exact; when two fingerprints collide, the value returned is the true value combined with the colliding values through an associative operator the application supplies. For a counter the value can only be too large; for a set it can only be a superset; for a maximum it can only be an upper bound. That is the one-sided error the paper promises, and it is why an approximate structure can still answer value queries.
 
 The rest of this file covers the workspace, the two library entry points, the network services, and the places where the code has moved ahead of the older documentation.
 
@@ -38,7 +38,7 @@ Operations take `Arc<Self>` and are asynchronous because the filter and the valu
 
 ## The engine
 
-Most applications want the `Engine`; the bare maplet is the lower-level piece. The engine stores exact bytes in a storage backend and uses the maplet as a membership prefilter, so `get` returns `None` as soon as the filter says no and only reaches storage on a maybe. It also adds TTL, persistence, and statistics.
+Most applications want the `Engine`; the bare maplet is the lower-level piece. The engine stores exact bytes in a storage backend and uses the maplet as a membership prefilter, so `get` returns `None` as soon as the filter says no and only reaches storage on a maybe. It also adds TTL, persistence and statistics.
 
 ```rust
 use mappy_core::{Engine, EngineConfig};
@@ -53,7 +53,7 @@ async fn store_a_value() -> mappy_core::MapletResult<()> {
 }
 ```
 
-`PersistenceMode` selects how much durability you want: `Memory` keeps everything in RAM, `Disk` uses Sled, `AOF` appends writes to a file, and `Hybrid` combines an in-memory cache with an append-only log. On startup the engine rebuilds the maplet from persistent storage so membership survives a restart. `expire` and `ttl` add per-key lifetimes, with a background cleanup task.
+`PersistenceMode` selects how much durability you want: `Memory` keeps everything in RAM, `Disk` uses Sled, `AOF` appends writes to a file, and `Hybrid` combines an in-memory cache with an append-only log. On startup the engine rebuilds the maplet from persistent storage so membership survives a restart. `expire` and `ttl` add per-key lifetimes, with a background cleanup task. See [offline AOF compaction](docs/AOF_COMPACTION.md) when an append-only log needs to be rewritten.
 
 ## The network services
 
@@ -65,7 +65,7 @@ The server and daemon read their knobs from the environment: `MAPPY_CAPACITY`, `
 
 ## Python
 
-The Python module mirrors the two Rust entry points. `PyMaplet` is a `u64`-valued approximate map, and `PyEngine` exposes the durable engine with bytes values, TTL, persistence, and statistics.
+The Python module mirrors the two Rust entry points. `PyMaplet` is a `u64`-valued approximate map, and `PyEngine` exposes the durable engine with bytes values, TTL, persistence and statistics.
 
 ```python
 import mappy_python

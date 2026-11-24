@@ -1,0 +1,42 @@
+{
+  "README.md": {
+    "aphorism": 0.0,
+    "assumed_antithesis": 0.0,
+    "bold_lead_lines": 0.0,
+    "bold_spans": 0.9,
+    "claim_headings": 0.0,
+    "count_lead": 0.0,
+    "emdash": 0.0,
+    "load_bearing": 0.0,
+    "plus_tail": 0.0,
+    "rather_than": 0.0,
+    "retract_lead": 0.0,
+    "rhet_neg": 0.0,
+    "self_correct": 0.0,
+    "self_label": 0.0,
+    "stage_direction": 0.0,
+    "tellwords": 0.0,
+    "triad": 0.0,
+    "warrant_tail": 0.0
+  },
+  "docs/AOF_COMPACTION.md": {
+    "aphorism": 0.0,
+    "assumed_antithesis": 0.0,
+    "bold_lead_lines": 0.0,
+    "bold_spans": 0.0,
+    "claim_headings": 0.0,
+    "count_lead": 0.0,
+    "emdash": 0.0,
+    "load_bearing": 0.0,
+    "plus_tail": 0.0,
+    "rather_than": 0.0,
+    "retract_lead": 0.0,
+    "rhet_neg": 0.0,
+    "self_correct": 0.0,
+    "self_label": 0.0,
+    "stage_direction": 0.0,
+    "tellwords": 0.0,
+    "triad": 0.0,
+    "warrant_tail": 0.0
+  }
+}
