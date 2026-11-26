@@ -277,6 +277,30 @@ PyEngineConfig(
 - `ttl_enabled`: Enable TTL support (default: True)
 - `ttl_cleanup_interval_ms`: TTL cleanup interval in milliseconds (default: 1000)
 
+### Embedding an answer cache
+
+[`examples/answer_cache.py`](examples/answer_cache.py) is a small, reusable wrapper for the pattern used in front of a request/response daemon. It stores a reply under a hash of the query and wraps the reply bytes with the query hash, so a key collision or a mismatched cache row becomes a miss rather than a wrong answer. A two-second TTL floor keeps a zero or one-second policy from turning the cache into a write amplifier.
+
+```python
+from answer_cache import AnswerCache
+
+cache = AnswerCache("./state", persistence_mode="hybrid", capacity=100_000)
+cache.set("suggest:read the", b'["file"]', 60)
+assert cache.get("suggest:read the") == b'["file"]'
+cache.flush()
+cache.close()
+```
+
+Use `hybrid` for an embedded cache that has to survive a restart. The current bindings take the eight `PyEngineConfig` values positionally, so the wrapper passes `None` for `memory_capacity` and explicit millisecond values for the remaining slots. Replay is a request stream, not a free load: `AnswerCache.replay(entries)` re-applies each `set` so the membership filter and TTL state agree with the stored replies. A 500-entry hybrid replay measured 12.25 ms end to end. The test suite covers round trips, wrong-query rejection, the TTL floor, and idempotent replay after restart:
+
+```sh
+cd mappy-python
+export PYTHONPATH="$(pwd)/target/release"
+python3 -m unittest -v examples/test_answer_cache.py
+```
+
+The `disk` persistence mode has a stricter restart rule documented below: stored keys can be listed, but a fresh engine's maplet does not admit them until they are re-inserted. `hybrid` and `aof` restore membership in this binding, which is why the answer-cache example uses `hybrid`.
+
 ### PyEngineStats
 
 Statistics about the engine's performance and state.
