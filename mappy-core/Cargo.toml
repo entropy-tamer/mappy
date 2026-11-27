@@ -45,7 +45,6 @@ tokio = { workspace = true, optional = true }
 # Storage backends
 dashmap.workspace = true
 sled.workspace = true
-tempfile.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
