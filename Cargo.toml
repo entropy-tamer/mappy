@@ -31,7 +31,9 @@ serde_json = { git = "https://git.sly.so/kade/serde_json" }
 # which was HEAD at the time -- so the pin froze the crate at the branch tip rather
 # than pointing behind it, and cost nothing to resolve. Un-pinned 2026-10-02: same
 # commit today, but the crate now follows its default branch as the pact requires.
-ahash = { git = "https://git.sly.so/kade/ahash" }
+# mappy always seeds with 42; runtime RNG only adds the getrandom -> libc
+# edge and does not change fingerprints. no-rng keeps the fixed-seed contract.
+ahash = { git = "https://git.sly.so/kade/ahash", default-features = false, features = ["std", "no-rng"] }
 twox-hash = { git = "https://git.sly.so/kade/twox-hash" }
 
 # Error handling
@@ -70,7 +72,8 @@ async-channel = { git = "https://git.sly.so/kade/async-channel" }
 
 # Additional dependencies
 rand = { git = "https://git.sly.so/kade/rand" }
-tempfile = { git = "https://git.sly.so/kade/tempfile" }
+# Only TempDir is used; getrandom is unnecessary and reaches the broken libc edge.
+tempfile = { git = "https://git.sly.so/kade/tempfile", default-features = false }
 futures = { git = "https://git.sly.so/kade/futures-rs", package = "futures" }
 
 # Web server dependencies
